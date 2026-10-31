@@ -245,8 +245,8 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
   <!-- HUB -->
   <section id="v-hub" class="hub">
     <button class="game-card online-card" data-go="online"><span class="glyph" style="font-size:30px">⚡</span><span><h2>Play online</h2><p>Create a room, share the code, play from different phones and computers. Chat, reactions, all five games.</p></span></button>
-    <button class="game-card" data-go="duel"><span class="glyph" style="font-size:24px">#1 vs</span><span><h2>Close Control Duel</h2><p>2–4 players on one device take turns hunting the same secret player.</p></span></button>
-    <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Close Control</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
+    <button class="game-card" data-go="duel"><span class="glyph" style="font-size:24px">#1 vs</span><span><h2>Guess the Player Duel</h2><p>2–4 players on one device take turns hunting the same secret player.</p></span></button>
+    <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Guess the Player</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
     <button class="game-card" data-go="thirty"><span class="glyph">30</span><span><h2>30 Seconds</h2><p>One category, thirty seconds. Name as many players as you can. Up to 4 players.</p></span></button>
     <button class="game-card" data-go="letters"><span class="glyph">K</span><span><h2>Letter Rush</h2><p>Name players whose first name or surname starts with the letter. Beat the clock.</p></span></button>
     <button class="game-card" data-go="chain"><span class="glyph" style="font-size:26px">O→O</span><span><h2>Name Chain</h2><p>Ronaldo ends in O, so Onana is next. Keep the chain alive against the CPU or friends.</p></span></button>
@@ -259,7 +259,7 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
   <!-- CLOSE CONTROL -->
   <section id="v-close" hidden>
     <div class="backbar"><button class="btn ghost" data-go="">← All games</button><span class="icons"><button class="icon-btn" id="helpBtn">How to play</button><button class="icon-btn" id="statsBtn">Stats</button></span></div>
-    <h2 class="view-title">Close <span style="color:var(--pitch)">Control</span></h2>
+    <h2 class="view-title">Guess the <span style="color:var(--pitch)">Player</span></h2>
     <p class="lede">Find the secret footballer · <span id="poolSize">7,208</span> players ranked by similarity</p>
 
   <div class="tabs" role="tablist">
@@ -962,7 +962,7 @@ setTimeout(route,0);
 </script>
 <script>
 (function(){
-/* ---------- Close Control (unchanged game logic, scoped) ---------- */
+/* ---------- Guess the Player (formerly Close Control; game logic scoped) ---------- */
 const RAWD = JSON.parse(document.getElementById("ccdata").textContent);
 const REGION = {UEFA:"Europe",CONMEBOL:"South America",CAF:"Africa",AFC:"Asia",CONCACAF:"North & Central America",OFC:"Oceania","?":"somewhere"};
 const POSC = ["GK","CB","FB","DM","CM","AM","W","ST"];
@@ -1298,7 +1298,7 @@ function share(){
   const sq=r=>r===1?"⚽":r<=10?"🟥":r<=50?"🟧":r<=250?"🟨":r<=1000?"🟦":"⬜";
   const ranks=G().map(id=>ctx.ranks[id]);
   const shown=ranks.length>24?ranks.slice(0,11).concat(["…"],ranks.slice(-12)):ranks;
-  const head=game.kind==="daily"?`Close Control #${puzzleNo(game.date)}`:"Close Control · Unlimited";
+  const head=game.kind==="daily"?`Guess the Player #${puzzleNo(game.date)}`:"Guess the Player · Unlimited";
   const line=game.status==="won"?`Found in ${ranks.length} guesses, ${game.hints.length} hints`:`Gave up after ${ranks.length} guesses`;
   const txt=`${head}\n${line}\n${shown.map(r=>r==="…"?"…":sq(r)).join("")}`;
   const done=()=>{$("shareMsg").textContent="Copied. Paste it anywhere.";};

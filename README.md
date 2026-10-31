@@ -6,13 +6,13 @@ Five free football games, built on 7,208 real players. Play **online with friend
 
 | Game | How it works |
 |---|---|
-| **Close Control** | Find the secret footballer. Every guess is ranked by how similar it is (nationality, clubs, teammates, leagues, position, age). Daily match + unlimited. |
+| **Guess the Player** | Find the secret footballer. Every guess is ranked by how similar it is (nationality, clubs, teammates, leagues, position, age). Daily match + unlimited. |
 | **30 Seconds** | One category ("Played for Chelsea and Inter"), 30 seconds, name as many players as you can. 1–4 players. |
 | **Letter Rush** | Name players whose first name or surname starts with a letter before the clock runs out. |
 | **Name Chain** | Each name starts with the last letter of the previous one (Cristiano Ronaldo → Onana → …). Vs CPU, pass & play, or solo. |
 | **Link Up** | A card game: play a card by naming a player who links it to the one on the table (Man United → Real Madrid: Cristiano Ronaldo). Clubs, nations, leagues, coaches, Ballon d'Or, Champions League. |
 
-Plus **Close Control Duel**: 2–4 players on one device take turns hunting the same secret player.
+Plus **Guess the Player Duel**: 2–4 players on one device take turns hunting the same secret player.
 
 ## Online play
 
@@ -20,7 +20,7 @@ Plus **Close Control Duel**: 2–4 players on one device take turns hunting the 
 - **Create a room** and share the 5-letter code or the invite link (`…/#join-ABCDE`). Friends join from any phone or computer.
 - Every room has a **chat** and **emoji reactions** that float across everyone's screen.
 - All five games work online:
-  - **Close Control**: a live race on the same secret player, with a leaderboard.
+  - **Guess the Player**: two modes. **Race**: unlimited guesses each, first to find the secret player wins. **Team**: take turns on one shared list; each turn is timed and passes to the next player if time runs out.
   - **30 Seconds / Letter Rush**: everyone plays at once, and answers nobody else gave score double.
   - **Name Chain**: turn by turn.
   - **Link Up**: private hands, and CPUs can fill empty seats.
