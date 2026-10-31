@@ -11,4 +11,8 @@ head = '''<!doctype html>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}</style>
 '''
 i = s.index('<div class="wrap">')
-open(sys.argv[2], 'w').write(head + s[:i] + '</head>\n<body>\n' + s[i:] + '\n</body>\n</html>\n')
+tail = '''
+<script src="firebase-config.js"></script>
+<script src="online.js"></script>
+'''
+open(sys.argv[2], 'w').write(head + s[:i] + '<link rel="stylesheet" href="online.css">\n</head>\n<body>\n' + s[i:] + tail + '</body>\n</html>\n')
