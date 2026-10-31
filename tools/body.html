@@ -1,0 +1,482 @@
+<style>
+.meta .selects{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.result .career{display:flex;flex-wrap:wrap;gap:4px 6px}
+.result .career span{background:rgba(255,255,255,.14);border-radius:6px;padding:2px 8px;font-family:var(--label);font-size:14px;letter-spacing:.02em}
+.result .career span i{font-style:normal;opacity:.75;margin-left:4px;font-variant-numeric:tabular-nums}
+.chip.mate{background:var(--hot);border-color:var(--hot);color:#fff}
+.near .nm{font-weight:600}
+.loading{color:var(--muted);font-size:14px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Close <span>Control</span></h1>
+      <p>Find the secret footballer · <span id="poolSize">7,000+</span> players ranked</p>
+    </div>
+    <div class="icons">
+      <button class="icon-btn" id="helpBtn">How to play</button>
+      <button class="icon-btn" id="statsBtn">Stats</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabDaily" aria-selected="true">Daily match</button>
+    <button class="tab" role="tab" id="tabFree" aria-selected="false">Unlimited</button>
+  </div>
+
+  <div class="meta">
+    <span id="metaLeft"></span>
+    <span id="metaRight"></span>
+  </div>
+
+  <div class="search">
+    <input id="guess" type="text" autocomplete="off" spellcheck="false" placeholder="Type a player's name…" aria-label="Guess a player" aria-autocomplete="list" aria-controls="suggest">
+    <div class="suggest" id="suggest" role="listbox" hidden></div>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="btn" id="hCloser">Closer player<span class="ct" id="hCloserCt"></span></button>
+    <button class="btn" id="hPos">Position</button>
+    <button class="btn" id="hEra">Decade</button>
+    <button class="btn" id="hRegion">Region</button>
+    <button class="btn" id="hClub">A club</button>
+    <button class="btn ghost" id="giveUp">Give up</button>
+  </div>
+  <div class="giveup-confirm" id="giveUpConfirm" hidden>
+    <span>Reveal the answer and end this round?</span>
+    <button class="btn primary" id="giveUpYes">Reveal</button>
+    <button class="btn ghost" id="giveUpNo">Keep playing</button>
+  </div>
+  <div class="hintbar" id="hintNotes"></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
+
+  <div id="resultSlot"></div>
+
+  <div class="section-label"><span id="listLabel">Your guesses</span><span id="bestLabel"></span></div>
+  <div class="list" id="list"><div class="loading">Loading players…</div></div>
+  <div class="legend">
+    <span><i style="background:var(--hot)"></i>Top 10</span>
+    <span><i style="background:var(--warm)"></i>11–50</span>
+    <span><i style="background:var(--mild)"></i>51–250</span>
+    <span><i style="background:var(--cool)"></i>251–1000</span>
+    <span><i style="background:var(--cold)"></i>1000+</span>
+  </div>
+</div>
+
+<div class="overlay" id="helpDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <button class="btn ghost close" data-close>Close</button>
+    <h3 id="helpTitle">How to play</h3>
+    <p>There's a secret footballer. Guess any player and you'll see where they rank by similarity to the secret one, out of <b id="helpCount">7,000+</b> players. The secret player is <b>#1</b>. Guesses are unlimited.</p>
+    <ul>
+      <li>Similarity comes from <b>nationality</b>, <b>clubs played for</b>, <b>leagues</b>, <b>position</b> and <b>age</b>. Players who were at the same club in the same seasons count as <b>teammates</b> and get a big bonus.</li>
+      <li>A low number means you're close. If Rivaldo ranks in the top 10, the answer is probably Brazilian and played for Barcelona or Milan.</li>
+      <li>The <b>clue chips</b> under each guess show which kind of link matched. Solid means an exact match, outlined means near (same continent, same area of the pitch, a few years apart in age). A red <b>Teammate</b> chip means they shared a dressing room. Switch chips off below for a harder game.</li>
+      <li>Stuck? <b>Closer player</b> gives you a name ranked about halfway between your best guess and the answer. The other hints reveal one fact each. Hints are counted in your result.</li>
+      <li><b>Daily match</b> is the same star player for everyone each day. <b>Unlimited</b> deals a new player whenever you want, at the difficulty you choose.</li>
+    </ul>
+    <label class="toggle"><input type="checkbox" id="chipToggle" checked> Show clue chips on guesses</label>
+    <p class="msg">Player data: Transfermarkt via the open transfermarkt-datasets project (snapshot July 2026), plus hand-entered careers for legends who retired before 2012.</p>
+  </div>
+</div>
+
+<div class="overlay" id="statsDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+    <button class="btn ghost close" data-close>Close</button>
+    <h3 id="statsTitle">Your stats</h3>
+    <div class="section-label"><span>Daily match</span></div>
+    <div class="statgrid" id="dailyStats"></div>
+    <div class="section-label"><span>Unlimited</span></div>
+    <div class="statgrid" id="freeStats"></div>
+    <p class="msg">Stats are saved in this browser only.</p>
+  </div>
+</div>
+
+<script id="ccdata" type="application/json">__DATA__</script>
+<script>
+/* ---------- Data ---------- */
+const RAWD = JSON.parse(document.getElementById("ccdata").textContent);
+const REGION = {UEFA:"Europe",CONMEBOL:"South America",CAF:"Africa",AFC:"Asia",CONCACAF:"North & Central America",OFC:"Oceania","?":"somewhere"};
+const POSC = ["GK","CB","FB","DM","CM","AM","W","ST"];
+const GROUP = {GK:"Goalkeeper",CB:"Defender",FB:"Defender",DM:"Midfielder",CM:"Midfielder",AM:"Midfielder",W:"Forward",ST:"Forward"};
+const POSNAME = {GK:"Goalkeeper",CB:"Centre-back",FB:"Full-back",DM:"Defensive mid",CM:"Central mid",AM:"Attacking mid",W:"Winger",ST:"Striker"};
+const SPECIAL_FLAG = {ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",SCO:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",WAL:"🏴󠁧󠁢󠁷󠁬󠁳󠁿",NIR:"🇬🇧",XK:"🇽🇰"};
+const flagOf = code => !code ? "" : SPECIAL_FLAG[code] || String.fromCodePoint(...[...code].map(c=>0x1F1E6+c.charCodeAt(0)-65));
+const COUNTRIES = RAWD.countries.map(([name,code,conf])=>({name,flag:flagOf(code),conf}));
+const CLUBS = RAWD.clubs.map(([name,k])=>({name,k}));
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[øØ]/g,"o").replace(/[ıİ]/g,"i").replace(/[łŁ]/g,"l").replace(/ß/g,"ss").replace(/[đĐ]/g,"d").toLowerCase();
+const PLAYERS = RAWD.players.map(([name,k,pi,born,tier,flat],id)=>{
+  const stints=[]; const clubs=new Map();
+  for(let i=0;i<flat.length;i+=3){
+    const c=flat[i], a=flat[i+1], b=flat[i+2];
+    stints.push({c,a,b});
+    if(!clubs.has(c)) clubs.set(c,[]);
+    clubs.get(c).push([a,b]);
+  }
+  const leagues=new Set(); clubs.forEach((_,c)=>{ if(CLUBS[c].k>=0) leagues.add(CLUBS[c].k); });
+  const key=norm(name);
+  return {id,name,k,pos:POSC[pi],born,tier,stints,clubs,leagues,key,parts:key.split(/[\s\-'.()]+/).filter(Boolean)};
+});
+const N = PLAYERS.length;
+const fmt = n => n.toLocaleString("en-US");
+
+/* ---------- Similarity ---------- */
+function overlap(ia,ib,a,b){
+  for(const [x0,x1] of ia) for(const [y0,y1] of ib){
+    if(x0===0||y0===0){ if(Math.abs(a.born-b.born)<=4) return true; continue; }
+    if(x0<=y1&&y0<=x1) return true;
+  }
+  return false;
+}
+function score(a,b){
+  let s=0;
+  if(a.k===b.k) s+=30; else if(COUNTRIES[a.k].conf===COUNTRIES[b.k].conf) s+=6;
+  const dy=Math.abs(a.born-b.born);
+  let shared=0, mates=0;
+  for(const [c,iv] of a.clubs){
+    const jv=b.clubs.get(c); if(!jv) continue;
+    s+= shared===0?24 : shared===1?14 : shared===2?8 : 4; shared++;
+    if(mates<2&&overlap(iv,jv,a,b)){ s+=10; mates++; }
+  }
+  let lg=0; for(const x of a.leagues) if(b.leagues.has(x)) lg++;
+  s+=Math.min(lg,3)*4;
+  if(a.pos===b.pos) s+=12; else if(GROUP[a.pos]===GROUP[b.pos]) s+=6;
+  if((a.pos==="GK")!==(b.pos==="GK")) s-=8;
+  s+=16*Math.max(0,1-dy/16);
+  return s;
+}
+function hashStr(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function rankFor(secret){
+  const arr=PLAYERS.map(p=>({p,s:p.id===secret.id?1e9:score(secret,p)+p.tier*-0.01,t:hashStr(p.name+secret.name)}));
+  arr.sort((x,y)=>y.s-x.s||x.t-y.t);
+  const ranks=new Int32Array(N); arr.forEach((o,i)=>ranks[o.p.id]=i+1);
+  return {ranks,order:arr.map(o=>o.p)};
+}
+function links(a,b){
+  const dy=Math.abs(a.born-b.born);
+  const shared=[], mates=[];
+  for(const [c,iv] of a.clubs){ const jv=b.clubs.get(c); if(!jv) continue; shared.push(c); if(overlap(iv,jv,a,b)) mates.push(c); }
+  let lg=false; for(const x of a.leagues) if(b.leagues.has(x)) {lg=true;break;}
+  return {
+    nation: a.k===b.k?2:COUNTRIES[a.k].conf===COUNTRIES[b.k].conf?1:0,
+    club: shared.length?2:0, shared, mates,
+    league: lg?2:0,
+    pos: a.pos===b.pos?2:GROUP[a.pos]===GROUP[b.pos]?1:0,
+    era: dy<=3?2:dy<=7?1:0
+  };
+}
+function whyText(a,b){
+  const L=links(a,b), out=[];
+  if(L.nation===2) out.push(COUNTRIES[a.k].name);
+  if(L.mates.length) out.push("teammates at "+L.mates.map(c=>CLUBS[c].name).join(", "));
+  const other=L.shared.filter(c=>!L.mates.includes(c));
+  if(other.length) out.push((L.mates.length?"also ":"")+other.slice(0,3).map(c=>CLUBS[c].name).join(", "));
+  if(!L.shared.length&&L.league) out.push("same league");
+  if(L.pos===2) out.push(POSNAME[a.pos].toLowerCase());
+  if(L.era===2) out.push("similar age");
+  return out.length?out.join(" · "):"loose link";
+}
+function careerText(p){
+  const st=[...p.stints].sort((x,y)=>(x.a||0)-(y.a||0));
+  const known=st.filter(s=>s.a), unknown=st.filter(s=>!s.a);
+  const out=known.map(s=>({n:CLUBS[s.c].name,y:s.a+"–"+(s.b>=2025&&s===known[known.length-1]?"":String(s.b+1).slice(-2))}));
+  unknown.forEach(s=>{ if(!known.some(k=>k.c===s.c)) out.push({n:CLUBS[s.c].name,y:""}); });
+  return out;
+}
+
+/* ---------- State ---------- */
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const puzzleNo=ds=>Math.floor((Date.parse(ds+"T00:00:00Z")-Date.parse("2026-01-01T00:00:00Z"))/864e5)+1;
+const DAILY_POOL=PLAYERS.filter(p=>p.tier===0&&p.clubs.size>=2);
+
+let settings=Object.assign({chips:true,era:"all",level:"1"},store.get("cc-settings",{}));
+let stats=store.get("cc-stats",{d:{played:0,won:0,streak:0,best:0,guesses:0,last:null},f:{played:0,won:0,guesses:0,hints:0}});
+let mode="daily", game=null, ctx=null, sugIdx=-1, sugList=[];
+const byName=new Map(PLAYERS.map(p=>[p.name,p]));
+const idOf=n=>{const p=byName.get(n);return p?p.id:-1;};
+
+function newDaily(){
+  const ds=todayStr();
+  const saved=store.get("cc-daily2-"+ds,null);
+  if(saved&&byName.has(saved.secret)) return saved;
+  const secret=DAILY_POOL[hashStr("cc-"+ds)%DAILY_POOL.length];
+  return {kind:"daily",date:ds,secret:secret.name,guesses:[],hints:[],status:"playing"};
+}
+function freePool(){
+  const lv=+settings.level;
+  return PLAYERS.filter(p=>p.tier<=lv&&p.clubs.size>=2&&(settings.era==="all"||(settings.era==="modern"?p.born>=1990:p.born<1990)));
+}
+function newFree(){
+  let pool=freePool(); if(!pool.length) pool=DAILY_POOL;
+  const prev=game&&game.kind==="free"?game.secret:"";
+  let s; do{ s=pool[Math.floor(Math.random()*pool.length)]; }while(pool.length>1&&s.name===prev);
+  return {kind:"free",secret:s.name,guesses:[],hints:[],status:"playing"};
+}
+function save(){ if(game.kind==="daily") store.set("cc-daily2-"+game.date,game); else store.set("cc-free2",game); }
+const S=()=>byName.get(game.secret);
+const G=()=>game.guesses.map(idOf).filter(i=>i>=0);
+function load(m){
+  mode=m;
+  $("tabDaily").setAttribute("aria-selected",m==="daily");
+  $("tabFree").setAttribute("aria-selected",m==="free");
+  if(m==="daily") game=newDaily();
+  else { const f=store.get("cc-free2",null); game=(f&&f.status==="playing"&&byName.has(f.secret))?f:newFree(); }
+  ctx=rankFor(S());
+  $("msg").textContent=""; $("giveUpConfirm").hidden=true;
+  render();
+}
+function reset(){ game=newFree(); save(); ctx=rankFor(S()); $("msg").textContent=""; render(); }
+
+/* ---------- Guessing ---------- */
+function guess(p){
+  if(game.status!=="playing") return;
+  if(game.guesses.includes(p.name)){ flash(p.name+" is already on your list at #"+fmt(ctx.ranks[p.id])+".",true); return; }
+  game.guesses.push(p.name);
+  $("msg").textContent="";
+  if(p.name===game.secret) finish(true);
+  save(); render();
+}
+function finish(won){
+  game.status=won?"won":"lost";
+  const n=game.guesses.length, h=game.hints.length;
+  if(game.kind==="daily"){
+    const d=stats.d; d.played++;
+    if(won){ d.won++; d.guesses+=n;
+      const y=new Date(Date.parse(game.date+"T00:00:00Z")-864e5).toISOString().slice(0,10);
+      d.streak=(d.last===y)?d.streak+1:1; d.best=Math.max(d.best,d.streak); d.last=game.date;
+    } else { d.streak=0; d.last=game.date; }
+  } else { const f=stats.f; f.played++; if(won){f.won++; f.guesses+=n; f.hints+=h;} }
+  store.set("cc-stats",stats);
+}
+function flash(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+
+/* ---------- Hints ---------- */
+function bestRank(){ return G().reduce((m,id)=>Math.min(m,ctx.ranks[id]),N+1); }
+function hintCloser(){
+  if(game.status!=="playing") return;
+  const best=bestRank();
+  if(best<=2){ flash("You're already as close as a hint can get you.",true); return; }
+  const target=Math.max(2,Math.floor(best/2));
+  const guessed=new Set(game.guesses);
+  // prefer a well-known name near the target rank
+  let pick=null;
+  for(const maxTier of [0,1,2]){
+    const lo=maxTier<2?Math.max(2,Math.floor(target/2)):2;
+    let bestD=Infinity;
+    for(let r=lo;r<best;r++){
+      const p=ctx.order[r-1]; if(guessed.has(p.name)||p.tier>maxTier) continue;
+      const d=Math.abs(r-target); if(d<bestD){bestD=d;pick=p;}
+    }
+    if(pick) break;
+  }
+  if(!pick) return;
+  game.hints.push("closer"); game.guesses.push(pick.name); save(); render();
+  flash("Hint: "+pick.name+" is #"+fmt(ctx.ranks[pick.id])+".");
+}
+function hintFact(kind){
+  if(game.status!=="playing"||game.hints.includes(kind)) return;
+  game.hints.push(kind); save(); render();
+}
+function hintClubName(){
+  const s=S(); const st=[...s.clubs.keys()];
+  return CLUBS[st[hashStr(s.name+"club")%st.length]].name;
+}
+
+/* ---------- Search ---------- */
+function search(q){
+  const n=norm(q.trim()); if(!n) return [];
+  const words=n.split(/\s+/).filter(Boolean);
+  const res=[];
+  for(const p of PLAYERS){
+    let ok=true, pre=0;
+    for(const w of words){
+      if(p.parts.some(x=>x.startsWith(w))) continue;
+      if(p.key.includes(w)){pre=1;continue;}
+      ok=false;break;
+    }
+    if(ok) res.push([pre*10+p.tier,p]);
+  }
+  res.sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name));
+  return res.slice(0,8).map(r=>r[1]);
+}
+function lastClub(p){ const st=p.stints.filter(s=>s.a); const s=st.length?st.reduce((m,x)=>x.a>m.a?x:m):p.stints[p.stints.length-1]; return s?CLUBS[s.c].name:""; }
+function showSug(){
+  const box=$("suggest"), q=$("guess").value;
+  sugList=search(q);
+  if(!q.trim()){ box.hidden=true; return; }
+  box.innerHTML="";
+  if(!sugList.length){ const d=document.createElement("div"); d.className="sug none"; d.textContent="No player by that name in the database"; box.appendChild(d); }
+  sugList.forEach((p,i)=>{
+    const b=document.createElement("button"); b.className="sug"; b.type="button"; b.setAttribute("role","option");
+    b.setAttribute("aria-selected",i===sugIdx);
+    const used=game.guesses.includes(p.name);
+    b.innerHTML=`<span class="n"></span><span class="d"></span>`;
+    b.querySelector(".n").textContent=p.name;
+    b.querySelector(".d").textContent=used?"Guessed · #"+fmt(ctx.ranks[p.id]):COUNTRIES[p.k].flag+" "+lastClub(p);
+    b.addEventListener("mousedown",e=>{e.preventDefault(); pick(p);});
+    box.appendChild(b);
+  });
+  box.hidden=false;
+}
+function pick(p){ $("guess").value=""; sugIdx=-1; $("suggest").hidden=true; guess(p); $("guess").focus(); }
+
+/* ---------- Render ---------- */
+function tone(r){ return r<=10?"--hot":r<=50?"--warm":r<=250?"--mild":r<=1000?"--cool":"--cold"; }
+function fillPct(r){ return Math.max(3,100*(1-Math.log(r)/Math.log(N))); }
+function chipHTML(L){
+  const c=(v,t,cls)=>`<span class="chip ${cls||(v===2?"on":v===1?"half":"")}">${t}</span>`;
+  return `<div class="chips">${c(L.nation,"Nation")}${L.mates.length?c(2,"Teammate","mate"):c(L.club,"Club")}${c(L.league,"League")}${c(L.pos,"Position")}${c(L.era,"Age")}</div>`;
+}
+function render(){
+  const secret=S(), playing=game.status==="playing";
+  $("poolSize").textContent=fmt(N); $("helpCount").textContent=fmt(N);
+  if(game.kind==="daily"){
+    $("metaLeft").innerHTML=`Match <b>#${puzzleNo(game.date)}</b> · ${game.date}`;
+  } else {
+    $("metaLeft").innerHTML=`<span class="selects"><select id="lvlSel" aria-label="Difficulty"><option value="0">Stars</option><option value="1">Well known</option><option value="2">Deep cuts</option></select><select id="eraSel" aria-label="Era"><option value="all">Any era</option><option value="modern">Born 1990+</option><option value="classic">Before 1990</option></select></span>`;
+    $("lvlSel").value=settings.level; $("eraSel").value=settings.era;
+    const onChange=()=>{ settings.level=$("lvlSel").value; settings.era=$("eraSel").value; store.set("cc-settings",settings);
+      if(game.guesses.length===0||game.status!=="playing") reset(); else flash("New settings apply from your next player."); };
+    $("lvlSel").onchange=onChange; $("eraSel").onchange=onChange;
+  }
+  $("metaRight").innerHTML=`<b>${game.guesses.length}</b> guesses · <b>${game.hints.length}</b> hints`;
+  $("guess").disabled=!playing;
+  $("hPos").disabled=game.hints.includes("pos");
+  $("hEra").disabled=game.hints.includes("era");
+  $("hRegion").disabled=game.hints.includes("region");
+  $("hClub").disabled=game.hints.includes("club");
+  const cc=game.hints.filter(h=>h==="closer").length; $("hCloserCt").textContent=cc?"×"+cc:"";
+  $("actions").hidden=!playing;
+
+  const notes=[];
+  if(game.hints.includes("pos")) notes.push(`Plays as a <b>${GROUP[secret.pos].toLowerCase()}</b>.`);
+  if(game.hints.includes("era")) notes.push(`Born in the <b>${Math.floor(secret.born/10)*10}s</b>.`);
+  if(game.hints.includes("region")) notes.push(`Represents a country in <b>${REGION[COUNTRIES[secret.k].conf]}</b>.`);
+  if(game.hints.includes("club")) notes.push(`Has played for <b></b>.`);
+  $("hintNotes").innerHTML=notes.map(n=>`<div class="hint-note">Hint: ${n}</div>`).join("");
+  if(game.hints.includes("club")){ const bs=$("hintNotes").querySelectorAll(".hint-note"); bs[bs.length-1].querySelector("b").textContent=hintClubName(); }
+
+  const slot=$("resultSlot"); slot.innerHTML="";
+  if(!playing){
+    const won=game.status==="won", n=game.guesses.length, h=game.hints.length;
+    const card=document.createElement("div"); card.className="result";
+    card.innerHTML=`<div class="eyebrow">${won?"Found in "+n+" guess"+(n===1?"":"es"):"Answer revealed"}</div>
+      <h2></h2>
+      <div class="facts"><span>${COUNTRIES[secret.k].flag} ${COUNTRIES[secret.k].name}</span><span>${POSNAME[secret.pos]}</span><span>Born ${secret.born}</span></div>
+      <div class="career"></div>
+      <div class="stats"><div><b>${n}</b><span>Guesses</span></div><div><b>${h}</b><span>Hints</span></div><div><b>${bestBefore()}</b><span>Best before answer</span></div></div>
+      <div class="actions"><button class="btn" id="shareBtn">Copy result</button>${game.kind==="daily"?'<button class="btn ghost" id="toFree">Play unlimited</button>':'<button class="btn ghost" id="again">New player</button>'}</div>
+      <div class="msg" id="shareMsg" style="color:inherit;opacity:.85"></div>`;
+    card.querySelector("h2").textContent=secret.name;
+    const car=card.querySelector(".career");
+    careerText(secret).forEach(c=>{ const s=document.createElement("span"); s.textContent=c.n; if(c.y){const i=document.createElement("i"); i.textContent=c.y; s.appendChild(i);} car.appendChild(s); });
+    slot.appendChild(card);
+    $("shareBtn").onclick=share;
+    if($("toFree")) $("toFree").onclick=()=>load("free");
+    if($("again")) $("again").onclick=reset;
+  }
+
+  const list=$("list"); list.innerHTML="";
+  const ids=G(), best=bestRank();
+  $("bestLabel").textContent=ids.length?"Best #"+fmt(best):"";
+  $("listLabel").textContent=playing?"Your guesses, closest first":"Closest players to "+secret.name;
+  if(!ids.length){
+    list.innerHTML=`<div class="empty"><span>Start with any player. Each guess shows how close it is to the secret player, from #${fmt(N)} (no link at all) to #1 (the answer). For example, if the answer were Ronaldinho:</span>
+      <div class="ex"><span>Rivaldo · Brazil, Barcelona, Milan</span><span style="color:var(--hot)">#${exampleRank("Rivaldo")}</span><span>Jordan Pickford · nothing in common</span><span style="color:var(--cold)">#${exampleRank("Jordan Pickford")}</span></div></div>`;
+  }
+  if(playing){
+    const last=ids[ids.length-1];
+    const sorted=[...ids].sort((a,b)=>ctx.ranks[a]-ctx.ranks[b]);
+    const ordered=ids.length>1?[last,...sorted]:sorted;
+    ordered.forEach((id,i)=>list.appendChild(rowEl(PLAYERS[id],secret,i===0&&ids.length>1)));
+  } else {
+    const wrap=document.createElement("div"); wrap.className="nearest";
+    const gs=new Set(game.guesses);
+    ctx.order.slice(1,16).forEach(p=>{
+      const d=document.createElement("div"); d.className="near"+(gs.has(p.name)?" guessed":"");
+      const r=ctx.ranks[p.id];
+      d.innerHTML=`<span class="r" style="color:var(${tone(r)})">${r}</span><div><div class="nm"></div><div class="why"></div></div>`;
+      d.querySelector(".nm").textContent=p.name+(gs.has(p.name)?"  ✓ guessed":"");
+      d.querySelector(".why").textContent=whyText(secret,p);
+      wrap.appendChild(d);
+    });
+    list.appendChild(wrap);
+    if(ids.length){
+      const lbl=document.createElement("div"); lbl.className="section-label"; lbl.innerHTML="<span>Your guesses</span>"; list.appendChild(lbl);
+      [...ids].sort((a,b)=>ctx.ranks[a]-ctx.ranks[b]).forEach(id=>list.appendChild(rowEl(PLAYERS[id],secret,false)));
+    }
+  }
+}
+function rowEl(p,secret,latest){
+  const r=ctx.ranks[p.id], row=document.createElement("div");
+  row.className="row"+(latest?" latest":"");
+  const showChips=settings.chips&&p.id!==secret.id;
+  row.innerHTML=`<span class="fill" style="width:${fillPct(r)}%;background:var(${tone(r)})"></span>
+    <div class="who"><span class="nm"></span>${showChips?chipHTML(links(secret,p)):""}</div>
+    <span class="rk" style="color:var(${tone(r)})">${fmt(r)}</span>`;
+  row.querySelector(".nm").textContent=(latest?"Latest · ":"")+p.name;
+  if(r===1) row.querySelector(".fill").style.opacity=".55";
+  return row;
+}
+function exampleRank(name){
+  const r=byName.get("Ronaldinho"), g=byName.get(name);
+  if(!r||!g) return "?"; if(!exampleRank.c) exampleRank.c=rankFor(r);
+  return fmt(exampleRank.c.ranks[g.id]);
+}
+function bestBefore(){ const rs=G().filter(id=>PLAYERS[id].name!==game.secret).map(id=>ctx.ranks[id]); return rs.length?"#"+fmt(Math.min(...rs)):"–"; }
+function share(){
+  const sq=r=>r===1?"⚽":r<=10?"🟥":r<=50?"🟧":r<=250?"🟨":r<=1000?"🟦":"⬜";
+  const ranks=G().map(id=>ctx.ranks[id]);
+  const shown=ranks.length>24?ranks.slice(0,11).concat(["…"],ranks.slice(-12)):ranks;
+  const head=game.kind==="daily"?`Close Control #${puzzleNo(game.date)}`:"Close Control · Unlimited";
+  const line=game.status==="won"?`Found in ${ranks.length} guesses, ${game.hints.length} hints`:`Gave up after ${ranks.length} guesses`;
+  const txt=`${head}\n${line}\n${shown.map(r=>r==="…"?"…":sq(r)).join("")}`;
+  const done=()=>{$("shareMsg").textContent="Copied. Paste it anywhere.";};
+  const fail=()=>{$("shareMsg").textContent=txt;};
+  try{ navigator.clipboard.writeText(txt).then(done,fail); }catch(e){ fail(); }
+}
+
+/* ---------- Stats dialog ---------- */
+function renderStats(){
+  const d=stats.d,f=stats.f;
+  const cell=(v,l)=>`<div><b>${v}</b><span>${l}</span></div>`;
+  $("dailyStats").innerHTML=cell(d.played,"Played")+cell(d.played?Math.round(100*d.won/d.played)+"%":"–","Solved")+cell(d.streak,"Streak")+cell(d.won?(d.guesses/d.won).toFixed(1):"–","Avg guesses");
+  $("freeStats").innerHTML=cell(f.played,"Played")+cell(f.won,"Solved")+cell(f.won?(f.guesses/f.won).toFixed(1):"–","Avg guesses")+cell(f.won?(f.hints/f.won).toFixed(1):"–","Avg hints");
+}
+
+/* ---------- Wiring ---------- */
+$("guess").addEventListener("input",()=>{sugIdx=0; showSug(); if(!sugList.length) sugIdx=-1;});
+$("guess").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){e.preventDefault(); if(sugList.length){sugIdx=(sugIdx+1)%sugList.length; showSug();}}
+  else if(e.key==="ArrowUp"){e.preventDefault(); if(sugList.length){sugIdx=(sugIdx-1+sugList.length)%sugList.length; showSug();}}
+  else if(e.key==="Enter"){e.preventDefault(); const p=sugList[sugIdx>=0?sugIdx:0];
+    if(p) pick(p); else if($("guess").value.trim()) flash("That player isn't in the database. Pick one from the list.",true);}
+  else if(e.key==="Escape"){ $("suggest").hidden=true; }
+});
+$("guess").addEventListener("blur",()=>setTimeout(()=>$("suggest").hidden=true,120));
+$("tabDaily").onclick=()=>load("daily");
+$("tabFree").onclick=()=>load("free");
+$("hCloser").onclick=hintCloser;
+$("hPos").onclick=()=>hintFact("pos");
+$("hEra").onclick=()=>hintFact("era");
+$("hRegion").onclick=()=>hintFact("region");
+$("hClub").onclick=()=>hintFact("club");
+$("giveUp").onclick=()=>{$("giveUpConfirm").hidden=false;};
+$("giveUpNo").onclick=()=>{$("giveUpConfirm").hidden=true;};
+$("giveUpYes").onclick=()=>{$("giveUpConfirm").hidden=true; $("msg").textContent=""; finish(false); save(); render();};
+const open=id=>{$(id).hidden=false;};
+$("helpBtn").onclick=()=>open("helpDlg");
+$("statsBtn").onclick=()=>{renderStats(); open("statsDlg");};
+document.querySelectorAll(".overlay").forEach(o=>{
+  o.addEventListener("click",e=>{ if(e.target===o||e.target.hasAttribute("data-close")) o.hidden=true; });
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".overlay").forEach(o=>o.hidden=true); });
+$("chipToggle").checked=settings.chips;
+$("chipToggle").onchange=e=>{settings.chips=e.target.checked; store.set("cc-settings",settings); render();};
+
+load("daily");
+if(!store.get("cc-seen-help",false)){ open("helpDlg"); store.set("cc-seen-help",true); }
+</script>

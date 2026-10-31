@@ -1,0 +1,1214 @@
+<style>
+.meta .selects{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.result .career{display:flex;flex-wrap:wrap;gap:4px 6px}
+.result .career span{background:rgba(255,255,255,.14);border-radius:6px;padding:2px 8px;font-family:var(--label);font-size:14px;letter-spacing:.02em}
+.result .career span i{font-style:normal;opacity:.75;margin-left:4px;font-variant-numeric:tabular-nums}
+.chip.mate{background:var(--hot);border-color:var(--hot);color:#fff}
+.near .nm{font-weight:600}
+.loading{color:var(--muted);font-size:14px}
+</style>
+
+<style>
+[hidden]{display:none!important}
+.wrap{max-width:760px}
+.brand p a{color:inherit}
+a.icon-btn{color:var(--ink)}
+#v-close,#v-timed,#v-chain,#v-linkup{display:flex;flex-direction:column;gap:14px}
+#hintNotes:empty,#resultSlot:empty{display:none}
+.hub{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:560px){.hub{grid-template-columns:1fr}}
+.game-card{display:grid;grid-template-columns:76px 1fr;gap:14px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px;cursor:pointer}
+.game-card:hover{border-color:var(--pitch)}
+.game-card .glyph{width:76px;height:76px;border-radius:12px;background:var(--pitch);color:var(--pitch-ink);display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:38px;line-height:1;overflow:hidden}
+.game-card h2{font-family:var(--display);font-weight:800;font-size:26px;text-transform:uppercase;margin:0;line-height:1}
+.game-card p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.glyph .mini{display:flex;gap:2px}
+.glyph .mini span{width:18px;height:26px;border-radius:4px;border:2px solid var(--pitch-ink)}
+.backbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.view-title{font-family:var(--display);font-weight:900;font-size:clamp(32px,8vw,46px);text-transform:uppercase;line-height:.9;margin:0}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>span{font-family:var(--label);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 12px;font-family:var(--label);font-weight:600;font-size:15px;letter-spacing:.03em}
+.seg button[aria-pressed="true"]{background:var(--pitch);border-color:var(--pitch);color:var(--pitch-ink)}
+.letters{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
+.letters button{padding:6px 0}
+.names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.names input,.answer input{width:100%;height:40px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 10px}
+.go{align-self:flex-start;font-size:16px;padding:10px 18px}
+.prompt{background:var(--pitch);color:var(--pitch-ink);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.prompt .who{font-family:var(--label);letter-spacing:.1em;text-transform:uppercase;font-size:13px;opacity:.85}
+.prompt .cat{font-family:var(--display);font-weight:800;font-size:clamp(26px,6vw,36px);line-height:1;text-transform:uppercase;text-wrap:balance}
+.clock{display:flex;align-items:center;gap:12px}
+.clock b{font-family:var(--display);font-weight:900;font-size:44px;line-height:1;font-variant-numeric:tabular-nums;min-width:2.2ch}
+.clock .bar{flex:1;height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.clock .bar i{display:block;height:100%;background:var(--pitch);transition:width .1s linear}
+.clock.low b{color:var(--hot)} .clock.low .bar i{background:var(--hot)}
+.answer{display:flex;gap:8px}
+.answer input{height:52px;font-size:18px;border:2px solid var(--ink);background:var(--surface);border-radius:12px;padding:0 14px}
+.answer input:disabled{opacity:.5;border-color:var(--line)}
+.answer .btn{flex:none}
+.feedback{min-height:22px;font-size:15px}
+.feedback.ok{color:var(--pitch)} .feedback.err{color:var(--hot)}
+.tally{display:flex;flex-wrap:wrap;gap:6px}
+.tag{border-radius:999px;padding:3px 10px;font-size:14px;background:var(--sunk);border:1px solid var(--line)}
+.tag.ok{background:var(--pitch);color:var(--pitch-ink);border-color:var(--pitch)}
+.tag.rare::after{content:" ★";opacity:.8}
+.score-big{font-family:var(--display);font-weight:900;font-size:64px;line-height:.9}
+.standings{display:flex;flex-direction:column;gap:6px}
+.standings div{display:flex;justify-content:space-between;padding:10px 14px;border-radius:10px;background:var(--sunk);font-weight:600}
+.standings div:first-child{background:var(--pitch);color:var(--pitch-ink)}
+.standings b{font-family:var(--display);font-size:24px}
+.cover{position:fixed;inset:0;z-index:40;background:var(--pitch);color:var(--pitch-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+.cover h3{font-family:var(--display);font-weight:900;font-size:clamp(36px,10vw,64px);text-transform:uppercase;margin:0;line-height:.9}
+.cover .btn{background:var(--pitch-ink);color:var(--pitch);border-color:transparent;font-size:18px;padding:12px 22px}
+/* chain */
+.chainletter{display:flex;align-items:center;gap:14px}
+.chainletter .big{width:72px;height:72px;border-radius:14px;background:var(--pitch-ink);color:var(--pitch);display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:48px;text-transform:uppercase;flex:none}
+.history{display:flex;flex-direction:column;gap:4px}
+.history div{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:9px;background:var(--sunk);font-size:15px}
+.history div span:last-child{font-family:var(--label);color:var(--muted);letter-spacing:.04em;white-space:nowrap}
+.history mark{background:none;color:var(--hot);font-weight:700}
+.seats{display:flex;flex-wrap:wrap;gap:6px}
+.seat{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-family:var(--label);font-weight:600;letter-spacing:.03em;background:var(--surface)}
+.seat.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seat.out{opacity:.4;text-decoration:line-through}
+/* link up cards */
+:root{--c-club:#d2402a;--c-nation:#2463c7;--c-league:#16884a;--c-legend:#c08400;--c-wild:#1c2620;--card-ink:#fff}
+.table{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+@media (max-width:520px){.table{grid-template-columns:1fr}}
+.pile{display:flex;gap:10px;align-items:center}
+.card{width:112px;height:160px;border-radius:12px;padding:8px;display:flex;flex-direction:column;justify-content:space-between;color:var(--card-ink);background:var(--cc);border:3px solid var(--surface);box-shadow:0 2px 0 var(--line),0 6px 14px rgba(0,0,0,.18);position:relative;text-align:left;flex:none}
+.card .t{font-family:var(--label);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
+.card .n{font-family:var(--display);font-weight:800;font-size:19px;line-height:.95;text-transform:uppercase;overflow-wrap:anywhere;background:rgba(255,255,255,.16);border-radius:50%/40%;padding:16px 6px;text-align:center;transform:rotate(-8deg)}
+.card .n.small{font-size:16px}
+.card .f{font-size:20px;text-align:right}
+.card.back{background:repeating-linear-gradient(45deg,var(--pitch) 0 8px,color-mix(in srgb,var(--pitch) 80%,#000) 8px 16px)}
+.card.back .n{background:none;transform:none;font-size:15px}
+button.card{cursor:pointer}
+button.card:hover{transform:translateY(-6px)}
+button.card[aria-pressed="true"]{transform:translateY(-12px);outline:3px solid var(--ink);outline-offset:2px}
+button.card.dim{filter:saturate(.35) brightness(.9)}
+.hand{display:flex;gap:8px;overflow-x:auto;padding:16px 4px 8px;scroll-snap-type:x proximity}
+.hand .card{scroll-snap-align:start;width:96px;height:138px}
+.hand .card .n{font-size:16px;padding:12px 4px}
+.opp{display:flex;flex-wrap:wrap;gap:8px}
+.opp .seat b{font-family:var(--display);margin-left:6px}
+.colorpick{display:flex;gap:8px;flex-wrap:wrap}
+.colorpick button{width:64px;height:44px;border-radius:10px;border:2px solid var(--surface);background:var(--cc);color:#fff;font-family:var(--label);font-weight:700;font-size:12px;text-transform:uppercase}
+.log{display:flex;flex-direction:column;gap:3px;font-size:14px;color:var(--muted);max-height:180px;overflow-y:auto}
+.log b{color:var(--ink);font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){button.card:hover,button.card[aria-pressed="true"]{transform:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Matchday <span>Arcade</span></h1>
+      <p>Five football games · <span class="pcount">7,208</span> players</p>
+    </div>
+  </header>
+
+  <!-- HUB -->
+  <section id="v-hub" class="hub">
+    <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Close Control</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
+    <button class="game-card" data-go="thirty"><span class="glyph">30</span><span><h2>30 Seconds</h2><p>One category, thirty seconds. Name as many players as you can. Up to 4 players.</p></span></button>
+    <button class="game-card" data-go="letters"><span class="glyph">K</span><span><h2>Letter Rush</h2><p>Name players whose first name or surname starts with the letter. Beat the clock.</p></span></button>
+    <button class="game-card" data-go="chain"><span class="glyph" style="font-size:26px">O→O</span><span><h2>Name Chain</h2><p>Ronaldo ends in O, so Onana is next. Keep the chain alive against the CPU or friends.</p></span></button>
+    <button class="game-card" data-go="linkup"><span class="glyph"><span class="mini"><span style="background:var(--c-club)"></span><span style="background:var(--c-nation)"></span><span style="background:var(--c-legend)"></span></span></span><span><h2>Link Up</h2><p>A card game. Play Real Madrid on Man United by naming a player who played for both.</p></span></button>
+  </section>
+
+  <!-- CLOSE CONTROL -->
+  <section id="v-close" hidden>
+    <div class="backbar"><button class="btn ghost" data-go="">← All games</button><span class="icons"><button class="icon-btn" id="helpBtn">How to play</button><button class="icon-btn" id="statsBtn">Stats</button></span></div>
+    <h2 class="view-title">Close <span style="color:var(--pitch)">Control</span></h2>
+    <p class="lede">Find the secret footballer · <span id="poolSize">7,208</span> players ranked by similarity</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabDaily" aria-selected="true">Daily match</button>
+    <button class="tab" role="tab" id="tabFree" aria-selected="false">Unlimited</button>
+  </div>
+
+  <div class="meta">
+    <span id="metaLeft"></span>
+    <span id="metaRight"></span>
+  </div>
+
+  <div class="search">
+    <input id="guess" type="text" autocomplete="off" spellcheck="false" placeholder="Type a player's name…" aria-label="Guess a player" aria-autocomplete="list" aria-controls="suggest">
+    <div class="suggest" id="suggest" role="listbox" hidden></div>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="btn" id="hCloser">Closer player<span class="ct" id="hCloserCt"></span></button>
+    <button class="btn" id="hPos">Position</button>
+    <button class="btn" id="hEra">Decade</button>
+    <button class="btn" id="hRegion">Region</button>
+    <button class="btn" id="hClub">A club</button>
+    <button class="btn ghost" id="giveUp">Give up</button>
+  </div>
+  <div class="giveup-confirm" id="giveUpConfirm" hidden>
+    <span>Reveal the answer and end this round?</span>
+    <button class="btn primary" id="giveUpYes">Reveal</button>
+    <button class="btn ghost" id="giveUpNo">Keep playing</button>
+  </div>
+  <div class="hintbar" id="hintNotes"></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
+
+  <div id="resultSlot"></div>
+
+  <div class="section-label"><span id="listLabel">Your guesses</span><span id="bestLabel"></span></div>
+  <div class="list" id="list"><div class="loading">Loading players…</div></div>
+  <div class="legend">
+    <span><i style="background:var(--hot)"></i>Top 10</span>
+    <span><i style="background:var(--warm)"></i>11–50</span>
+    <span><i style="background:var(--mild)"></i>51–250</span>
+    <span><i style="background:var(--cool)"></i>251–1000</span>
+    <span><i style="background:var(--cold)"></i>1000+</span>
+  </div>
+  </section>
+
+  <!-- TIMED NAMING (30 Seconds + Letter Rush share this engine) -->
+  <section id="v-timed" hidden>
+    <div class="backbar"><button class="btn ghost" data-go="">← All games</button><span class="note" id="t-progress"></span></div>
+    <h2 class="view-title" id="t-title"></h2>
+    <p class="lede" id="t-lede"></p>
+    <div class="panel" id="t-setup"></div>
+    <div id="t-play" hidden style="display:flex;flex-direction:column;gap:12px">
+      <div class="prompt"><span class="who" id="t-who"></span><span class="cat" id="t-cat"></span></div>
+      <div class="clock" id="t-clock"><b id="t-secs">30</b><span class="bar"><i id="t-bar"></i></span></div>
+      <form class="answer" id="t-form"><input id="t-input" autocomplete="off" spellcheck="false" placeholder="Type a name, press Enter" aria-label="Player name"><button class="btn primary">Enter</button></form>
+      <div class="feedback" id="t-fb" aria-live="polite"></div>
+      <div class="tally" id="t-tally"></div>
+    </div>
+    <div class="panel" id="t-result" hidden></div>
+  </section>
+
+  <!-- NAME CHAIN -->
+  <section id="v-chain" hidden>
+    <div class="backbar"><button class="btn ghost" data-go="">← All games</button></div>
+    <h2 class="view-title">Name Chain</h2>
+    <p class="lede">Each player's name must start (first name or surname) with the last letter of the previous name. Cristiano Ronaldo → Onana → Antoine Griezmann → Nani… No repeats. Run out of time and you're out.</p>
+    <div class="panel" id="c-setup"></div>
+    <div id="c-play" hidden style="display:flex;flex-direction:column;gap:12px">
+      <div class="seats" id="c-seats"></div>
+      <div class="prompt"><span class="who" id="c-who"></span><div class="chainletter"><span class="big" id="c-letter">O</span><span class="cat" id="c-cat"></span></div></div>
+      <div class="clock" id="c-clock"><b id="c-secs">20</b><span class="bar"><i id="c-bar"></i></span></div>
+      <form class="answer" id="c-form"><input id="c-input" autocomplete="off" spellcheck="false" placeholder="Name a player…" aria-label="Player name"><button class="btn primary">Enter</button></form>
+      <div class="feedback" id="c-fb" aria-live="polite"></div>
+      <div class="history" id="c-hist"></div>
+    </div>
+    <div class="panel" id="c-result" hidden></div>
+  </section>
+
+  <!-- LINK UP -->
+  <section id="v-linkup" hidden>
+    <div class="backbar"><button class="btn ghost" data-go="">← All games</button><button class="btn ghost" id="l-rulesBtn">Rules</button></div>
+    <h2 class="view-title">Link Up</h2>
+    <div class="panel" id="l-rules">
+      <p style="margin:0">Get rid of all your cards. To play a card, <b>name a player who links it to the card on the table</b>: Man United → Real Madrid needs someone like Cristiano Ronaldo. Each player can only be named once per game.</p>
+      <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+        <li><b style="color:var(--c-club)">Club</b>, <b style="color:var(--c-nation)">Nation</b>, <b style="color:var(--c-league)">League</b> (any club in that country) and <b style="color:var(--c-legend)">Legend</b> cards (coaches, Ballon d'Or, Champions League).</li>
+        <li>Two nations can't be linked, since a player has one nationality here.</li>
+        <li><b>Skip</b> and <b>+2</b> are played on a card of the same colour, no name needed.</li>
+        <li><b>Wild</b> can be played any time. You pick the colour, and the next card only needs a player who fits that card.</li>
+        <li>Can't think of anyone? Draw a card and your turn ends.</li>
+      </ul>
+    </div>
+    <div class="panel" id="l-setup"></div>
+    <div id="l-play" hidden style="display:flex;flex-direction:column;gap:12px">
+      <div class="opp" id="l-opp"></div>
+      <div class="table">
+        <div class="pile"><div id="l-top"></div><button class="card back" id="l-deck" aria-label="Draw a card"><span class="t">Deck</span><span class="n" id="l-deckn">Draw</span><span class="f"></span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+          <div class="prompt" style="padding:12px 14px"><span class="who" id="l-who"></span><span id="l-ask" style="font-size:16px"></span></div>
+          <div class="clock" id="l-clock" hidden><b id="l-secs">30</b><span class="bar"><i id="l-bar"></i></span></div>
+        </div>
+      </div>
+      <form class="answer" id="l-form" hidden><input id="l-input" autocomplete="off" spellcheck="false" placeholder="Name the linking player…" aria-label="Linking player"><button class="btn primary">Play</button><button class="btn ghost" type="button" id="l-cancel">Cancel</button></form>
+      <div class="colorpick" id="l-colors" hidden></div>
+      <div class="feedback" id="l-fb" aria-live="polite"></div>
+      <div class="section-label"><span id="l-handLabel">Your hand</span><span id="l-handCount"></span></div>
+      <div class="hand" id="l-hand"></div>
+      <div class="section-label"><span>Match log</span></div>
+      <div class="log" id="l-log"></div>
+    </div>
+    <div class="panel" id="l-result" hidden></div>
+  </section>
+</div>
+<div class="overlay" id="helpDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <button class="btn ghost close" data-close>Close</button>
+    <h3 id="helpTitle">How to play</h3>
+    <p>There's a secret footballer. Guess any player and you'll see where they rank by similarity to the secret one, out of <b id="helpCount">7,000+</b> players. The secret player is <b>#1</b>. Guesses are unlimited.</p>
+    <ul>
+      <li>Similarity comes from <b>nationality</b>, <b>clubs played for</b>, <b>leagues</b>, <b>position</b> and <b>age</b>. Players who were at the same club in the same seasons count as <b>teammates</b> and get a big bonus.</li>
+      <li>A low number means you're close. If Rivaldo ranks in the top 10, the answer is probably Brazilian and played for Barcelona or Milan.</li>
+      <li>The <b>clue chips</b> under each guess show which kind of link matched. Solid means an exact match, outlined means near (same continent, same area of the pitch, a few years apart in age). A red <b>Teammate</b> chip means they shared a dressing room. Switch chips off below for a harder game.</li>
+      <li>Stuck? <b>Closer player</b> gives you a name ranked about halfway between your best guess and the answer. The other hints reveal one fact each. Hints are counted in your result.</li>
+      <li><b>Daily match</b> is the same star player for everyone each day. <b>Unlimited</b> deals a new player whenever you want, at the difficulty you choose.</li>
+    </ul>
+    <label class="toggle"><input type="checkbox" id="chipToggle" checked> Show clue chips on guesses</label>
+    <p class="msg">Player data: Transfermarkt via the open transfermarkt-datasets project (snapshot July 2026), plus hand-entered careers for legends who retired before 2012.</p>
+  </div>
+</div>
+
+<div class="overlay" id="statsDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+    <button class="btn ghost close" data-close>Close</button>
+    <h3 id="statsTitle">Your stats</h3>
+    <div class="section-label"><span>Daily match</span></div>
+    <div class="statgrid" id="dailyStats"></div>
+    <div class="section-label"><span>Unlimited</span></div>
+    <div class="statgrid" id="freeStats"></div>
+    <p class="msg">Stats are saved in this browser only.</p>
+  </div>
+</div>
+<div class="cover" id="cover" hidden><span class="who" id="coverWho" style="font-family:var(--label);letter-spacing:.12em;text-transform:uppercase"></span><h3 id="coverTitle"></h3><p id="coverText" style="margin:0;max-width:40ch"></p><button class="btn" id="coverGo">I'm ready</button></div>
+
+<script id="ccdata" type="application/json">__DATA__</script>
+<script id="exdata" type="application/json">__EXTRA__</script>
+<script>
+/* ================= Data ================= */
+const $=id=>document.getElementById(id);
+const RAWD=JSON.parse($("ccdata").textContent), EX=JSON.parse($("exdata").textContent);
+const SPECIAL_FLAG={ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",SCO:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",WAL:"🏴󠁧󠁢󠁷󠁬󠁳󠁿",NIR:"🇬🇧",XK:"🇽🇰"};
+const flagOf=c=>!c?"":SPECIAL_FLAG[c]||String.fromCodePoint(...[...c].map(x=>0x1F1E6+x.charCodeAt(0)-65));
+const COUNTRIES=RAWD.countries.map(([name,code,conf])=>({name,flag:flagOf(code),conf}));
+const CLUBS=RAWD.clubs.map(([name,k])=>({name,k}));
+const COACHES=EX.coaches;
+const POSC=["GK","CB","FB","DM","CM","AM","W","ST"];
+const norm=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[øØ]/g,"o").replace(/[ıİ]/g,"i").replace(/[łŁ]/g,"l").replace(/ß/g,"ss").replace(/[đĐ]/g,"d").replace(/æ/g,"ae").toLowerCase();
+const clean=s=>norm(s).replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();
+const PLAYERS=RAWD.players.map(([name,k,pi,born,tier,flat],id)=>{
+  const base=name.replace(/\s*\([^)]*\)$/,"");
+  const key=clean(base), toks=key.split(" ");
+  const clubs=new Set(), leagues=new Set();
+  for(let i=0;i<flat.length;i+=3){ clubs.add(flat[i]); const c=CLUBS[flat[i]].k; if(c>=0) leagues.add(c); }
+  const fn=toks[0], ln=toks[toks.length-1], sur=toks.slice(1).join(" ")||fn;
+  // name parts that may start the chain: first name, surname, last word
+  const starts=new Set([fn[0],ln[0],sur[0]]);
+  const end=(key.match(/[a-z](?=[^a-z]*$)/)||[""])[0];
+  return {id,name,base,key,toks,fn,ln,sur,starts,end,k,pos:POSC[pi],born,tier,clubs,leagues,
+    coaches:new Set(EX.coach[id]||[]),ucl:EX.ucl[id]||0,ballon:EX.ballon[id]||0};
+});
+document.querySelectorAll(".pcount").forEach(e=>e.textContent=PLAYERS.length.toLocaleString("en-US"));
+const clubIdx=name=>{let i=CLUBS.findIndex(c=>c.name===name); if(i<0) i=CLUBS.findIndex(c=>c.name.startsWith(name+" (")); return i;};
+const countryIdx=name=>COUNTRIES.findIndex(c=>c.name===name);
+const rnd=n=>Math.floor(Math.random()*n);
+const pickOne=a=>a[rnd(a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---- Name matching: accepts full names, surnames, first names, small typos ---- */
+function lev(a,b,max){
+  if(Math.abs(a.length-b.length)>max) return max+1;
+  let prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const cur=[i]; let best=i;
+    for(let j=1;j<=b.length;j++){ cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); if(cur[j]<best) best=cur[j]; }
+    if(best>max) return max+1; prev=cur;
+  }
+  return prev[b.length];
+}
+function resolve(text,pred){
+  const t=clean(text); if(!t) return null;
+  const pad=" "+t+" ";
+  let c=[];
+  for(const p of PLAYERS){
+    if(p.key===t) c.push([0,p]);
+    else if(p.ln===t||p.fn===t||p.sur===t) c.push([1,p]);
+    else if(t.includes(" ")&&(" "+p.key+" ").includes(pad)) c.push([1,p]);
+  }
+  if(!c.length&&t.length>=5){
+    const m=t.length>=9?2:1;
+    for(const p of PLAYERS){
+      if(lev(t,p.key,m)<=m) c.push([2,p]);
+      else if(!t.includes(" ")&&p.ln.length>=5&&lev(t,p.ln,1)<=1) c.push([3,p]);
+    }
+  }
+  if(!c.length) return null;
+  c.sort((a,b)=>{ const pa=pred&&pred(a[1])?0:1, pb=pred&&pred(b[1])?0:1; return pa-pb||a[0]-b[0]||a[1].tier-b[1].tier||a[1].id-b[1].id; });
+  return {p:c[0][1],ok:pred?pred(c[0][1]):true,all:c.map(x=>x[1])};
+}
+
+/* ---- Categories ---- */
+const by=(arr,f)=>arr.map((x,i)=>[f(x),i]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
+const famous=PLAYERS.filter(p=>p.tier===0);
+const clubFame=new Array(CLUBS.length).fill(0), natFame=new Array(COUNTRIES.length).fill(0), lgFame=new Array(COUNTRIES.length).fill(0);
+famous.forEach(p=>{p.clubs.forEach(c=>clubFame[c]++); natFame[p.k]++; p.leagues.forEach(l=>lgFame[l]++);});
+const BIG_CLUBS=by(clubFame,x=>x).slice(0,45);
+const BIG_NATS=by(natFame,x=>x).slice(0,22);
+const BIG_LEAGUES=by(lgFame,x=>x).slice(0,12);
+const coachFame=COACHES.map((_,i)=>PLAYERS.reduce((n,p)=>n+(p.coaches.has(i)&&p.tier<=1?1:0),0));
+const BIG_COACHES=by(coachFame,x=>x).filter(i=>coachFame[i]>=12);
+const LEAGUE_NAMES={"England":"Premier League","Spain":"LaLiga","Italy":"Serie A","Germany":"Bundesliga","France":"Ligue 1","Portugal":"Liga Portugal","Netherlands":"Eredivisie","Türkiye":"Süper Lig","Saudi Arabia":"Saudi Pro League","United States":"MLS","Scotland":"Scottish football","Brazil":"Brasileirão","Argentina":"Argentine football","Belgium":"Belgian Pro League","Greece":"Greek football","Russia":"Russian football","Ukraine":"Ukrainian football","Austria":"Austrian football","Mexico":"Liga MX","Qatar":"Qatar Stars League","China":"Chinese Super League","Japan":"J.League"};
+const leagueName=k=>LEAGUE_NAMES[COUNTRIES[k].name]||("football in "+COUNTRIES[k].name);
+const COND={
+  club:c=>({label:"played for "+CLUBS[c].name,neg:"never played for "+CLUBS[c].name,short:CLUBS[c].name,test:p=>p.clubs.has(c)}),
+  nation:k=>({label:"is from "+COUNTRIES[k].name,neg:"isn't from "+COUNTRIES[k].name,short:COUNTRIES[k].name,test:p=>p.k===k}),
+  league:k=>({label:"played in "+leagueName(k),neg:"never played in "+leagueName(k),short:leagueName(k),test:p=>p.leagues.has(k)}),
+  coach:i=>({label:"played under "+COACHES[i],neg:"never played under "+COACHES[i],short:COACHES[i],test:p=>p.coaches.has(i)}),
+  ballon:()=>({label:"won the Ballon d'Or",neg:"never won the Ballon d'Or",short:"Ballon d'Or",test:p=>p.ballon>0}),
+  ucl:()=>({label:"won the Champions League",neg:"never won the Champions League",short:"Champions League",test:p=>p.ucl>0}),
+  pos:g=>({label:"is a "+g.toLowerCase(),neg:"isn't a "+g.toLowerCase(),short:g,test:p=>({Goalkeeper:["GK"],Defender:["CB","FB"],Midfielder:["DM","CM","AM"],Forward:["W","ST"]})[g].includes(p.pos)}),
+};
+function makeCategory(){
+  for(let tries=0;tries<200;tries++){
+    const r=Math.random(); let title, conds;
+    const club=()=>pickOne(BIG_CLUBS.slice(0,30)), club2=()=>pickOne(BIG_CLUBS);
+    if(r<.16){ const c=club(); conds=[COND.club(c)]; title=`Played for ${CLUBS[c].name}`; }
+    else if(r<.42){ const a=club2(), b=club2(); if(a===b) continue; conds=[COND.club(a),COND.club(b)]; title=`Played for ${CLUBS[a].name} and ${CLUBS[b].name}`; }
+    else if(r<.56){ const k=pickOne(BIG_NATS), l=pickOne(BIG_LEAGUES); if(k===l) continue; conds=[COND.nation(k),COND.league(l)]; title=`${COUNTRIES[k].flag} ${COUNTRIES[k].name} players who played in ${leagueName(l)}`; }
+    else if(r<.70){ const k=pickOne(BIG_NATS), c=club2(); conds=[COND.nation(k),COND.club(c)]; title=`${COUNTRIES[k].flag} ${COUNTRIES[k].name} players who played for ${CLUBS[c].name}`; }
+    else if(r<.82){ const i=pickOne(BIG_COACHES); conds=[COND.coach(i)]; title=`Played under ${COACHES[i]}`; }
+    else if(r<.90){ const g=pickOne(["Goalkeeper","Defender","Forward"]), c=club(); conds=[COND.pos(g),COND.club(c)]; title=`${g}s who played for ${CLUBS[c].name}`; }
+    else if(r<.95){ const c=club(); conds=[COND.ucl(),COND.club(c)]; title=`Champions League winners who played for ${CLUBS[c].name}`; }
+    else { conds=[COND.ballon()]; title="Ballon d'Or winners"; }
+    const pred=p=>conds.every(c=>c.test(p));
+    const ans=PLAYERS.filter(pred), fam=ans.filter(p=>p.tier<=1).length;
+    if(fam>=5&&ans.length<=400) return {title,pred,count:ans.length};
+  }
+  return {title:"Played for Real Madrid",pred:COND.club(clubIdx("Real Madrid")).test,count:0};
+}
+const LETTER_OK="ABCDEFGHIJKLMNOPRSTVWYZ".split("").filter(L=>PLAYERS.filter(p=>p.tier<=1&&p.starts.has(L.toLowerCase())).length>=25);
+function letterCategory(L){ const l=L.toLowerCase(); return {title:`First name or surname starts with ${L}`,pred:p=>p.starts.has(l),letter:L}; }
+
+/* ---- Shared helpers ---- */
+function seg(id,opts,val,onChange){
+  const w=document.createElement("div"); w.className="seg"; w.id=id;
+  opts.forEach(([v,l])=>{ const b=document.createElement("button"); b.type="button"; b.textContent=l; b.setAttribute("aria-pressed",String(v===val)); b.onclick=()=>{ w.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); onChange(v); }; w.appendChild(b); });
+  return w;
+}
+function field(label,node){ const f=document.createElement("div"); f.className="field"; const s=document.createElement("span"); s.textContent=label; f.append(s,node); return f; }
+function nameInputs(n,prefix,defaults){
+  const w=document.createElement("div"); w.className="names";
+  for(let i=0;i<n;i++){ const inp=document.createElement("input"); inp.id=prefix+i; inp.value=defaults[i]||("Player "+(i+1)); inp.setAttribute("aria-label","Name of player "+(i+1)); w.appendChild(inp); }
+  return w;
+}
+function readNames(prefix,n){ return Array.from({length:n},(_,i)=>{ const v=($(prefix+i)||{}).value; return (v&&v.trim())||("Player "+(i+1)); }); }
+function Timer(secs,clockEl,secsEl,barEl,onEnd){
+  let end=0, iv=null, left=secs;
+  const draw=()=>{ secsEl.textContent=Math.ceil(left); barEl.style.width=(100*left/secs)+"%"; clockEl.classList.toggle("low",left<=5); };
+  return {
+    start(){ end=performance.now()+secs*1000; left=secs; draw(); clearInterval(iv); iv=setInterval(()=>{ left=Math.max(0,(end-performance.now())/1000); draw(); if(left<=0){ clearInterval(iv); onEnd(); } },100); },
+    stop(){ clearInterval(iv); },
+    get left(){ return left; }
+  };
+}
+function cover(who,title,text,cb){ $("coverWho").textContent=who; $("coverTitle").textContent=title; $("coverText").textContent=text; $("cover").hidden=false; $("coverGo").focus(); $("coverGo").onclick=()=>{ $("cover").hidden=true; cb(); }; }
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+function standings(el,rows){ el.innerHTML='<div class="standings">'+rows.sort((a,b)=>b[1]-a[1]).map(([n,s])=>`<div><span>${esc(n)}</span><b>${s}</b></div>`).join("")+"</div>"; }
+
+/* ================= Timed naming: 30 Seconds & Letter Rush ================= */
+const T={kind:null,cfg:null,st:null,timer:null};
+function openTimed(kind){
+  T.kind=kind; stopAll();
+  const isL=kind==="letters";
+  $("t-title").textContent=isL?"Letter Rush":"30 Seconds";
+  $("t-lede").textContent=isL?"Name as many players as you can whose first name or surname starts with the letter. Surnames alone are fine: type “Salah” and press Enter."
+    :"You get a category. Name as many players who fit it as you can before the clock runs out. Surnames alone are fine: type “Salah” and press Enter.";
+  const saved=store.get("arc-"+kind,{players:1,rounds:isL?3:5,secs:isL?60:30,letter:"random"});
+  T.cfg=saved;
+  const s=$("t-setup"); s.innerHTML=""; s.hidden=false; $("t-play").hidden=true; $("t-result").hidden=true; $("t-progress").textContent="";
+  const namesBox=document.createElement("div");
+  const drawNames=()=>{ namesBox.innerHTML=""; if(T.cfg.players>1) namesBox.appendChild(nameInputs(T.cfg.players,"tn",store.get("arc-names",[]))); };
+  s.appendChild(field("Players (pass the phone)",seg("t-pl",[[1,"Solo"],[2,"2"],[3,"3"],[4,"4"]],T.cfg.players,v=>{T.cfg.players=v;drawNames();})));
+  s.appendChild(namesBox); drawNames();
+  s.appendChild(field("Rounds",seg("t-rd",[[1,"1"],[3,"3"],[5,"5"],[8,"8"]],T.cfg.rounds,v=>T.cfg.rounds=v)));
+  s.appendChild(field("Seconds per turn",seg("t-sc",isL?[[30,"30"],[60,"60"],[90,"90"]]:[[20,"20"],[30,"30"],[45,"45"],[60,"60"]],T.cfg.secs,v=>T.cfg.secs=v)));
+  if(isL){
+    const lw=document.createElement("div"); lw.className="seg letters";
+    const opts=[["random","?"],...LETTER_OK.map(L=>[L,L])];
+    const segEl=seg("t-lt",opts,T.cfg.letter,v=>T.cfg.letter=v); segEl.classList.add("letters");
+    s.appendChild(field("Letter (? = a random letter each round)",segEl));
+  }
+  const go=document.createElement("button"); go.className="btn primary go"; go.textContent="Start"; go.onclick=startTimed; s.appendChild(go);
+}
+function startTimed(){
+  const c=T.cfg; store.set("arc-"+T.kind,c);
+  const names=c.players>1?readNames("tn",c.players):["You"]; if(c.players>1) store.set("arc-names",names);
+  const cats=[]; const usedL=new Set();
+  for(let r=0;r<c.rounds;r++){
+    if(T.kind==="letters"){ let L=c.letter; if(L==="random"){ do{L=pickOne(LETTER_OK);}while(usedL.has(L)&&usedL.size<LETTER_OK.length); usedL.add(L);} cats.push(letterCategory(L)); }
+    else { let cat; do{cat=makeCategory();}while(cats.some(x=>x.title===cat.title)); cats.push(cat); }
+  }
+  T.st={names,cats,round:0,seat:0,scores:names.map(()=>0),answers:null};
+  $("t-setup").hidden=true; $("t-result").hidden=true;
+  nextTimedTurn();
+}
+function nextTimedTurn(){
+  const st=T.st, cat=st.cats[st.round];
+  const label=`Round ${st.round+1} of ${st.cats.length}`;
+  $("t-progress").textContent=label;
+  const begin=()=>{
+    st.answers=[]; $("t-play").hidden=false; $("t-result").hidden=true;
+    $("t-who").textContent=(st.names.length>1?st.names[st.seat]+" · ":"")+label;
+    $("t-cat").textContent=cat.title; $("t-fb").textContent=""; $("t-tally").innerHTML="";
+    $("t-input").disabled=false; $("t-input").value=""; $("t-input").focus();
+    T.timer=Timer(T.cfg.secs,$("t-clock"),$("t-secs"),$("t-bar"),endTimedTurn); T.timer.start();
+  };
+  if(st.names.length>1) cover(label,st.names[st.seat],"Your category: "+cat.title,begin); else begin();
+}
+$("t-form").addEventListener("submit",e=>{
+  e.preventDefault(); const st=T.st; if(!st||$("t-input").disabled) return;
+  const v=$("t-input").value; $("t-input").value=""; if(!v.trim()) return;
+  const cat=st.cats[st.round], r=resolve(v,cat.pred), fb=$("t-fb");
+  if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; return; }
+  if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} doesn't fit.`; return; }
+  if(st.answers.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already on your list.`; return; }
+  st.answers.push(r.p.id); fb.className="feedback ok"; fb.textContent=`✓ ${r.p.base}`;
+  const tag=document.createElement("span"); tag.className="tag ok"+(r.p.tier===2?" rare":""); tag.textContent=r.p.base; $("t-tally").prepend(tag);
+});
+function endTimedTurn(){
+  const st=T.st; T.timer.stop(); $("t-input").disabled=true;
+  const cat=st.cats[st.round], got=st.answers.length; st.scores[st.seat]+=got;
+  const missed=PLAYERS.filter(p=>cat.pred(p)&&p.tier===0&&!st.answers.includes(p.id)).slice(0,10);
+  const total=PLAYERS.filter(cat.pred).length;
+  const r=$("t-result"); r.hidden=false; $("t-play").hidden=true;
+  let last=false;
+  if(st.seat<st.names.length-1) st.seat++; else { st.seat=0; st.round++; if(st.round>=st.cats.length) last=true; }
+  r.innerHTML=`<div class="section-label"><span>${esc(st.names.length>1?st.names[(st.seat+st.names.length-1)%st.names.length]:"Time's up")}</span><span>${esc(cat.title)}</span></div>
+    <div style="display:flex;align-items:flex-end;gap:12px"><span class="score-big">${got}</span><span class="note">named · ${total.toLocaleString("en-US")} players in the database fit</span></div>
+    <div class="tally">${st.answers.map(id=>`<span class="tag ok${PLAYERS[id].tier===2?" rare":""}">${esc(PLAYERS[id].base)}</span>`).join("")}</div>
+    ${missed.length?`<div class="field"><span>Big names you missed</span><div class="tally">${missed.map(p=>`<span class="tag">${esc(p.base)}</span>`).join("")}</div></div>`:""}
+    <div id="t-stand"></div>
+    <div class="actions"><button class="btn primary" id="t-next">${last?"See final scores":"Next turn"}</button><button class="btn ghost" id="t-again">New game</button></div>`;
+  if(st.names.length>1) standings($("t-stand"),st.names.map((n,i)=>[n,st.scores[i]]));
+  $("t-next").onclick=last?finishTimed:nextTimedTurn;
+  $("t-again").onclick=()=>openTimed(T.kind);
+  $("t-next").focus();
+}
+function finishTimed(){
+  const st=T.st, r=$("t-result");
+  const key="arc-best-"+T.kind+"-"+T.cfg.secs+"-"+st.cats.length;
+  let best=store.get(key,0); const top=Math.max(...st.scores); let rec=false;
+  if(st.names.length===1&&top>best){ store.set(key,top); best=top; rec=true; }
+  r.innerHTML=`<h3 class="view-title" style="font-size:34px">Full time</h3>
+    ${st.names.length>1?'<div id="t-final"></div>':`<div style="display:flex;align-items:flex-end;gap:12px"><span class="score-big">${top}</span><span class="note">players in ${st.cats.length} round${st.cats.length>1?"s":""}${rec?" · new personal best":` · best ${best}`}</span></div>`}
+    <div class="actions"><button class="btn primary" id="t-again2">Play again</button><button class="btn ghost" data-go="">All games</button></div>`;
+  if(st.names.length>1) standings($("t-final"),st.names.map((n,i)=>[n,st.scores[i]]));
+  $("t-again2").onclick=()=>{ openTimed(T.kind); startTimed(); };
+}
+
+/* ================= Name Chain ================= */
+const C={cfg:null,st:null,timer:null,cpuT:null};
+const LEVELS={easy:{tier:0,miss:.18,label:"Easy"},normal:{tier:1,miss:.07,label:"Normal"},hard:{tier:2,miss:.02,label:"Hard"}};
+function openChain(){
+  stopAll();
+  C.cfg=store.get("arc-chain",{mode:"cpu",players:2,level:"normal",secs:20});
+  const s=$("c-setup"); s.innerHTML=""; s.hidden=false; $("c-play").hidden=true; $("c-result").hidden=true;
+  const dyn=document.createElement("div"); dyn.style.cssText="display:flex;flex-direction:column;gap:12px";
+  const draw=()=>{ dyn.innerHTML="";
+    if(C.cfg.mode==="cpu") dyn.appendChild(field("CPU strength",seg("c-lv",Object.entries(LEVELS).map(([k,v])=>[k,v.label]),C.cfg.level,v=>C.cfg.level=v)));
+    if(C.cfg.mode==="pass"){ dyn.appendChild(field("Players",seg("c-pl",[[2,"2"],[3,"3"],[4,"4"]],C.cfg.players,v=>{C.cfg.players=v;draw();}))); dyn.appendChild(nameInputs(C.cfg.players,"cn",store.get("arc-names",[]))); }
+  };
+  s.appendChild(field("Mode",seg("c-md",[["cpu","You vs CPU"],["pass","Pass & play"],["solo","Solo streak"]],C.cfg.mode,v=>{C.cfg.mode=v;draw();})));
+  s.appendChild(dyn); draw();
+  s.appendChild(field("Seconds per answer",seg("c-sc",[[10,"10"],[15,"15"],[20,"20"],[30,"30"]],C.cfg.secs,v=>C.cfg.secs=v)));
+  const go=document.createElement("button"); go.className="btn primary go"; go.textContent="Kick off"; go.onclick=startChain; s.appendChild(go);
+}
+function startChain(){
+  const c=C.cfg; store.set("arc-chain",c);
+  let seats;
+  if(c.mode==="cpu") seats=[{name:"You",cpu:false},{name:"CPU",cpu:true}];
+  else if(c.mode==="solo") seats=[{name:"You",cpu:false}];
+  else { const n=readNames("cn",c.players); store.set("arc-names",n); seats=n.map(x=>({name:x,cpu:false})); }
+  seats.forEach(s=>s.out=false);
+  let first; do{ first=pickOne(PLAYERS.slice(0,350)); }while(!first.end||!PLAYERS.some(p=>p.tier<=1&&p.starts.has(first.end)&&p.id!==first.id));
+  C.st={seats,turn:0,used:new Set([first.id]),chain:[{p:first,by:"Kick-off"}],letter:first.end,humans:seats.filter(s=>!s.cpu).length};
+  $("c-setup").hidden=true; $("c-result").hidden=true; $("c-play").hidden=false;
+  chainTurn(true);
+}
+function chainSeatsRender(){ $("c-seats").innerHTML=C.st.seats.map((s,i)=>`<span class="seat${i===C.st.turn?" on":""}${s.out?" out":""}">${esc(s.name)}</span>`).join(""); }
+function chainHistRender(){
+  $("c-hist").innerHTML=[...C.st.chain].reverse().map(x=>{ const b=esc(x.p.base); const i=b.length-1; return `<div><span>${b.slice(0,i)}<mark>${b.slice(i)}</mark></span><span>${esc(x.by)}</span></div>`; }).join("");
+}
+function chainTurn(fresh){
+  const st=C.st; chainSeatsRender(); chainHistRender();
+  const seat=st.seats[st.turn], L=st.letter;
+  $("c-letter").textContent=L.toUpperCase();
+  $("c-cat").textContent=`Starts with ${L.toUpperCase()}`;
+  $("c-who").textContent=st.seats.length>1?seat.name+"'s turn":"Chain length "+(st.chain.length-1);
+  $("c-fb").textContent="";
+  $("c-input").value=""; $("c-input").disabled=seat.cpu;
+  const go=()=>{
+    C.timer=Timer(C.cfg.secs,$("c-clock"),$("c-secs"),$("c-bar"),()=>chainFail("ran out of time")); C.timer.start();
+    if(seat.cpu){ $("c-input").placeholder="CPU is thinking…"; C.cpuT=setTimeout(cpuChain,900+rnd(1600)); }
+    else { $("c-input").placeholder=`A player starting with ${L.toUpperCase()}…`; $("c-input").focus(); }
+  };
+  if(!seat.cpu&&st.humans>1&&!fresh) cover("Your turn",seat.name,`Last name: ${st.chain[st.chain.length-1].p.base}. You need ${L.toUpperCase()}.`,go); else go();
+}
+function cpuChain(){
+  const st=C.st, lv=LEVELS[C.cfg.level];
+  const opts=PLAYERS.filter(p=>p.tier<=lv.tier&&p.starts.has(st.letter)&&!st.used.has(p.id)&&p.end);
+  if(!opts.length||Math.random()<lv.miss){ return; } // CPU blanks; the clock runs out
+  const p=Math.random()<.7?pickOne(opts.slice(0,Math.max(5,Math.floor(opts.length/3)))):pickOne(opts);
+  chainAccept(p);
+}
+$("c-form").addEventListener("submit",e=>{
+  e.preventDefault(); const st=C.st; if(!st||$("c-input").disabled) return;
+  const v=$("c-input").value; $("c-input").value=""; if(!v.trim()) return;
+  const L=st.letter, r=resolve(v,p=>p.starts.has(L)&&!st.used.has(p.id)), fb=$("c-fb");
+  if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; return; }
+  if(st.used.has(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} has already been named.`; return; }
+  if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} doesn't start with ${L.toUpperCase()}.`; return; }
+  if(!r.p.end){ fb.className="feedback err"; fb.textContent="Pick a different player."; return; }
+  chainAccept(r.p);
+});
+function chainAccept(p){
+  const st=C.st; C.timer.stop(); clearTimeout(C.cpuT);
+  st.used.add(p.id); st.chain.push({p,by:st.seats[st.turn].name}); st.letter=p.end;
+  $("c-fb").className="feedback ok"; $("c-fb").textContent=`✓ ${p.base} · next letter ${p.end.toUpperCase()}`;
+  // nobody can continue? the next player will simply run out of time
+  advanceChain();
+}
+function advanceChain(){
+  const st=C.st; const alive=st.seats.filter(s=>!s.out);
+  if(st.seats.length>1&&alive.length<=1) return chainOver();
+  do{ st.turn=(st.turn+1)%st.seats.length; }while(st.seats[st.turn].out);
+  setTimeout(()=>chainTurn(false),st.seats[st.turn].cpu?300:500);
+}
+function chainFail(why){
+  const st=C.st; clearTimeout(C.cpuT); $("c-input").disabled=true;
+  const seat=st.seats[st.turn]; seat.out=true;
+  const ex=PLAYERS.filter(p=>p.tier===0&&p.starts.has(st.letter)&&!st.used.has(p.id)).slice(0,4).map(p=>p.base);
+  $("c-fb").className="feedback err"; $("c-fb").textContent=`${seat.name} ${why}.`+(ex.length?` Could have said: ${ex.join(", ")}.`:"");
+  chainSeatsRender();
+  if(st.seats.length===1) return setTimeout(chainOver,1200);
+  const alive=st.seats.filter(s=>!s.out);
+  if(alive.length<=1) return setTimeout(chainOver,1200);
+  setTimeout(advanceChain,1400);
+}
+function chainOver(){
+  const st=C.st; C.timer&&C.timer.stop(); clearTimeout(C.cpuT);
+  const n=st.chain.length-1, r=$("c-result"); r.hidden=false;
+  let head;
+  if(st.seats.length===1){ const best=Math.max(store.get("arc-chain-best",0),n); store.set("arc-chain-best",best); head=`<div style="display:flex;align-items:flex-end;gap:12px"><span class="score-big">${n}</span><span class="note">names in your chain · best ${best}</span></div>`; }
+  else { const w=st.seats.find(s=>!s.out); head=`<h3 class="view-title" style="font-size:34px">${esc(w?w.name:"Nobody")} wins</h3><p class="note" style="margin:0">The chain reached ${n} names.</p>`; }
+  r.innerHTML=head+`<div class="actions"><button class="btn primary" id="c-again">Play again</button><button class="btn ghost" id="c-setupBtn">Change settings</button></div>`;
+  $("c-again").onclick=startChain; $("c-setupBtn").onclick=openChain;
+  $("c-input").disabled=true;
+}
+
+/* ================= Link Up ================= */
+const L={cfg:null,st:null,timer:null,cpuT:null,sel:null};
+const COLORS={club:"var(--c-club)",nation:"var(--c-nation)",league:"var(--c-league)",legend:"var(--c-legend)",wild:"var(--c-wild)"};
+const COLOR_NAMES={club:"Club",nation:"Nation",league:"League",legend:"Legend"};
+function cardCond(cd){
+  if(cd.kind==="club") return COND.club(cd.id);
+  if(cd.kind==="nation") return COND.nation(cd.id);
+  if(cd.kind==="league") return COND.league(cd.id);
+  if(cd.kind==="coach") return COND.coach(cd.id);
+  if(cd.kind==="ballon") return COND.ballon();
+  if(cd.kind==="ucl") return COND.ucl();
+  return null;
+}
+function buildDeck(){
+  const d=[]; let uid=0; const add=(o)=>d.push(Object.assign({uid:uid++},o));
+  BIG_CLUBS.slice(0,20).forEach(id=>add({kind:"club",color:"club",id}));
+  BIG_NATS.slice(0,10).forEach(id=>add({kind:"nation",color:"nation",id}));
+  BIG_LEAGUES.slice(0,10).forEach(id=>add({kind:"league",color:"league",id}));
+  BIG_COACHES.slice(0,10).forEach(id=>add({kind:"coach",color:"legend",id}));
+  add({kind:"ballon",color:"legend"}); add({kind:"ucl",color:"legend"}); add({kind:"ucl",color:"legend"});
+  ["club","nation","league","legend"].forEach(color=>{ for(let i=0;i<2;i++){ add({kind:"skip",color}); add({kind:"plus2",color}); } });
+  for(let i=0;i<4;i++) add({kind:"wild",color:"wild"});
+  return shuffle(d);
+}
+const isAction=cd=>cd.kind==="skip"||cd.kind==="plus2"||cd.kind==="wild";
+function cardHTML(cd,asButton,extra){
+  let type, name, f="";
+  if(cd.kind==="club"){ type="Club"; name=CLUBS[cd.id].name; const k=CLUBS[cd.id].k; f=k>=0?COUNTRIES[k].flag:""; }
+  else if(cd.kind==="nation"){ type="Nation"; name=COUNTRIES[cd.id].name; f=COUNTRIES[cd.id].flag; }
+  else if(cd.kind==="league"){ type="League"; name=leagueName(cd.id); name=name[0].toUpperCase()+name.slice(1); f=COUNTRIES[cd.id].flag; }
+  else if(cd.kind==="coach"){ type="Coach"; name=COACHES[cd.id]; f="📋"; }
+  else if(cd.kind==="ballon"){ type="Award"; name="Ballon d'Or"; f="🏆"; }
+  else if(cd.kind==="ucl"){ type="Trophy"; name="Champions League"; f="🏆"; }
+  else if(cd.kind==="skip"){ type="Action"; name="Skip"; f="⏭"; }
+  else if(cd.kind==="plus2"){ type="Action"; name="+2"; f="✚"; }
+  else { type="Wild"; name=cd.chosen?"Wild · "+COLOR_NAMES[cd.chosen]:"Wild"; f="✦"; }
+  const col=cd.kind==="wild"&&cd.chosen?COLORS[cd.chosen]:COLORS[cd.color];
+  const tag=asButton?"button":"div";
+  return `<${tag} class="card${extra||""}" style="--cc:${col}" ${asButton?`type="button" data-uid="${cd.uid}"`:""}><span class="t">${type}</span><span class="n${name.length>13?" small":""}">${esc(name)}</span><span class="f">${f}</span></${tag}>`;
+}
+function openLinkup(){
+  stopAll();
+  L.cfg=store.get("arc-linkup",{mode:"cpu",cpus:2,players:2,level:"normal",secs:0,hand:7});
+  const s=$("l-setup"); s.innerHTML=""; s.hidden=false; $("l-play").hidden=true; $("l-result").hidden=true; $("l-rules").hidden=false;
+  const dyn=document.createElement("div"); dyn.style.cssText="display:flex;flex-direction:column;gap:12px";
+  const draw=()=>{ dyn.innerHTML="";
+    if(L.cfg.mode==="cpu"){ dyn.appendChild(field("CPU opponents",seg("l-cp",[[1,"1"],[2,"2"],[3,"3"]],L.cfg.cpus,v=>L.cfg.cpus=v))); dyn.appendChild(field("CPU strength",seg("l-lv",Object.entries(LEVELS).map(([k,v])=>[k,v.label]),L.cfg.level,v=>L.cfg.level=v))); }
+    else { dyn.appendChild(field("Players",seg("l-pl",[[2,"2"],[3,"3"],[4,"4"]],L.cfg.players,v=>{L.cfg.players=v;draw();}))); dyn.appendChild(nameInputs(L.cfg.players,"ln",store.get("arc-names",[]))); }
+  };
+  s.appendChild(field("Mode",seg("l-md",[["cpu","You vs CPU"],["pass","Pass & play"]],L.cfg.mode,v=>{L.cfg.mode=v;draw();})));
+  s.appendChild(dyn); draw();
+  s.appendChild(field("Cards each",seg("l-hd",[[5,"5"],[7,"7"],[9,"9"]],L.cfg.hand,v=>L.cfg.hand=v)));
+  s.appendChild(field("Turn timer",seg("l-sc",[[0,"Off"],[30,"30s"],[45,"45s"]],L.cfg.secs,v=>L.cfg.secs=v)));
+  const go=document.createElement("button"); go.className="btn primary go"; go.textContent="Deal"; go.onclick=startLinkup; s.appendChild(go);
+}
+function startLinkup(){
+  const c=L.cfg; store.set("arc-linkup",c);
+  let seats;
+  if(c.mode==="cpu") seats=[{name:"You",cpu:false},...Array.from({length:c.cpus},(_,i)=>({name:"CPU "+(i+1),cpu:true}))];
+  else { const n=readNames("ln",c.players); store.set("arc-names",n); seats=n.map(x=>({name:x,cpu:false})); }
+  const deck=buildDeck();
+  seats.forEach(s=>s.hand=deck.splice(0,c.hand));
+  let top; do{ top=deck.shift(); if(isAction(top)) deck.push(top); }while(isAction(top));
+  L.st={seats,deck,discard:[top],top,anchor:top,need:null,turn:0,used:new Set(),log:[],humans:seats.filter(s=>!s.cpu).length,over:false};
+  logL(`Kick-off card: <b>${esc(cardName(top))}</b>`);
+  $("l-setup").hidden=true; $("l-rules").hidden=true; $("l-result").hidden=true; $("l-play").hidden=false;
+  linkTurn(true);
+}
+function cardName(cd){ const t=document.createElement("div"); t.innerHTML=cardHTML(cd,false); return t.querySelector(".n").textContent; }
+function logL(h){ L.st.log.unshift(h); $("l-log").innerHTML=L.st.log.slice(0,40).map(x=>`<div>${x}</div>`).join(""); }
+function topColor(){ const t=L.st.top; return t.kind==="wild"?t.chosen:t.color; }
+function canPlayAction(cd){ const t=L.st.top; if(cd.kind==="wild") return true; return cd.color===topColor()||(t.kind===cd.kind); }
+function catAllowed(cd){
+  const st=L.st;
+  if(st.need&&cd.color!==st.need) return `After the Wild, play a ${COLOR_NAMES[st.need]} card.`;
+  if(st.anchor&&st.anchor.kind==="nation"&&cd.kind==="nation") return "Two nations can't be linked.";
+  return null;
+}
+function linkPred(cd){ const a=L.st.anchor?cardCond(L.st.anchor):null, b=cardCond(cd); return p=>(!a||a.test(p))&&b.test(p)&&!L.st.used.has(p.id); }
+function renderLink(){
+  const st=L.st, seat=st.seats[st.turn];
+  $("l-top").innerHTML=cardHTML(st.top,false);
+  $("l-deckn").textContent="Draw ("+st.deck.length+")";
+  $("l-opp").innerHTML=st.seats.map((s,i)=>`<span class="seat${i===st.turn?" on":""}">${esc(s.name)}<b>${s.hand.length}</b></span>`).join("");
+  $("l-who").textContent=seat.cpu?seat.name+" is playing…":(st.humans>1?seat.name+"'s turn":"Your turn");
+  const anchorTxt=st.anchor?`<b>${esc(cardName(st.anchor))}</b>`:"";
+  $("l-ask").innerHTML=st.need?`Wild: play any <b>${COLOR_NAMES[st.need]}</b> card and name a player who fits it.`
+    :`On the table: ${anchorTxt}${st.top!==st.anchor&&st.top.kind!=="wild"?` (${esc(cardName(st.top))} on top, colour ${COLOR_NAMES[topColor()]})`:""}. Pick a card and name a player who links them.`;
+  // hand: show the current human's cards (or the single human's in CPU mode)
+  const viewer=seat.cpu?st.seats.find(s=>!s.cpu):seat;
+  $("l-handLabel").textContent=st.humans>1?viewer.name+"'s hand":"Your hand";
+  $("l-handCount").textContent=viewer.hand.length+" cards";
+  $("l-hand").innerHTML=viewer.hand.map(cd=>{
+    const ok=!seat.cpu&&viewer===seat&&(isAction(cd)?canPlayAction(cd):!catAllowed(cd));
+    return cardHTML(cd,true,(ok?"":" dim"));
+  }).join("");
+  $("l-hand").querySelectorAll("button.card").forEach(b=>{
+    b.setAttribute("aria-pressed",String(L.sel&&L.sel.uid===+b.dataset.uid));
+    b.onclick=()=>selectCard(+b.dataset.uid);
+  });
+}
+function linkTurn(fresh){
+  const st=L.st; if(st.over) return;
+  L.sel=null; $("l-form").hidden=true; $("l-colors").hidden=true;
+  const seat=st.seats[st.turn];
+  const go=()=>{
+    renderLink(); $("l-fb").textContent="";
+    if(L.cfg.secs&&!seat.cpu){ $("l-clock").hidden=false; L.timer=Timer(L.cfg.secs,$("l-clock"),$("l-secs"),$("l-bar"),()=>{ $("l-fb").className="feedback err"; $("l-fb").textContent="Time's up. You draw a card."; drawFor(st.turn,1,true); endLinkTurn(); }); L.timer.start(); }
+    else $("l-clock").hidden=true;
+    if(seat.cpu) L.cpuT=setTimeout(cpuLink,1100+rnd(1300));
+  };
+  if(!seat.cpu&&st.humans>1&&!fresh) cover("Pass the phone",seat.name,`Top card: ${cardName(st.top)}. ${seat.hand.length} cards in hand.`,go); else go();
+}
+function selectCard(uid){
+  const st=L.st, seat=st.seats[st.turn]; if(seat.cpu||st.over) return;
+  const cd=seat.hand.find(c=>c.uid===uid); if(!cd) return;
+  const fb=$("l-fb"); fb.textContent="";
+  if(isAction(cd)){
+    if(!canPlayAction(cd)){ fb.className="feedback err"; fb.textContent=`${cardName(cd)} needs a ${COLOR_NAMES[topColor()]||"matching"} colour on top.`; return; }
+    if(cd.kind==="wild"){ L.sel=cd; renderLink(); showColors(); return; }
+    return playCard(st.turn,cd,null);
+  }
+  const why=catAllowed(cd); if(why){ fb.className="feedback err"; fb.textContent=why; return; }
+  L.sel=cd; renderLink();
+  $("l-colors").hidden=true; $("l-form").hidden=false;
+  $("l-input").placeholder=st.anchor?`Who links ${cardName(st.anchor)} and ${cardName(cd)}?`:`Name a player who fits ${cardName(cd)}`;
+  $("l-input").value=""; $("l-input").focus();
+}
+function showColors(){
+  const box=$("l-colors"); box.hidden=false; $("l-form").hidden=true;
+  box.innerHTML=Object.keys(COLOR_NAMES).map(c=>`<button type="button" style="--cc:${COLORS[c]}" data-c="${c}">${COLOR_NAMES[c]}</button>`).join("");
+  box.querySelectorAll("button").forEach(b=>b.onclick=()=>{ const cd=L.sel; cd.chosen=b.dataset.c; playCard(L.st.turn,cd,null); });
+}
+$("l-cancel").onclick=()=>{ L.sel=null; $("l-form").hidden=true; renderLink(); };
+$("l-form").addEventListener("submit",e=>{
+  e.preventDefault(); const st=L.st, cd=L.sel; if(!cd) return;
+  const v=$("l-input").value; if(!v.trim()) return;
+  const pred=linkPred(cd), r=resolve(v,pred), fb=$("l-fb");
+  if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; return; }
+  if(st.used.has(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} has already been used this game.`; return; }
+  if(!r.ok){
+    const a=st.anchor?cardCond(st.anchor):null, b=cardCond(cd);
+    const fails=[a,b].filter(c=>c&&!c.test(r.p)).map(c=>c.neg);
+    fb.className="feedback err"; fb.textContent=`${r.p.base} ${fails.join(" and ")}.`; return;
+  }
+  $("l-input").value=""; playCard(st.turn,cd,r.p);
+});
+$("l-deck").onclick=()=>{ const st=L.st; if(!st||st.over||st.seats[st.turn].cpu) return; drawFor(st.turn,1,true); endLinkTurn(); };
+function drawFor(i,n,log){
+  const st=L.st;
+  for(let k=0;k<n;k++){
+    if(!st.deck.length){ const keep=st.discard.pop(); st.deck=shuffle(st.discard.map(c=>{delete c.chosen;return c;})); st.discard=[keep]; }
+    if(st.deck.length) st.seats[i].hand.push(st.deck.shift());
+  }
+  if(log) logL(`<b>${esc(st.seats[i].name)}</b> drew ${n} card${n>1?"s":""}.`);
+}
+function playCard(i,cd,player){
+  const st=L.st, seat=st.seats[i];
+  L.timer&&L.timer.stop();
+  seat.hand=seat.hand.filter(c=>c.uid!==cd.uid);
+  st.discard.push(cd); st.top=cd;
+  let skipNext=false;
+  if(cd.kind==="wild"){ st.anchor=null; st.need=cd.chosen; logL(`<b>${esc(seat.name)}</b> played a Wild and chose ${COLOR_NAMES[cd.chosen]}.`); }
+  else if(cd.kind==="skip"){ skipNext=true; logL(`<b>${esc(seat.name)}</b> played Skip.`); }
+  else if(cd.kind==="plus2"){ skipNext=true; const nx=(i+1)%st.seats.length; drawFor(nx,2,false); logL(`<b>${esc(seat.name)}</b> played +2. <b>${esc(st.seats[nx].name)}</b> draws 2.`); }
+  else {
+    const prev=st.anchor; st.anchor=cd; st.need=null; if(player) st.used.add(player.id);
+    logL(`<b>${esc(seat.name)}</b> played ${esc(cardName(cd))} with <b>${esc(player.base)}</b>${prev?` (${esc(cardName(prev))} → ${esc(cardName(cd))})`:""}.`);
+    if(!seat.cpu){ $("l-fb").className="feedback ok"; $("l-fb").textContent=`✓ ${player.base} links them.`; }
+  }
+  if(seat.hand.length===1) logL(`<b>${esc(seat.name)}</b> is down to the last card!`);
+  if(!seat.hand.length) return linkWin(i);
+  endLinkTurn(skipNext);
+}
+function endLinkTurn(skip){
+  const st=L.st; L.timer&&L.timer.stop(); clearTimeout(L.cpuT);
+  L.sel=null; $("l-form").hidden=true; $("l-colors").hidden=true;
+  const n=st.seats.length;
+  st.turn=(st.turn+1+(skip?1:0))%n;
+  if(st.humans>1){ $("l-hand").innerHTML=""; $("l-opp").innerHTML=""; } else renderLink();
+  setTimeout(()=>linkTurn(false),450);
+}
+function cpuLink(){
+  const st=L.st, seat=st.seats[st.turn], lv=LEVELS[L.cfg.level];
+  const options=[];
+  for(const cd of seat.hand){
+    if(isAction(cd)){ if(cd.kind!=="wild"&&canPlayAction(cd)) options.push({cd,w:2}); continue; }
+    if(catAllowed(cd)) continue;
+    if(Math.random()<lv.miss*3) continue; // didn't think of anyone for this one
+    const pred=linkPred(cd);
+    const cands=PLAYERS.filter(p=>p.tier<=lv.tier&&pred(p));
+    if(cands.length) options.push({cd,p:pickOne(cands.slice(0,12)),w:3});
+  }
+  if(!options.length){
+    const wild=seat.hand.find(c=>c.kind==="wild");
+    if(wild&&Math.random()<.85){ const counts={}; seat.hand.forEach(c=>{ if(!isAction(c)) counts[c.color]=(counts[c.color]||0)+1; }); wild.chosen=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0]||"club"; return playCard(st.turn,wild,null); }
+    drawFor(st.turn,1,true); return endLinkTurn();
+  }
+  options.sort((a,b)=>b.w-a.w+(Math.random()-.5));
+  const o=options[0]; playCard(st.turn,o.cd,o.p||null);
+}
+function linkWin(i){
+  const st=L.st; st.over=true; L.timer&&L.timer.stop(); clearTimeout(L.cpuT); renderLink();
+  const r=$("l-result"); r.hidden=false;
+  const w=st.seats[i];
+  r.innerHTML=`<h3 class="view-title" style="font-size:34px">${esc(w.cpu?w.name+" wins":(st.humans>1?w.name+" wins":"You win"))}</h3>
+    <p class="note" style="margin:0">${st.used.size} players named this game.</p>
+    <div class="actions"><button class="btn primary" id="l-again">Deal again</button><button class="btn ghost" id="l-setupBtn">Change settings</button></div>`;
+  $("l-again").onclick=startLinkup; $("l-setupBtn").onclick=openLinkup;
+  r.scrollIntoView({block:"nearest"});
+}
+$("l-rulesBtn").onclick=()=>{ $("l-rules").hidden=!$("l-rules").hidden; };
+
+/* ================= Routing ================= */
+function stopAll(){ [T.timer,C.timer,L.timer].forEach(t=>t&&t.stop()); clearTimeout(C.cpuT); clearTimeout(L.cpuT); $("cover").hidden=true; if(L.st) L.st.over=true; }
+function route(){
+  const h=location.hash.replace("#","");
+  stopAll();
+  ["hub","close","timed","chain","linkup"].forEach(v=>$("v-"+v).hidden=true);
+  if(h==="thirty"||h==="letters"){ $("v-timed").hidden=false; openTimed(h); }
+  else if(h==="close"){ $("v-close").hidden=false; window.openCloseControl&&window.openCloseControl(); }
+  else if(h==="chain"){ $("v-chain").hidden=false; openChain(); }
+  else if(h==="linkup"){ $("v-linkup").hidden=false; openLinkup(); }
+  else $("v-hub").hidden=false;
+  window.scrollTo(0,0);
+}
+document.addEventListener("click",e=>{ const g=e.target.closest("[data-go]"); if(g){ e.preventDefault(); const h=g.dataset.go; if(("#"+h)===location.hash||(!h&&!location.hash)) route(); else location.hash=h; } });
+window.addEventListener("hashchange",route);
+setTimeout(route,0);
+</script>
+<script>
+(function(){
+/* ---------- Close Control (unchanged game logic, scoped) ---------- */
+const RAWD = JSON.parse(document.getElementById("ccdata").textContent);
+const REGION = {UEFA:"Europe",CONMEBOL:"South America",CAF:"Africa",AFC:"Asia",CONCACAF:"North & Central America",OFC:"Oceania","?":"somewhere"};
+const POSC = ["GK","CB","FB","DM","CM","AM","W","ST"];
+const GROUP = {GK:"Goalkeeper",CB:"Defender",FB:"Defender",DM:"Midfielder",CM:"Midfielder",AM:"Midfielder",W:"Forward",ST:"Forward"};
+const POSNAME = {GK:"Goalkeeper",CB:"Centre-back",FB:"Full-back",DM:"Defensive mid",CM:"Central mid",AM:"Attacking mid",W:"Winger",ST:"Striker"};
+const SPECIAL_FLAG = {ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",SCO:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",WAL:"🏴󠁧󠁢󠁷󠁬󠁳󠁿",NIR:"🇬🇧",XK:"🇽🇰"};
+const flagOf = code => !code ? "" : SPECIAL_FLAG[code] || String.fromCodePoint(...[...code].map(c=>0x1F1E6+c.charCodeAt(0)-65));
+const COUNTRIES = RAWD.countries.map(([name,code,conf])=>({name,flag:flagOf(code),conf}));
+const CLUBS = RAWD.clubs.map(([name,k])=>({name,k}));
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[øØ]/g,"o").replace(/[ıİ]/g,"i").replace(/[łŁ]/g,"l").replace(/ß/g,"ss").replace(/[đĐ]/g,"d").toLowerCase();
+const PLAYERS = RAWD.players.map(([name,k,pi,born,tier,flat],id)=>{
+  const stints=[]; const clubs=new Map();
+  for(let i=0;i<flat.length;i+=3){
+    const c=flat[i], a=flat[i+1], b=flat[i+2];
+    stints.push({c,a,b});
+    if(!clubs.has(c)) clubs.set(c,[]);
+    clubs.get(c).push([a,b]);
+  }
+  const leagues=new Set(); clubs.forEach((_,c)=>{ if(CLUBS[c].k>=0) leagues.add(CLUBS[c].k); });
+  const key=norm(name);
+  return {id,name,k,pos:POSC[pi],born,tier,stints,clubs,leagues,key,parts:key.split(/[\s\-'.()]+/).filter(Boolean)};
+});
+const N = PLAYERS.length;
+const fmt = n => n.toLocaleString("en-US");
+
+/* ---------- Similarity ---------- */
+function overlap(ia,ib,a,b){
+  for(const [x0,x1] of ia) for(const [y0,y1] of ib){
+    if(x0===0||y0===0){ if(Math.abs(a.born-b.born)<=4) return true; continue; }
+    if(x0<=y1&&y0<=x1) return true;
+  }
+  return false;
+}
+function score(a,b){
+  let s=0;
+  if(a.k===b.k) s+=30; else if(COUNTRIES[a.k].conf===COUNTRIES[b.k].conf) s+=6;
+  const dy=Math.abs(a.born-b.born);
+  let shared=0, mates=0;
+  for(const [c,iv] of a.clubs){
+    const jv=b.clubs.get(c); if(!jv) continue;
+    s+= shared===0?24 : shared===1?14 : shared===2?8 : 4; shared++;
+    if(mates<2&&overlap(iv,jv,a,b)){ s+=10; mates++; }
+  }
+  let lg=0; for(const x of a.leagues) if(b.leagues.has(x)) lg++;
+  s+=Math.min(lg,3)*4;
+  if(a.pos===b.pos) s+=12; else if(GROUP[a.pos]===GROUP[b.pos]) s+=6;
+  if((a.pos==="GK")!==(b.pos==="GK")) s-=8;
+  s+=16*Math.max(0,1-dy/16);
+  return s;
+}
+function hashStr(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function rankFor(secret){
+  const arr=PLAYERS.map(p=>({p,s:p.id===secret.id?1e9:score(secret,p)+p.tier*-0.01,t:hashStr(p.name+secret.name)}));
+  arr.sort((x,y)=>y.s-x.s||x.t-y.t);
+  const ranks=new Int32Array(N); arr.forEach((o,i)=>ranks[o.p.id]=i+1);
+  return {ranks,order:arr.map(o=>o.p)};
+}
+function links(a,b){
+  const dy=Math.abs(a.born-b.born);
+  const shared=[], mates=[];
+  for(const [c,iv] of a.clubs){ const jv=b.clubs.get(c); if(!jv) continue; shared.push(c); if(overlap(iv,jv,a,b)) mates.push(c); }
+  let lg=false; for(const x of a.leagues) if(b.leagues.has(x)) {lg=true;break;}
+  return {
+    nation: a.k===b.k?2:COUNTRIES[a.k].conf===COUNTRIES[b.k].conf?1:0,
+    club: shared.length?2:0, shared, mates,
+    league: lg?2:0,
+    pos: a.pos===b.pos?2:GROUP[a.pos]===GROUP[b.pos]?1:0,
+    era: dy<=3?2:dy<=7?1:0
+  };
+}
+function whyText(a,b){
+  const L=links(a,b), out=[];
+  if(L.nation===2) out.push(COUNTRIES[a.k].name);
+  if(L.mates.length) out.push("teammates at "+L.mates.map(c=>CLUBS[c].name).join(", "));
+  const other=L.shared.filter(c=>!L.mates.includes(c));
+  if(other.length) out.push((L.mates.length?"also ":"")+other.slice(0,3).map(c=>CLUBS[c].name).join(", "));
+  if(!L.shared.length&&L.league) out.push("same league");
+  if(L.pos===2) out.push(POSNAME[a.pos].toLowerCase());
+  if(L.era===2) out.push("similar age");
+  return out.length?out.join(" · "):"loose link";
+}
+function careerText(p){
+  const st=[...p.stints].sort((x,y)=>(x.a||0)-(y.a||0));
+  const known=st.filter(s=>s.a), unknown=st.filter(s=>!s.a);
+  const out=known.map(s=>({n:CLUBS[s.c].name,y:s.a+"–"+(s.b>=2025&&s===known[known.length-1]?"":String(s.b+1).slice(-2))}));
+  unknown.forEach(s=>{ if(!known.some(k=>k.c===s.c)) out.push({n:CLUBS[s.c].name,y:""}); });
+  return out;
+}
+
+/* ---------- State ---------- */
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const puzzleNo=ds=>Math.floor((Date.parse(ds+"T00:00:00Z")-Date.parse("2026-01-01T00:00:00Z"))/864e5)+1;
+const DAILY_POOL=PLAYERS.filter(p=>p.tier===0&&p.clubs.size>=2);
+
+let settings=Object.assign({chips:true,era:"all",level:"1"},store.get("cc-settings",{}));
+let stats=store.get("cc-stats",{d:{played:0,won:0,streak:0,best:0,guesses:0,last:null},f:{played:0,won:0,guesses:0,hints:0}});
+let mode="daily", game=null, ctx=null, sugIdx=-1, sugList=[];
+const byName=new Map(PLAYERS.map(p=>[p.name,p]));
+const idOf=n=>{const p=byName.get(n);return p?p.id:-1;};
+
+function newDaily(){
+  const ds=todayStr();
+  const saved=store.get("cc-daily2-"+ds,null);
+  if(saved&&byName.has(saved.secret)) return saved;
+  const secret=DAILY_POOL[hashStr("cc-"+ds)%DAILY_POOL.length];
+  return {kind:"daily",date:ds,secret:secret.name,guesses:[],hints:[],status:"playing"};
+}
+function freePool(){
+  const lv=+settings.level;
+  return PLAYERS.filter(p=>p.tier<=lv&&p.clubs.size>=2&&(settings.era==="all"||(settings.era==="modern"?p.born>=1990:p.born<1990)));
+}
+function newFree(){
+  let pool=freePool(); if(!pool.length) pool=DAILY_POOL;
+  const prev=game&&game.kind==="free"?game.secret:"";
+  let s; do{ s=pool[Math.floor(Math.random()*pool.length)]; }while(pool.length>1&&s.name===prev);
+  return {kind:"free",secret:s.name,guesses:[],hints:[],status:"playing"};
+}
+function save(){ if(game.kind==="daily") store.set("cc-daily2-"+game.date,game); else store.set("cc-free2",game); }
+const S=()=>byName.get(game.secret);
+const G=()=>game.guesses.map(idOf).filter(i=>i>=0);
+function load(m){
+  mode=m;
+  $("tabDaily").setAttribute("aria-selected",m==="daily");
+  $("tabFree").setAttribute("aria-selected",m==="free");
+  if(m==="daily") game=newDaily();
+  else { const f=store.get("cc-free2",null); game=(f&&f.status==="playing"&&byName.has(f.secret))?f:newFree(); }
+  ctx=rankFor(S());
+  $("msg").textContent=""; $("giveUpConfirm").hidden=true;
+  render();
+}
+function reset(){ game=newFree(); save(); ctx=rankFor(S()); $("msg").textContent=""; render(); }
+
+/* ---------- Guessing ---------- */
+function guess(p){
+  if(game.status!=="playing") return;
+  if(game.guesses.includes(p.name)){ flash(p.name+" is already on your list at #"+fmt(ctx.ranks[p.id])+".",true); return; }
+  game.guesses.push(p.name);
+  $("msg").textContent="";
+  if(p.name===game.secret) finish(true);
+  save(); render();
+}
+function finish(won){
+  game.status=won?"won":"lost";
+  const n=game.guesses.length, h=game.hints.length;
+  if(game.kind==="daily"){
+    const d=stats.d; d.played++;
+    if(won){ d.won++; d.guesses+=n;
+      const y=new Date(Date.parse(game.date+"T00:00:00Z")-864e5).toISOString().slice(0,10);
+      d.streak=(d.last===y)?d.streak+1:1; d.best=Math.max(d.best,d.streak); d.last=game.date;
+    } else { d.streak=0; d.last=game.date; }
+  } else { const f=stats.f; f.played++; if(won){f.won++; f.guesses+=n; f.hints+=h;} }
+  store.set("cc-stats",stats);
+}
+function flash(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+
+/* ---------- Hints ---------- */
+function bestRank(){ return G().reduce((m,id)=>Math.min(m,ctx.ranks[id]),N+1); }
+function hintCloser(){
+  if(game.status!=="playing") return;
+  const best=bestRank();
+  if(best<=2){ flash("You're already as close as a hint can get you.",true); return; }
+  const target=Math.max(2,Math.floor(best/2));
+  const guessed=new Set(game.guesses);
+  // prefer a well-known name near the target rank
+  let pick=null;
+  for(const maxTier of [0,1,2]){
+    const lo=maxTier<2?Math.max(2,Math.floor(target/2)):2;
+    let bestD=Infinity;
+    for(let r=lo;r<best;r++){
+      const p=ctx.order[r-1]; if(guessed.has(p.name)||p.tier>maxTier) continue;
+      const d=Math.abs(r-target); if(d<bestD){bestD=d;pick=p;}
+    }
+    if(pick) break;
+  }
+  if(!pick) return;
+  game.hints.push("closer"); game.guesses.push(pick.name); save(); render();
+  flash("Hint: "+pick.name+" is #"+fmt(ctx.ranks[pick.id])+".");
+}
+function hintFact(kind){
+  if(game.status!=="playing"||game.hints.includes(kind)) return;
+  game.hints.push(kind); save(); render();
+}
+function hintClubName(){
+  const s=S(); const st=[...s.clubs.keys()];
+  return CLUBS[st[hashStr(s.name+"club")%st.length]].name;
+}
+
+/* ---------- Search ---------- */
+function search(q){
+  const n=norm(q.trim()); if(!n) return [];
+  const words=n.split(/\s+/).filter(Boolean);
+  const res=[];
+  for(const p of PLAYERS){
+    let ok=true, pre=0;
+    for(const w of words){
+      if(p.parts.some(x=>x.startsWith(w))) continue;
+      if(p.key.includes(w)){pre=1;continue;}
+      ok=false;break;
+    }
+    if(ok) res.push([pre*10+p.tier,p]);
+  }
+  res.sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name));
+  return res.slice(0,8).map(r=>r[1]);
+}
+function lastClub(p){ const st=p.stints.filter(s=>s.a); const s=st.length?st.reduce((m,x)=>x.a>m.a?x:m):p.stints[p.stints.length-1]; return s?CLUBS[s.c].name:""; }
+function showSug(){
+  const box=$("suggest"), q=$("guess").value;
+  sugList=search(q);
+  if(!q.trim()){ box.hidden=true; return; }
+  box.innerHTML="";
+  if(!sugList.length){ const d=document.createElement("div"); d.className="sug none"; d.textContent="No player by that name in the database"; box.appendChild(d); }
+  sugList.forEach((p,i)=>{
+    const b=document.createElement("button"); b.className="sug"; b.type="button"; b.setAttribute("role","option");
+    b.setAttribute("aria-selected",i===sugIdx);
+    const used=game.guesses.includes(p.name);
+    b.innerHTML=`<span class="n"></span><span class="d"></span>`;
+    b.querySelector(".n").textContent=p.name;
+    b.querySelector(".d").textContent=used?"Guessed · #"+fmt(ctx.ranks[p.id]):COUNTRIES[p.k].flag+" "+lastClub(p);
+    b.addEventListener("mousedown",e=>{e.preventDefault(); pick(p);});
+    box.appendChild(b);
+  });
+  box.hidden=false;
+}
+function pick(p){ $("guess").value=""; sugIdx=-1; $("suggest").hidden=true; guess(p); $("guess").focus(); }
+
+/* ---------- Render ---------- */
+function tone(r){ return r<=10?"--hot":r<=50?"--warm":r<=250?"--mild":r<=1000?"--cool":"--cold"; }
+function fillPct(r){ return Math.max(3,100*(1-Math.log(r)/Math.log(N))); }
+function chipHTML(L){
+  const c=(v,t,cls)=>`<span class="chip ${cls||(v===2?"on":v===1?"half":"")}">${t}</span>`;
+  return `<div class="chips">${c(L.nation,"Nation")}${L.mates.length?c(2,"Teammate","mate"):c(L.club,"Club")}${c(L.league,"League")}${c(L.pos,"Position")}${c(L.era,"Age")}</div>`;
+}
+function render(){
+  const secret=S(), playing=game.status==="playing";
+  $("poolSize").textContent=fmt(N); $("helpCount").textContent=fmt(N);
+  if(game.kind==="daily"){
+    $("metaLeft").innerHTML=`Match <b>#${puzzleNo(game.date)}</b> · ${game.date}`;
+  } else {
+    $("metaLeft").innerHTML=`<span class="selects"><select id="lvlSel" aria-label="Difficulty"><option value="0">Stars</option><option value="1">Well known</option><option value="2">Deep cuts</option></select><select id="eraSel" aria-label="Era"><option value="all">Any era</option><option value="modern">Born 1990+</option><option value="classic">Before 1990</option></select></span>`;
+    $("lvlSel").value=settings.level; $("eraSel").value=settings.era;
+    const onChange=()=>{ settings.level=$("lvlSel").value; settings.era=$("eraSel").value; store.set("cc-settings",settings);
+      if(game.guesses.length===0||game.status!=="playing") reset(); else flash("New settings apply from your next player."); };
+    $("lvlSel").onchange=onChange; $("eraSel").onchange=onChange;
+  }
+  $("metaRight").innerHTML=`<b>${game.guesses.length}</b> guesses · <b>${game.hints.length}</b> hints`;
+  $("guess").disabled=!playing;
+  $("hPos").disabled=game.hints.includes("pos");
+  $("hEra").disabled=game.hints.includes("era");
+  $("hRegion").disabled=game.hints.includes("region");
+  $("hClub").disabled=game.hints.includes("club");
+  const cc=game.hints.filter(h=>h==="closer").length; $("hCloserCt").textContent=cc?"×"+cc:"";
+  $("actions").hidden=!playing;
+
+  const notes=[];
+  if(game.hints.includes("pos")) notes.push(`Plays as a <b>${GROUP[secret.pos].toLowerCase()}</b>.`);
+  if(game.hints.includes("era")) notes.push(`Born in the <b>${Math.floor(secret.born/10)*10}s</b>.`);
+  if(game.hints.includes("region")) notes.push(`Represents a country in <b>${REGION[COUNTRIES[secret.k].conf]}</b>.`);
+  if(game.hints.includes("club")) notes.push(`Has played for <b></b>.`);
+  $("hintNotes").innerHTML=notes.map(n=>`<div class="hint-note">Hint: ${n}</div>`).join("");
+  if(game.hints.includes("club")){ const bs=$("hintNotes").querySelectorAll(".hint-note"); bs[bs.length-1].querySelector("b").textContent=hintClubName(); }
+
+  const slot=$("resultSlot"); slot.innerHTML="";
+  if(!playing){
+    const won=game.status==="won", n=game.guesses.length, h=game.hints.length;
+    const card=document.createElement("div"); card.className="result";
+    card.innerHTML=`<div class="eyebrow">${won?"Found in "+n+" guess"+(n===1?"":"es"):"Answer revealed"}</div>
+      <h2></h2>
+      <div class="facts"><span>${COUNTRIES[secret.k].flag} ${COUNTRIES[secret.k].name}</span><span>${POSNAME[secret.pos]}</span><span>Born ${secret.born}</span></div>
+      <div class="career"></div>
+      <div class="stats"><div><b>${n}</b><span>Guesses</span></div><div><b>${h}</b><span>Hints</span></div><div><b>${bestBefore()}</b><span>Best before answer</span></div></div>
+      <div class="actions"><button class="btn" id="shareBtn">Copy result</button>${game.kind==="daily"?'<button class="btn ghost" id="toFree">Play unlimited</button>':'<button class="btn ghost" id="again">New player</button>'}</div>
+      <div class="msg" id="shareMsg" style="color:inherit;opacity:.85"></div>`;
+    card.querySelector("h2").textContent=secret.name;
+    const car=card.querySelector(".career");
+    careerText(secret).forEach(c=>{ const s=document.createElement("span"); s.textContent=c.n; if(c.y){const i=document.createElement("i"); i.textContent=c.y; s.appendChild(i);} car.appendChild(s); });
+    slot.appendChild(card);
+    $("shareBtn").onclick=share;
+    if($("toFree")) $("toFree").onclick=()=>load("free");
+    if($("again")) $("again").onclick=reset;
+  }
+
+  const list=$("list"); list.innerHTML="";
+  const ids=G(), best=bestRank();
+  $("bestLabel").textContent=ids.length?"Best #"+fmt(best):"";
+  $("listLabel").textContent=playing?"Your guesses, closest first":"Closest players to "+secret.name;
+  if(!ids.length){
+    list.innerHTML=`<div class="empty"><span>Start with any player. Each guess shows how close it is to the secret player, from #${fmt(N)} (no link at all) to #1 (the answer). For example, if the answer were Ronaldinho:</span>
+      <div class="ex"><span>Rivaldo · Brazil, Barcelona, Milan</span><span style="color:var(--hot)">#${exampleRank("Rivaldo")}</span><span>Jordan Pickford · nothing in common</span><span style="color:var(--cold)">#${exampleRank("Jordan Pickford")}</span></div></div>`;
+  }
+  if(playing){
+    const last=ids[ids.length-1];
+    const sorted=[...ids].sort((a,b)=>ctx.ranks[a]-ctx.ranks[b]);
+    const ordered=ids.length>1?[last,...sorted]:sorted;
+    ordered.forEach((id,i)=>list.appendChild(rowEl(PLAYERS[id],secret,i===0&&ids.length>1)));
+  } else {
+    const wrap=document.createElement("div"); wrap.className="nearest";
+    const gs=new Set(game.guesses);
+    ctx.order.slice(1,16).forEach(p=>{
+      const d=document.createElement("div"); d.className="near"+(gs.has(p.name)?" guessed":"");
+      const r=ctx.ranks[p.id];
+      d.innerHTML=`<span class="r" style="color:var(${tone(r)})">${r}</span><div><div class="nm"></div><div class="why"></div></div>`;
+      d.querySelector(".nm").textContent=p.name+(gs.has(p.name)?"  ✓ guessed":"");
+      d.querySelector(".why").textContent=whyText(secret,p);
+      wrap.appendChild(d);
+    });
+    list.appendChild(wrap);
+    if(ids.length){
+      const lbl=document.createElement("div"); lbl.className="section-label"; lbl.innerHTML="<span>Your guesses</span>"; list.appendChild(lbl);
+      [...ids].sort((a,b)=>ctx.ranks[a]-ctx.ranks[b]).forEach(id=>list.appendChild(rowEl(PLAYERS[id],secret,false)));
+    }
+  }
+}
+function rowEl(p,secret,latest){
+  const r=ctx.ranks[p.id], row=document.createElement("div");
+  row.className="row"+(latest?" latest":"");
+  const showChips=settings.chips&&p.id!==secret.id;
+  row.innerHTML=`<span class="fill" style="width:${fillPct(r)}%;background:var(${tone(r)})"></span>
+    <div class="who"><span class="nm"></span>${showChips?chipHTML(links(secret,p)):""}</div>
+    <span class="rk" style="color:var(${tone(r)})">${fmt(r)}</span>`;
+  row.querySelector(".nm").textContent=(latest?"Latest · ":"")+p.name;
+  if(r===1) row.querySelector(".fill").style.opacity=".55";
+  return row;
+}
+function exampleRank(name){
+  const r=byName.get("Ronaldinho"), g=byName.get(name);
+  if(!r||!g) return "?"; if(!exampleRank.c) exampleRank.c=rankFor(r);
+  return fmt(exampleRank.c.ranks[g.id]);
+}
+function bestBefore(){ const rs=G().filter(id=>PLAYERS[id].name!==game.secret).map(id=>ctx.ranks[id]); return rs.length?"#"+fmt(Math.min(...rs)):"–"; }
+function share(){
+  const sq=r=>r===1?"⚽":r<=10?"🟥":r<=50?"🟧":r<=250?"🟨":r<=1000?"🟦":"⬜";
+  const ranks=G().map(id=>ctx.ranks[id]);
+  const shown=ranks.length>24?ranks.slice(0,11).concat(["…"],ranks.slice(-12)):ranks;
+  const head=game.kind==="daily"?`Close Control #${puzzleNo(game.date)}`:"Close Control · Unlimited";
+  const line=game.status==="won"?`Found in ${ranks.length} guesses, ${game.hints.length} hints`:`Gave up after ${ranks.length} guesses`;
+  const txt=`${head}\n${line}\n${shown.map(r=>r==="…"?"…":sq(r)).join("")}`;
+  const done=()=>{$("shareMsg").textContent="Copied. Paste it anywhere.";};
+  const fail=()=>{$("shareMsg").textContent=txt;};
+  try{ navigator.clipboard.writeText(txt).then(done,fail); }catch(e){ fail(); }
+}
+
+/* ---------- Stats dialog ---------- */
+function renderStats(){
+  const d=stats.d,f=stats.f;
+  const cell=(v,l)=>`<div><b>${v}</b><span>${l}</span></div>`;
+  $("dailyStats").innerHTML=cell(d.played,"Played")+cell(d.played?Math.round(100*d.won/d.played)+"%":"–","Solved")+cell(d.streak,"Streak")+cell(d.won?(d.guesses/d.won).toFixed(1):"–","Avg guesses");
+  $("freeStats").innerHTML=cell(f.played,"Played")+cell(f.won,"Solved")+cell(f.won?(f.guesses/f.won).toFixed(1):"–","Avg guesses")+cell(f.won?(f.hints/f.won).toFixed(1):"–","Avg hints");
+}
+
+/* ---------- Wiring ---------- */
+$("guess").addEventListener("input",()=>{sugIdx=0; showSug(); if(!sugList.length) sugIdx=-1;});
+$("guess").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){e.preventDefault(); if(sugList.length){sugIdx=(sugIdx+1)%sugList.length; showSug();}}
+  else if(e.key==="ArrowUp"){e.preventDefault(); if(sugList.length){sugIdx=(sugIdx-1+sugList.length)%sugList.length; showSug();}}
+  else if(e.key==="Enter"){e.preventDefault(); const p=sugList[sugIdx>=0?sugIdx:0];
+    if(p) pick(p); else if($("guess").value.trim()) flash("That player isn't in the database. Pick one from the list.",true);}
+  else if(e.key==="Escape"){ $("suggest").hidden=true; }
+});
+$("guess").addEventListener("blur",()=>setTimeout(()=>$("suggest").hidden=true,120));
+$("tabDaily").onclick=()=>load("daily");
+$("tabFree").onclick=()=>load("free");
+$("hCloser").onclick=hintCloser;
+$("hPos").onclick=()=>hintFact("pos");
+$("hEra").onclick=()=>hintFact("era");
+$("hRegion").onclick=()=>hintFact("region");
+$("hClub").onclick=()=>hintFact("club");
+$("giveUp").onclick=()=>{$("giveUpConfirm").hidden=false;};
+$("giveUpNo").onclick=()=>{$("giveUpConfirm").hidden=true;};
+$("giveUpYes").onclick=()=>{$("giveUpConfirm").hidden=true; $("msg").textContent=""; finish(false); save(); render();};
+const open=id=>{$(id).hidden=false;};
+$("helpBtn").onclick=()=>open("helpDlg");
+$("statsBtn").onclick=()=>{renderStats(); open("statsDlg");};
+document.querySelectorAll(".overlay").forEach(o=>{
+  o.addEventListener("click",e=>{ if(e.target===o||e.target.hasAttribute("data-close")) o.hidden=true; });
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".overlay").forEach(o=>o.hidden=true); });
+$("chipToggle").checked=settings.chips;
+$("chipToggle").onchange=e=>{settings.chips=e.target.checked; store.set("cc-settings",settings); render();};
+
+let started=false;
+window.openCloseControl=()=>{ if(started) return; started=true; load("daily"); if(!store.get("cc-seen-help",false)){ open("helpDlg"); store.set("cc-seen-help",true); } };
+})();
+</script>

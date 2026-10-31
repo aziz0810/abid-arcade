@@ -1,0 +1,1059 @@
+<title>Close Control</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one narrow match-sheet column; guess rows read like a league table, the temperature bar does the talking. */
+:root{
+  --bg:#e9eee8; --surface:#fbfcf9; --sunk:#dfe6de; --ink:#0f2318; --muted:#56685c; --line:#cdd7ce;
+  --pitch:#14603c; --pitch-ink:#f3f8f2;
+  --hot:#e2401f; --warm:#ef8f0c; --mild:#c9b20e; --cool:#4f8fb8; --cold:#9fb0bd;
+  --display:"Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body:"Barlow", "Segoe UI", system-ui, sans-serif;
+  --label:"Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1510; --surface:#13201a; --sunk:#0f1a14; --ink:#e4eee6; --muted:#93a598; --line:#24372c;
+  --pitch:#2f9c66; --pitch-ink:#06120b;
+  --hot:#ff5a36; --warm:#ffa42a; --mild:#e3cb2a; --cool:#5fa6d4; --cold:#4d5f6b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1510; --surface:#13201a; --sunk:#0f1a14; --ink:#e4eee6; --muted:#93a598; --line:#24372c;
+  --pitch:#2f9c66; --pitch-ink:#06120b;
+  --hot:#ff5a36; --warm:#ffa42a; --mild:#e3cb2a; --cool:#5fa6d4; --cold:#4d5f6b; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--pitch);outline-offset:2px}
+.wrap{max-width:620px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--display);font-weight:900;font-size:clamp(38px,9vw,56px);line-height:.85;letter-spacing:-.01em;margin:0;text-transform:uppercase}
+.brand h1 span{color:var(--pitch)}
+.brand p{margin:6px 0 0;font-family:var(--label);font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.icons{display:flex;gap:6px}
+.icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;height:36px;padding:0 12px;font-family:var(--label);font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:13px}
+.icon-btn:hover{border-color:var(--pitch)}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border-radius:10px;padding:4px;gap:4px}
+.tab{border:0;background:transparent;border-radius:7px;padding:9px 8px;font-family:var(--label);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--label);text-transform:uppercase;letter-spacing:.06em;font-size:14px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:700}
+.meta select{font-family:var(--label);font-size:14px;text-transform:uppercase;letter-spacing:.04em;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px;color:var(--ink)}
+.search{position:relative}
+.search input{width:100%;height:54px;border-radius:12px;border:2px solid var(--ink);background:var(--surface);padding:0 16px;font-size:18px;font-weight:500}
+.search input::placeholder{color:var(--muted);font-weight:400}
+.search input:disabled{opacity:.5;border-color:var(--line)}
+.suggest{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden;max-height:320px;overflow-y:auto}
+.sug{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border:0;width:100%;text-align:left;background:transparent;border-bottom:1px solid var(--line)}
+.sug:last-child{border-bottom:0}
+.sug[aria-selected="true"],.sug:hover{background:var(--sunk)}
+.sug .n{font-weight:600}
+.sug .d{font-family:var(--label);font-size:13px;color:var(--muted);letter-spacing:.03em;white-space:nowrap}
+.sug.none{color:var(--muted);cursor:default}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 12px;font-family:var(--label);font-weight:600;font-size:14px;letter-spacing:.05em;text-transform:uppercase}
+.btn:hover:not(:disabled){border-color:var(--pitch)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--pitch);color:var(--pitch-ink);border-color:var(--pitch)}
+.btn.ghost{background:transparent}
+.btn .ct{opacity:.7;margin-left:4px}
+.hintbar{display:flex;flex-direction:column;gap:6px}
+.hint-note{font-size:14px;background:var(--surface);border:1px dashed var(--line);border-radius:9px;padding:8px 12px}
+.hint-note b{font-weight:600}
+.msg{min-height:20px;font-size:14px;color:var(--muted)}
+.msg.err{color:var(--hot)}
+.section-label{font-family:var(--label);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.list{display:flex;flex-direction:column;gap:6px}
+.row{position:relative;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--sunk);overflow:hidden;isolation:isolate}
+.row .fill{position:absolute;inset:0 auto 0 0;z-index:-1;opacity:.28;border-radius:inherit;transition:width .5s ease}
+.row.latest{outline:2px solid var(--ink)}
+.row .who{min-width:0;display:flex;flex-direction:column;gap:3px}
+.row .nm{font-weight:600;font-size:16px;overflow-wrap:anywhere}
+.row .rk{font-family:var(--display);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums;line-height:1}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-family:var(--label);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.chip.on{background:var(--pitch);border-color:var(--pitch);color:var(--pitch-ink)}
+.chip.half{border-color:var(--pitch);color:var(--pitch)}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:8px}
+.empty .ex{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-weight:500;color:var(--ink)}
+.empty .ex span:nth-child(even){font-family:var(--display);font-weight:800;font-size:20px;text-align:right}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--label);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* result card */
+.result{background:var(--pitch);color:var(--pitch-ink);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.result::after{content:"";position:absolute;right:-60px;top:-60px;width:180px;height:180px;border:2px solid currentColor;border-radius:50%;opacity:.18}
+.result .eyebrow{font-family:var(--label);letter-spacing:.12em;text-transform:uppercase;font-size:13px;opacity:.85}
+.result h2{font-family:var(--display);font-weight:900;font-size:clamp(34px,8vw,48px);line-height:.9;margin:0;text-transform:uppercase;text-wrap:balance}
+.result .facts{display:flex;flex-wrap:wrap;gap:6px 14px;font-family:var(--label);font-size:15px;letter-spacing:.03em}
+.result .career{font-size:14px;opacity:.92}
+.result .stats{display:flex;gap:18px;flex-wrap:wrap}
+.result .stats div{display:flex;flex-direction:column}
+.result .stats b{font-family:var(--display);font-size:30px;line-height:1}
+.result .stats span{font-family:var(--label);font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.result .btn{background:var(--pitch-ink);color:var(--pitch);border-color:transparent}
+.result .btn.ghost{background:transparent;color:var(--pitch-ink);border-color:currentColor}
+.nearest{display:flex;flex-direction:column;gap:4px}
+.near{display:grid;grid-template-columns:38px 1fr;gap:10px;padding:8px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line)}
+.near .r{font-family:var(--display);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+.near .why{font-size:13px;color:var(--muted)}
+.near.guessed{border-color:var(--pitch)}
+/* dialogs */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(5,15,10,.55);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
+.dialog{background:var(--surface);border-radius:14px;max-width:520px;width:100%;padding:20px;display:flex;flex-direction:column;gap:12px;position:relative}
+.dialog h3{font-family:var(--display);font-weight:800;font-size:30px;text-transform:uppercase;margin:0;line-height:1}
+.dialog p{margin:0}
+.dialog ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.dialog .close{position:absolute;top:12px;right:12px}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.statgrid div{background:var(--sunk);border-radius:9px;padding:10px 6px;text-align:center}
+.statgrid b{display:block;font-family:var(--display);font-size:30px;line-height:1}
+.statgrid span{font-family:var(--label);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.toggle{display:flex;align-items:center;gap:10px;font-size:14px}
+.toggle input{width:18px;height:18px;accent-color:var(--pitch)}
+.giveup-confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+@media (max-width:420px){.statgrid{grid-template-columns:repeat(2,1fr)}.row .rk{font-size:22px}}
+@media (prefers-reduced-motion:reduce){.row .fill{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Close <span>Control</span></h1>
+      <p>Find the secret footballer · <span id="poolSize"></span> players ranked</p>
+    </div>
+    <div class="icons">
+      <button class="icon-btn" id="helpBtn" aria-label="How to play">How to play</button>
+      <button class="icon-btn" id="statsBtn" aria-label="Your stats">Stats</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabDaily" aria-selected="true">Daily match</button>
+    <button class="tab" role="tab" id="tabFree" aria-selected="false">Unlimited</button>
+  </div>
+
+  <div class="meta">
+    <span id="metaLeft"></span>
+    <span id="metaRight"></span>
+  </div>
+
+  <div class="search">
+    <input id="guess" type="text" autocomplete="off" spellcheck="false" placeholder="Type a player's name…" aria-label="Guess a player" aria-autocomplete="list" aria-controls="suggest">
+    <div class="suggest" id="suggest" role="listbox" hidden></div>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="btn" id="hCloser">Closer player<span class="ct" id="hCloserCt"></span></button>
+    <button class="btn" id="hPos">Position</button>
+    <button class="btn" id="hEra">Decade</button>
+    <button class="btn" id="hRegion">Region</button>
+    <button class="btn ghost" id="giveUp">Give up</button>
+  </div>
+  <div class="giveup-confirm" id="giveUpConfirm" hidden>
+    <span>Reveal the answer and end this round?</span>
+    <button class="btn primary" id="giveUpYes">Reveal</button>
+    <button class="btn ghost" id="giveUpNo">Keep playing</button>
+  </div>
+  <div class="hintbar" id="hintNotes"></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
+
+  <div id="resultSlot"></div>
+
+  <div class="section-label"><span id="listLabel">Your guesses</span><span id="bestLabel"></span></div>
+  <div class="list" id="list"></div>
+  <div class="legend" id="legend">
+    <span><i style="background:var(--hot)"></i>Top 10</span>
+    <span><i style="background:var(--warm)"></i>11–40</span>
+    <span><i style="background:var(--mild)"></i>41–100</span>
+    <span><i style="background:var(--cool)"></i>101–200</span>
+    <span><i style="background:var(--cold)"></i>200+</span>
+  </div>
+</div>
+
+<div class="overlay" id="helpDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <button class="btn ghost close" data-close>Close</button>
+    <h3 id="helpTitle">How to play</h3>
+    <p>There's a secret footballer. Guess any player and you'll see where they rank by similarity to the secret one. The secret player is <b>#1</b>. Guesses are unlimited.</p>
+    <ul>
+      <li>Similarity comes from <b>nationality</b>, <b>clubs played for</b>, <b>leagues</b>, <b>position</b> and <b>age</b>. Players who were likely teammates get a bonus.</li>
+      <li>A low number means you're close. If Rivaldo ranks #5, the answer is probably Brazilian and played for Barcelona or Milan.</li>
+      <li>The <b>clue chips</b> under each guess show which kind of link matched. A solid chip is an exact match; an outlined chip is a near match (same continent, same area of the pitch, within a few years of age). Switch them off below for a harder game.</li>
+      <li>Stuck? <b>Closer player</b> gives you a name ranked about halfway between your best guess and the answer. The other hints each reveal one fact. Hints are counted in your result.</li>
+      <li><b>Daily match</b> is the same for everyone each day. <b>Unlimited</b> deals a new secret player whenever you like.</li>
+    </ul>
+    <label class="toggle"><input type="checkbox" id="chipToggle" checked> Show clue chips on guesses</label>
+  </div>
+</div>
+
+<div class="overlay" id="statsDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+    <button class="btn ghost close" data-close>Close</button>
+    <h3 id="statsTitle">Your stats</h3>
+    <div class="section-label"><span>Daily match</span></div>
+    <div class="statgrid" id="dailyStats"></div>
+    <div class="section-label"><span>Unlimited</span></div>
+    <div class="statgrid" id="freeStats"></div>
+    <p class="msg">Stats are saved in this browser only.</p>
+  </div>
+</div>
+
+<script>
+/* ---------- Data ---------- */
+const NAT = {
+ENG:["England","🏴󠁧󠁢󠁥󠁮󠁧󠁿","UEFA"],SCO:["Scotland","🏴󠁧󠁢󠁳󠁣󠁴󠁿","UEFA"],WAL:["Wales","🏴󠁧󠁢󠁷󠁬󠁳󠁿","UEFA"],NIR:["N. Ireland","🇬🇧","UEFA"],IRL:["Ireland","🇮🇪","UEFA"],
+FRA:["France","🇫🇷","UEFA"],ESP:["Spain","🇪🇸","UEFA"],ITA:["Italy","🇮🇹","UEFA"],GER:["Germany","🇩🇪","UEFA"],NED:["Netherlands","🇳🇱","UEFA"],POR:["Portugal","🇵🇹","UEFA"],
+BEL:["Belgium","🇧🇪","UEFA"],CRO:["Croatia","🇭🇷","UEFA"],SRB:["Serbia","🇷🇸","UEFA"],SWE:["Sweden","🇸🇪","UEFA"],NOR:["Norway","🇳🇴","UEFA"],DEN:["Denmark","🇩🇰","UEFA"],
+POL:["Poland","🇵🇱","UEFA"],UKR:["Ukraine","🇺🇦","UEFA"],ROU:["Romania","🇷🇴","UEFA"],BUL:["Bulgaria","🇧🇬","UEFA"],CZE:["Czechia","🇨🇿","UEFA"],GEO:["Georgia","🇬🇪","UEFA"],
+SUI:["Switzerland","🇨🇭","UEFA"],AUT:["Austria","🇦🇹","UEFA"],TUR:["Türkiye","🇹🇷","UEFA"],SVK:["Slovakia","🇸🇰","UEFA"],SVN:["Slovenia","🇸🇮","UEFA"],BIH:["Bosnia","🇧🇦","UEFA"],
+ARM:["Armenia","🇦🇲","UEFA"],HUN:["Hungary","🇭🇺","UEFA"],
+BRA:["Brazil","🇧🇷","CONMEBOL"],ARG:["Argentina","🇦🇷","CONMEBOL"],URU:["Uruguay","🇺🇾","CONMEBOL"],COL:["Colombia","🇨🇴","CONMEBOL"],CHI:["Chile","🇨🇱","CONMEBOL"],ECU:["Ecuador","🇪🇨","CONMEBOL"],
+CIV:["Ivory Coast","🇨🇮","CAF"],CMR:["Cameroon","🇨🇲","CAF"],SEN:["Senegal","🇸🇳","CAF"],EGY:["Egypt","🇪🇬","CAF"],LBR:["Liberia","🇱🇷","CAF"],NGA:["Nigeria","🇳🇬","CAF"],
+ALG:["Algeria","🇩🇿","CAF"],MAR:["Morocco","🇲🇦","CAF"],TUN:["Tunisia","🇹🇳","CAF"],GHA:["Ghana","🇬🇭","CAF"],GAB:["Gabon","🇬🇦","CAF"],GUI:["Guinea","🇬🇳","CAF"],
+MLI:["Mali","🇲🇱","CAF"],TOG:["Togo","🇹🇬","CAF"],COD:["DR Congo","🇨🇩","CAF"],
+KOR:["South Korea","🇰🇷","AFC"],JPN:["Japan","🇯🇵","AFC"],IRN:["Iran","🇮🇷","AFC"],AUS:["Australia","🇦🇺","AFC"],KSA:["Saudi Arabia","🇸🇦","AFC"],
+USA:["USA","🇺🇸","CONCACAF"],CAN:["Canada","🇨🇦","CONCACAF"],MEX:["Mexico","🇲🇽","CONCACAF"],CRC:["Costa Rica","🇨🇷","CONCACAF"]
+};
+const REGION = {UEFA:"Europe",CONMEBOL:"South America",CAF:"Africa",AFC:"Asia",CONCACAF:"North & Central America"};
+const CLUB = {
+MUN:["Man United","ENG"],MCI:["Man City","ENG"],LIV:["Liverpool","ENG"],ARS:["Arsenal","ENG"],CHE:["Chelsea","ENG"],TOT:["Tottenham","ENG"],EVE:["Everton","ENG"],NEW:["Newcastle","ENG"],
+AVL:["Aston Villa","ENG"],WHU:["West Ham","ENG"],LEI:["Leicester","ENG"],SOU:["Southampton","ENG"],BHA:["Brighton","ENG"],CRY:["Crystal Palace","ENG"],WOL:["Wolves","ENG"],
+NFO:["Nottingham Forest","ENG"],BOU:["Bournemouth","ENG"],FUL:["Fulham","ENG"],BREN:["Brentford","ENG"],LEE:["Leeds","ENG"],BLB:["Blackburn","ENG"],SUN:["Sunderland","ENG"],
+STK:["Stoke","ENG"],BUR:["Burnley","ENG"],SHU:["Sheffield United","ENG"],QPR:["QPR","ENG"],POR:["Portsmouth","ENG"],MID:["Middlesbrough","ENG"],BOLT:["Bolton","ENG"],
+WAT:["Watford","ENG"],HUL:["Hull","ENG"],BIR:["Birmingham","ENG"],WBA:["West Brom","ENG"],CAR:["Cardiff","ENG"],
+RMA:["Real Madrid","ESP"],BAR:["Barcelona","ESP"],ATM:["Atlético Madrid","ESP"],SEV:["Sevilla","ESP"],VAL:["Valencia","ESP"],VIL:["Villarreal","ESP"],BET:["Real Betis","ESP"],
+RSO:["Real Sociedad","ESP"],ATH:["Athletic Club","ESP"],DEP:["Deportivo","ESP"],CEL:["Celta Vigo","ESP"],MAL:["Málaga","ESP"],GIR:["Girona","ESP"],ESY:["Espanyol","ESP"],
+MLL:["Mallorca","ESP"],GET:["Getafe","ESP"],
+JUV:["Juventus","ITA"],MIL:["AC Milan","ITA"],INT:["Inter","ITA"],ROM:["Roma","ITA"],LAZ:["Lazio","ITA"],NAP:["Napoli","ITA"],FIO:["Fiorentina","ITA"],ATA:["Atalanta","ITA"],
+PAR:["Parma","ITA"],SAM:["Sampdoria","ITA"],UDI:["Udinese","ITA"],TOR:["Torino","ITA"],BLG:["Bologna","ITA"],BRS:["Brescia","ITA"],COM:["Como","ITA"],PALE:["Palermo","ITA"],CRE:["Cremonese","ITA"],
+BAY:["Bayern","GER"],BVB:["Dortmund","GER"],B04:["Leverkusen","GER"],RBL:["RB Leipzig","GER"],S04:["Schalke","GER"],WOB:["Wolfsburg","GER"],SGE:["Frankfurt","GER"],
+BMG:["Gladbach","GER"],SVW:["Werder Bremen","GER"],HSV:["Hamburg","GER"],VFB:["Stuttgart","GER"],HOF:["Hoffenheim","GER"],KOE:["Köln","GER"],
+PSG:["PSG","FRA"],OM:["Marseille","FRA"],OL:["Lyon","FRA"],ASM:["Monaco","FRA"],LOSC:["Lille","FRA"],BOR:["Bordeaux","FRA"],REN:["Rennes","FRA"],NIC:["Nice","FRA"],
+NAN:["Nantes","FRA"],AUX:["Auxerre","FRA"],ASSE:["Saint-Étienne","FRA"],MHSC:["Montpellier","FRA"],
+AJA:["Ajax","NED"],PSV:["PSV","NED"],FEY:["Feyenoord","NED"],
+BEN:["Benfica","POR"],FCP:["Porto","POR"],SCP:["Sporting CP","POR"],
+CELT:["Celtic","SCO"],RAN:["Rangers","SCO"],
+GAL:["Galatasaray","TUR"],FEN:["Fenerbahçe","TUR"],BJK:["Beşiktaş","TUR"],
+FLA:["Flamengo","BRA"],SAN:["Santos","BRA"],SPFC:["São Paulo","BRA"],PAL:["Palmeiras","BRA"],COR:["Corinthians","BRA"],GRE:["Grêmio","BRA"],INTB:["Internacional","BRA"],
+CRU:["Cruzeiro","BRA"],FLU:["Fluminense","BRA"],BOT:["Botafogo","BRA"],VAS:["Vasco da Gama","BRA"],CAM:["Atlético Mineiro","BRA"],
+BOC:["Boca Juniors","ARG"],RIV:["River Plate","ARG"],IND:["Independiente","ARG"],NOB:["Newell's","ARG"],RAC:["Racing Club","ARG"],VEL:["Vélez","ARG"],EST:["Estudiantes","ARG"],
+ARJ:["Argentinos Juniors","ARG"],ROS:["Rosario Central","ARG"],
+NAC:["Nacional","URU"],PEN:["Peñarol","URU"],
+LAG:["LA Galaxy","USA"],MIA:["Inter Miami","USA"],NYRB:["NY Red Bulls","USA"],LAFC:["LAFC","USA"],TFC:["Toronto FC","USA"],ORL:["Orlando City","USA"],NYC:["New York City FC","USA"],
+COS:["NY Cosmos","USA"],DCU:["DC United","USA"],CHF:["Chicago Fire","USA"],VAN:["Vancouver","USA"],
+HIL:["Al-Hilal","KSA"],NAS:["Al-Nassr","KSA"],ITT:["Al-Ittihad","KSA"],AHL:["Al-Ahli","KSA"],ETT:["Al-Ettifaq","KSA"],
+ASD:["Al-Sadd","QAT"],ZEN:["Zenit","RUS"],SHK:["Shakhtar","UKR"],DYK:["Dynamo Kyiv","UKR"],RBS:["RB Salzburg","AUT"],
+AND:["Anderlecht","BEL"],CLB:["Club Brugge","BEL"],GNK:["Genk","BEL"],OLY:["Olympiacos","GRE"],BAS:["Basel","SUI"],DZG:["Dinamo Zagreb","CRO"],
+MFF:["Malmö","SWE"],AHLE:["Al Ahly","EGY"],ESTN:["Espérance de Tunis","TUN"],VIS:["Vissel Kobe","JPN"],MTY:["Monterrey","MEX"]
+};
+// name | nation | position | birth year | clubs (main senior clubs, as of the 2025/26 season)
+const RAW = `Pelé|BRA|ST|1940|SAN,COS
+Diego Maradona|ARG|AM|1960|ARJ,BOC,BAR,NAP,SEV,NOB
+Johan Cruyff|NED|ST|1947|AJA,BAR,FEY
+Franz Beckenbauer|GER|CB|1945|BAY,COS,HSV
+Gerd Müller|GER|ST|1945|BAY
+Eusébio|POR|ST|1942|BEN
+Alfredo Di Stéfano|ARG|ST|1926|RIV,RMA,ESY
+Garrincha|BRA|W|1933|BOT,COR
+Zico|BRA|AM|1953|FLA,UDI
+Sócrates|BRA|AM|1954|COR,FIO,FLA
+Michel Platini|FRA|AM|1955|ASSE,JUV
+Mario Kempes|ARG|ST|1954|ROS,VAL
+Paolo Rossi|ITA|ST|1956|JUV,MIL
+Dino Zoff|ITA|GK|1942|NAP,JUV
+Karl-Heinz Rummenigge|GER|ST|1955|BAY,INT
+Kenny Dalglish|SCO|ST|1951|CELT,LIV
+George Best|NIR|W|1946|MUN,FUL
+Ian Rush|WAL|ST|1961|LIV,JUV
+Marco van Basten|NED|ST|1964|AJA,MIL
+Ruud Gullit|NED|AM|1962|FEY,PSV,MIL,SAM,CHE
+Frank Rijkaard|NED|DM|1962|AJA,MIL
+Paolo Maldini|ITA|FB|1968|MIL
+Franco Baresi|ITA|CB|1960|MIL
+Roberto Baggio|ITA|AM|1967|FIO,JUV,MIL,BLG,INT,BRS
+Gianluca Vialli|ITA|ST|1964|SAM,JUV,CHE
+Roberto Mancini|ITA|ST|1964|BLG,SAM,LAZ
+Lothar Matthäus|GER|CM|1961|BMG,BAY,INT
+Jürgen Klinsmann|GER|ST|1964|VFB,INT,ASM,TOT,BAY,SAM
+Rudi Völler|GER|ST|1960|SVW,ROM,OM,B04
+Hristo Stoichkov|BUL|ST|1966|BAR,PAR
+Gheorghe Hagi|ROU|AM|1965|RMA,BAR,GAL
+Michael Laudrup|DEN|AM|1964|LAZ,JUV,BAR,RMA,AJA
+Peter Schmeichel|DEN|GK|1963|MUN,SCP,AVL,MCI
+Enzo Francescoli|URU|AM|1961|RIV,OM
+Jean-Pierre Papin|FRA|ST|1963|OM,MIL,BAY
+Eric Cantona|FRA|ST|1966|AUX,OM,LEE,MUN
+Laurent Blanc|FRA|CB|1965|NAP,BAR,OM,INT,MUN
+Gary Lineker|ENG|ST|1960|LEI,EVE,BAR,TOT
+Paul Gascoigne|ENG|CM|1967|NEW,TOT,LAZ,RAN,MID,EVE
+David Seaman|ENG|GK|1963|QPR,ARS,MCI
+Romário|BRA|ST|1966|VAS,PSV,BAR,FLA,VAL,FLU
+Bebeto|BRA|ST|1964|FLA,VAS,DEP
+George Weah|LBR|ST|1966|ASM,PSG,MIL,CHE,MCI,OM
+Davor Šuker|CRO|ST|1968|SEV,RMA,ARS,WHU
+Zvonimir Boban|CRO|AM|1968|DZG,MIL
+Pep Guardiola|ESP|DM|1971|BAR,BRS,ROM
+Fernando Hierro|ESP|CB|1968|RMA,BOLT
+Diego Simeone|ARG|DM|1970|VEL,SEV,ATM,INT,LAZ,RAC
+Gabriel Batistuta|ARG|ST|1969|NOB,RIV,BOC,FIO,ROM,INT
+Alan Shearer|ENG|ST|1970|SOU,BLB,NEW
+Teddy Sheringham|ENG|ST|1966|NFO,TOT,MUN,WHU
+Ronaldo Nazário|BRA|ST|1976|CRU,PSV,BAR,INT,RMA,MIL,COR
+Rivaldo|BRA|AM|1972|COR,PAL,DEP,BAR,MIL,OLY
+Ronaldinho|BRA|AM|1980|GRE,PSG,BAR,MIL,FLA,CAM,FLU
+Kaká|BRA|AM|1982|SPFC,MIL,RMA,ORL
+Cafu|BRA|FB|1970|SPFC,PAL,ROM,MIL
+Roberto Carlos|BRA|FB|1973|PAL,INT,RMA,FEN,COR
+Lúcio|BRA|CB|1978|INTB,B04,BAY,INT,JUV
+Adriano|BRA|ST|1982|FLA,INT,PAR,ROM
+Juninho Pernambucano|BRA|CM|1975|VAS,OL
+Júlio César|BRA|GK|1979|FLA,INT,QPR,BEN
+Zinedine Zidane|FRA|AM|1972|BOR,JUV,RMA
+Thierry Henry|FRA|ST|1977|ASM,JUV,ARS,BAR,NYRB
+Patrick Vieira|FRA|DM|1976|MIL,ARS,JUV,INT,MCI
+Claude Makélélé|FRA|DM|1973|NAN,CEL,RMA,CHE,PSG
+Marcel Desailly|FRA|CB|1968|NAN,OM,MIL,CHE
+Lilian Thuram|FRA|CB|1972|ASM,PAR,JUV,BAR
+Didier Deschamps|FRA|DM|1968|NAN,OM,BOR,JUV,CHE,VAL
+Fabien Barthez|FRA|GK|1971|OM,ASM,MUN
+Robert Pires|FRA|W|1973|OM,ARS,VIL,AVL
+David Trezeguet|FRA|ST|1977|ASM,JUV
+Emmanuel Petit|FRA|CM|1970|ASM,ARS,BAR,CHE
+Youri Djorkaeff|FRA|AM|1968|ASM,PSG,INT,BOLT
+Bixente Lizarazu|FRA|FB|1969|BOR,ATH,BAY,OM
+Nicolas Anelka|FRA|ST|1979|PSG,ARS,RMA,LIV,MCI,FEN,BOLT,CHE,JUV
+Samir Nasri|FRA|AM|1987|OM,ARS,MCI,SEV
+Dimitri Payet|FRA|AM|1987|NAN,ASSE,LOSC,OM,WHU,VAS
+Franck Ribéry|FRA|W|1983|GAL,OM,BAY,FIO
+Karim Benzema|FRA|ST|1987|OL,RMA,ITT
+Hugo Lloris|FRA|GK|1986|NIC,OL,TOT,LAFC
+Raphaël Varane|FRA|CB|1993|RMA,MUN,COM
+Paul Pogba|FRA|CM|1993|MUN,JUV,ASM
+N'Golo Kanté|FRA|DM|1991|LEI,CHE,ITT
+Antoine Griezmann|FRA|ST|1991|RSO,ATM,BAR
+Kylian Mbappé|FRA|ST|1998|ASM,PSG,RMA
+Olivier Giroud|FRA|ST|1986|MHSC,ARS,CHE,MIL,LAFC,LOSC
+Ousmane Dembélé|FRA|W|1997|REN,BVB,BAR,PSG
+Kingsley Coman|FRA|W|1996|PSG,JUV,BAY,NAS
+Theo Hernández|FRA|FB|1997|ATM,RMA,RSO,MIL,HIL
+Lucas Hernández|FRA|FB|1996|ATM,BAY,PSG
+Mike Maignan|FRA|GK|1995|PSG,LOSC,MIL
+Aurélien Tchouaméni|FRA|DM|2000|BOR,ASM,RMA
+Eduardo Camavinga|FRA|CM|2002|REN,RMA
+William Saliba|FRA|CB|2001|ASSE,ARS,OM
+Jules Koundé|FRA|CB|1998|BOR,SEV,BAR
+Dayot Upamecano|FRA|CB|1998|RBS,RBL,BAY
+Ibrahima Konaté|FRA|CB|1999|RBL,LIV
+Marcus Thuram|FRA|ST|1997|BMG,INT
+Michael Olise|FRA|W|2001|CRY,BAY
+Bradley Barcola|FRA|W|2002|OL,PSG
+Désiré Doué|FRA|W|2005|REN,PSG
+Warren Zaïre-Emery|FRA|CM|2006|PSG
+Rayan Cherki|FRA|AM|2003|OL,MCI
+Christopher Nkunku|FRA|AM|1997|PSG,RBL,CHE,MIL
+Adrien Rabiot|FRA|CM|1995|PSG,JUV,OM,MIL
+Randal Kolo Muani|FRA|ST|1998|NAN,SGE,PSG,JUV,TOT
+Hugo Ekitike|FRA|ST|2002|PSG,SGE,LIV
+Leny Yoro|FRA|CB|2005|LOSC,MUN
+Wayne Rooney|ENG|ST|1985|EVE,MUN,DCU
+David Beckham|ENG|CM|1975|MUN,RMA,LAG,MIL,PSG
+Steven Gerrard|ENG|CM|1980|LIV,LAG
+Frank Lampard|ENG|CM|1978|WHU,CHE,MCI,NYC
+Paul Scholes|ENG|CM|1974|MUN
+John Terry|ENG|CB|1980|CHE,AVL
+Rio Ferdinand|ENG|CB|1978|WHU,LEE,MUN,QPR
+Ashley Cole|ENG|FB|1980|ARS,CHE,ROM,LAG
+Gary Neville|ENG|FB|1975|MUN
+Michael Owen|ENG|ST|1979|LIV,RMA,NEW,MUN,STK
+Jamie Carragher|ENG|CB|1978|LIV
+Sol Campbell|ENG|CB|1974|TOT,ARS,POR,NEW
+Joe Cole|ENG|AM|1981|WHU,CHE,LIV
+Jermain Defoe|ENG|ST|1982|WHU,TOT,POR,TFC,SUN,BOU,RAN
+Peter Crouch|ENG|ST|1981|AVL,SOU,LIV,POR,TOT,STK
+Jamie Vardy|ENG|ST|1987|LEI,CRE
+Harry Kane|ENG|ST|1993|TOT,BAY
+Raheem Sterling|ENG|W|1994|LIV,MCI,CHE,ARS
+Jordan Henderson|ENG|CM|1990|SUN,LIV,ETT,AJA,BREN
+Jude Bellingham|ENG|CM|2003|BIR,BVB,RMA
+Bukayo Saka|ENG|W|2001|ARS
+Phil Foden|ENG|AM|2000|MCI
+Declan Rice|ENG|DM|1999|WHU,ARS
+Trent Alexander-Arnold|ENG|FB|1998|LIV,RMA
+Marcus Rashford|ENG|W|1997|MUN,AVL,BAR
+Jack Grealish|ENG|AM|1995|AVL,MCI,EVE
+Kyle Walker|ENG|FB|1990|SHU,TOT,MCI,MIL,BUR
+John Stones|ENG|CB|1994|EVE,MCI
+Jordan Pickford|ENG|GK|1994|SUN,EVE
+Cole Palmer|ENG|AM|2002|MCI,CHE
+Mason Mount|ENG|AM|1999|CHE,MUN
+Jadon Sancho|ENG|W|2000|BVB,MUN,CHE,AVL
+Ollie Watkins|ENG|ST|1995|BREN,AVL
+Ivan Toney|ENG|ST|1996|NEW,BREN,AHL
+Kieran Trippier|ENG|FB|1990|BUR,TOT,ATM,NEW
+Harry Maguire|ENG|CB|1993|SHU,HUL,LEI,MUN
+Eberechi Eze|ENG|AM|1998|QPR,CRY,ARS
+Anthony Gordon|ENG|W|2001|EVE,NEW
+Conor Gallagher|ENG|CM|2000|CHE,CRY,ATM
+Dominic Solanke|ENG|ST|1997|CHE,LIV,BOU,TOT
+Jarrod Bowen|ENG|W|1996|HUL,WHU
+Kobbie Mainoo|ENG|CM|2005|MUN
+Morgan Rogers|ENG|AM|2002|MID,AVL
+Gareth Bale|WAL|W|1989|SOU,TOT,RMA,LAFC
+Ryan Giggs|WAL|W|1973|MUN
+Aaron Ramsey|WAL|CM|1990|CAR,ARS,JUV,NIC
+Andy Robertson|SCO|FB|1994|HUL,LIV
+Scott McTominay|SCO|CM|1996|MUN,NAP
+John McGinn|SCO|CM|1994|AVL
+Roy Keane|IRL|DM|1971|NFO,MUN,CELT
+Robbie Keane|IRL|ST|1980|WOL,INT,LEE,TOT,LIV,LAG
+Iker Casillas|ESP|GK|1981|RMA,FCP
+Xavi|ESP|CM|1980|BAR,ASD
+Andrés Iniesta|ESP|CM|1984|BAR,VIS
+Carles Puyol|ESP|CB|1978|BAR
+Sergio Ramos|ESP|CB|1986|SEV,RMA,PSG,MTY
+Gerard Piqué|ESP|CB|1987|MUN,BAR
+Sergio Busquets|ESP|DM|1988|BAR,MIA
+Xabi Alonso|ESP|CM|1981|RSO,LIV,RMA,BAY
+Fernando Torres|ESP|ST|1984|ATM,LIV,CHE,MIL
+David Villa|ESP|ST|1981|VAL,BAR,ATM,NYC
+Raúl|ESP|ST|1977|RMA,S04,ASD
+David Silva|ESP|AM|1986|VAL,MCI,RSO
+Cesc Fàbregas|ESP|CM|1987|ARS,BAR,CHE,ASM,COM
+Juan Mata|ESP|AM|1988|VAL,CHE,MUN
+Santi Cazorla|ESP|AM|1984|VIL,MAL,ARS
+Jordi Alba|ESP|FB|1989|VAL,BAR,MIA
+Dani Carvajal|ESP|FB|1992|B04,RMA
+Rodri|ESP|DM|1996|VIL,ATM,MCI
+Pedri|ESP|CM|2002|BAR
+Gavi|ESP|CM|2004|BAR
+Lamine Yamal|ESP|W|2007|BAR
+Pau Cubarsí|ESP|CB|2007|BAR
+Nico Williams|ESP|W|2002|ATH
+Álvaro Morata|ESP|ST|1992|RMA,JUV,CHE,ATM,MIL,GAL,COM
+Dani Olmo|ESP|AM|1998|DZG,RBL,BAR
+Ferran Torres|ESP|W|2000|VAL,MCI,BAR
+Mikel Oyarzabal|ESP|ST|1997|RSO
+Martín Zubimendi|ESP|DM|1999|RSO,ARS
+Mikel Merino|ESP|CM|1996|BVB,NEW,RSO,ARS
+Unai Simón|ESP|GK|1997|ATH
+David de Gea|ESP|GK|1990|ATM,MUN,FIO
+David Raya|ESP|GK|1995|BLB,BREN,ARS
+Marc Cucurella|ESP|FB|1998|BAR,GET,BHA,CHE
+Fabián Ruiz|ESP|CM|1996|BET,NAP,PSG
+Gianluigi Buffon|ITA|GK|1978|PAR,JUV,PSG
+Andrea Pirlo|ITA|CM|1979|BRS,INT,MIL,JUV,NYC
+Francesco Totti|ITA|AM|1976|ROM
+Alessandro Del Piero|ITA|AM|1974|JUV
+Fabio Cannavaro|ITA|CB|1973|NAP,PAR,INT,JUV,RMA
+Alessandro Nesta|ITA|CB|1976|LAZ,MIL
+Filippo Inzaghi|ITA|ST|1973|PAR,ATA,JUV,MIL
+Christian Vieri|ITA|ST|1973|JUV,ATM,LAZ,INT,MIL
+Gennaro Gattuso|ITA|DM|1978|RAN,MIL
+Daniele De Rossi|ITA|DM|1983|ROM,BOC
+Giorgio Chiellini|ITA|CB|1984|JUV,LAFC
+Leonardo Bonucci|ITA|CB|1987|INT,JUV,MIL,FEN
+Mario Balotelli|ITA|ST|1990|INT,MCI,MIL,LIV,NIC,OM
+Ciro Immobile|ITA|ST|1990|JUV,BVB,SEV,TOR,LAZ,BJK,BLG
+Lorenzo Insigne|ITA|W|1991|NAP,TFC
+Marco Verratti|ITA|CM|1992|PSG
+Gianluigi Donnarumma|ITA|GK|1999|MIL,PSG,MCI
+Nicolò Barella|ITA|CM|1997|INT
+Federico Chiesa|ITA|W|1997|FIO,JUV,LIV
+Alessandro Bastoni|ITA|CB|1999|ATA,PAR,INT
+Sandro Tonali|ITA|CM|2000|BRS,MIL,NEW
+Federico Dimarco|ITA|FB|1997|INT
+Mateo Retegui|ITA|ST|1999|BOC,ATA
+Oliver Kahn|GER|GK|1969|BAY
+Manuel Neuer|GER|GK|1986|S04,BAY
+Philipp Lahm|GER|FB|1983|VFB,BAY
+Bastian Schweinsteiger|GER|CM|1984|BAY,MUN,CHF
+Miroslav Klose|GER|ST|1978|SVW,BAY,LAZ
+Michael Ballack|GER|CM|1976|B04,BAY,CHE
+Thomas Müller|GER|AM|1989|BAY,VAN
+Toni Kroos|GER|CM|1990|BAY,B04,RMA
+Mesut Özil|GER|AM|1988|S04,SVW,RMA,ARS,FEN
+Marco Reus|GER|W|1989|BMG,BVB,LAG
+Mats Hummels|GER|CB|1988|BAY,BVB,ROM
+Jérôme Boateng|GER|CB|1988|HSV,MCI,BAY,OL
+Per Mertesacker|GER|CB|1984|SVW,ARS
+Lukas Podolski|GER|ST|1985|KOE,BAY,ARS,INT,GAL
+İlkay Gündoğan|GER|CM|1990|BVB,MCI,BAR,GAL
+Joshua Kimmich|GER|CM|1995|RBL,BAY
+Leroy Sané|GER|W|1996|S04,MCI,BAY,GAL
+Kai Havertz|GER|ST|1999|B04,CHE,ARS
+Jamal Musiala|GER|AM|2003|BAY
+Florian Wirtz|GER|AM|2003|B04,LIV
+Antonio Rüdiger|GER|CB|1993|VFB,ROM,CHE,RMA
+Marc-André ter Stegen|GER|GK|1992|BMG,BAR
+Timo Werner|GER|ST|1996|VFB,RBL,CHE,TOT
+Serge Gnabry|GER|W|1995|ARS,SVW,HOF,BAY
+Leon Goretzka|GER|CM|1995|S04,BAY
+Niclas Füllkrug|GER|ST|1993|SVW,BVB,WHU
+Bernd Leno|GER|GK|1992|B04,ARS,FUL
+Dennis Bergkamp|NED|ST|1969|AJA,INT,ARS
+Clarence Seedorf|NED|CM|1976|AJA,SAM,RMA,INT,MIL,BOT
+Patrick Kluivert|NED|ST|1976|AJA,MIL,BAR,NEW,VAL,PSV
+Edgar Davids|NED|DM|1973|AJA,MIL,JUV,BAR,INT,TOT
+Marc Overmars|NED|W|1973|AJA,ARS,BAR
+Ruud van Nistelrooy|NED|ST|1976|PSV,MUN,RMA,HSV
+Robin van Persie|NED|ST|1983|FEY,ARS,MUN,FEN
+Arjen Robben|NED|W|1984|PSV,CHE,RMA,BAY
+Wesley Sneijder|NED|AM|1984|AJA,RMA,INT,GAL
+Dirk Kuyt|NED|ST|1980|FEY,LIV,FEN
+Edwin van der Sar|NED|GK|1970|AJA,JUV,FUL,MUN
+Jaap Stam|NED|CB|1972|PSV,MUN,LAZ,MIL,AJA
+Georginio Wijnaldum|NED|CM|1990|FEY,PSV,NEW,LIV,PSG,ROM,ETT
+Virgil van Dijk|NED|CB|1991|CELT,SOU,LIV
+Frenkie de Jong|NED|CM|1997|AJA,BAR
+Matthijs de Ligt|NED|CB|1999|AJA,JUV,BAY,MUN
+Memphis Depay|NED|ST|1994|PSV,MUN,OL,BAR,ATM,COR
+Cody Gakpo|NED|W|1999|PSV,LIV
+Xavi Simons|NED|AM|2003|PSG,PSV,RBL,TOT
+Denzel Dumfries|NED|FB|1996|PSV,INT
+Ryan Gravenberch|NED|CM|2002|AJA,BAY,LIV
+Nathan Aké|NED|CB|1995|CHE,BOU,MCI
+Cristiano Ronaldo|POR|ST|1985|SCP,MUN,RMA,JUV,NAS
+Luís Figo|POR|W|1972|SCP,BAR,RMA,INT
+Rui Costa|POR|AM|1972|BEN,FIO,MIL
+Deco|POR|AM|1977|FCP,BAR,CHE,FLU
+Pepe|POR|CB|1983|FCP,RMA,BJK
+Ricardo Carvalho|POR|CB|1978|FCP,CHE,RMA,ASM
+Nani|POR|W|1986|SCP,MUN,FEN,VAL,ORL
+Ricardo Quaresma|POR|W|1983|SCP,BAR,FCP,INT,BJK
+Bruno Fernandes|POR|AM|1994|UDI,SAM,SCP,MUN
+Bernardo Silva|POR|AM|1994|BEN,ASM,MCI
+João Cancelo|POR|FB|1994|BEN,VAL,INT,JUV,MCI,BAR,HIL
+Rúben Dias|POR|CB|1997|BEN,MCI
+Rafael Leão|POR|W|1999|SCP,LOSC,MIL
+João Félix|POR|ST|1999|BEN,ATM,CHE,BAR,MIL,NAS
+Vitinha|POR|CM|2000|FCP,WOL,PSG
+Nuno Mendes|POR|FB|2002|SCP,PSG
+João Neves|POR|CM|2004|BEN,PSG
+Gonçalo Ramos|POR|ST|2001|BEN,PSG
+Rúben Neves|POR|DM|1997|FCP,WOL,HIL
+Diogo Costa|POR|GK|1999|FCP
+Pedro Neto|POR|W|2000|LAZ,WOL,CHE
+Neymar|BRA|W|1992|SAN,BAR,PSG,HIL
+Vinícius Júnior|BRA|W|2000|FLA,RMA
+Rodrygo|BRA|W|2001|SAN,RMA
+Raphinha|BRA|W|1996|SCP,REN,LEE,BAR
+Casemiro|BRA|DM|1992|SPFC,FCP,RMA,MUN
+Marquinhos|BRA|CB|1994|COR,ROM,PSG
+Thiago Silva|BRA|CB|1984|FLU,MIL,PSG,CHE
+Éder Militão|BRA|CB|1998|SPFC,FCP,RMA
+Alisson|BRA|GK|1992|INTB,ROM,LIV
+Ederson|BRA|GK|1993|BEN,MCI,FEN
+Dani Alves|BRA|FB|1983|SEV,BAR,JUV,PSG,SPFC
+Marcelo|BRA|FB|1988|FLU,RMA,OLY
+Roberto Firmino|BRA|ST|1991|HOF,LIV,AHL
+Gabriel Jesus|BRA|ST|1997|PAL,MCI,ARS
+Philippe Coutinho|BRA|AM|1992|VAS,INT,LIV,BAR,BAY,AVL
+Fernandinho|BRA|DM|1985|SHK,MCI
+Fred|BRA|CM|1993|INTB,SHK,MUN,FEN
+Willian|BRA|W|1988|COR,SHK,CHE,ARS,FUL
+Oscar|BRA|AM|1991|SPFC,INTB,CHE
+David Luiz|BRA|CB|1987|BEN,CHE,PSG,ARS,FLA
+Hulk|BRA|ST|1986|FCP,ZEN,CAM
+Richarlison|BRA|ST|1997|FLU,WAT,EVE,TOT
+Bruno Guimarães|BRA|CM|1997|OL,NEW
+Lucas Paquetá|BRA|AM|1997|FLA,MIL,OL,WHU
+Gabriel Martinelli|BRA|W|2001|ARS
+Gabriel Magalhães|BRA|CB|1997|LOSC,ARS
+Antony|BRA|W|2000|SPFC,AJA,MUN,BET
+Matheus Cunha|BRA|ST|1999|RBL,ATM,WOL,MUN
+Endrick|BRA|ST|2006|PAL,RMA
+Estêvão|BRA|W|2007|PAL,CHE
+Lionel Messi|ARG|W|1987|BAR,PSG,MIA
+Juan Román Riquelme|ARG|AM|1978|BOC,BAR,VIL
+Javier Zanetti|ARG|FB|1973|INT
+Hernán Crespo|ARG|ST|1975|RIV,PAR,LAZ,INT,CHE,MIL
+Juan Sebastián Verón|ARG|CM|1975|EST,BOC,SAM,PAR,LAZ,MUN,CHE,INT
+Pablo Aimar|ARG|AM|1979|RIV,VAL,BEN
+Gabriel Heinze|ARG|FB|1978|NOB,PSG,MUN,RMA,OM,ROM
+Carlos Tevez|ARG|ST|1984|BOC,COR,WHU,MUN,MCI,JUV
+Javier Mascherano|ARG|DM|1984|RIV,COR,WHU,LIV,BAR
+Sergio Agüero|ARG|ST|1988|IND,ATM,MCI,BAR
+Ángel Di María|ARG|W|1988|ROS,BEN,RMA,MUN,PSG,JUV
+Gonzalo Higuaín|ARG|ST|1987|RIV,RMA,NAP,JUV,MIL,CHE,MIA
+Ezequiel Lavezzi|ARG|W|1985|NAP,PSG
+Paulo Dybala|ARG|AM|1993|PALE,JUV,ROM
+Mauro Icardi|ARG|ST|1993|SAM,INT,PSG,GAL
+Nicolás Otamendi|ARG|CB|1988|VEL,FCP,VAL,MCI,BEN
+Leandro Paredes|ARG|DM|1994|BOC,ROM,ZEN,PSG,JUV
+Lautaro Martínez|ARG|ST|1997|RAC,INT
+Julián Álvarez|ARG|ST|2000|RIV,MCI,ATM
+Emiliano Martínez|ARG|GK|1992|ARS,AVL
+Enzo Fernández|ARG|CM|2001|RIV,BEN,CHE
+Alexis Mac Allister|ARG|CM|1998|ARJ,BOC,BHA,LIV
+Rodrigo De Paul|ARG|CM|1994|RAC,VAL,UDI,ATM,MIA
+Cristian Romero|ARG|CB|1998|ATA,TOT
+Lisandro Martínez|ARG|CB|1998|AJA,MUN
+Alejandro Garnacho|ARG|W|2004|MUN,CHE
+Franco Mastantuono|ARG|AM|2007|RIV,RMA
+Luis Suárez|URU|ST|1987|NAC,AJA,LIV,BAR,ATM,GRE,MIA
+Edinson Cavani|URU|ST|1987|PALE,NAP,PSG,MUN,VAL,BOC
+Diego Forlán|URU|ST|1979|IND,MUN,VIL,ATM,INT,INTB
+Diego Godín|URU|CB|1986|NAC,VIL,ATM,INT
+Federico Valverde|URU|CM|1998|PEN,RMA
+Darwin Núñez|URU|ST|1999|PEN,BEN,LIV,HIL
+Ronald Araújo|URU|CB|1999|BAR
+Rodrigo Bentancur|URU|CM|1997|BOC,JUV,TOT
+Radamel Falcao|COL|ST|1986|RIV,FCP,ATM,ASM,MUN,CHE,GAL
+James Rodríguez|COL|AM|1991|FCP,ASM,RMA,BAY,EVE,SPFC
+Juan Cuadrado|COL|W|1988|UDI,FIO,CHE,JUV,INT
+Luis Díaz|COL|W|1997|FCP,LIV,BAY
+Alexis Sánchez|CHI|W|1988|UDI,BAR,ARS,MUN,INT,OM,SEV
+Arturo Vidal|CHI|CM|1987|B04,JUV,BAY,BAR,INT,FLA
+Moisés Caicedo|ECU|DM|2001|BHA,CHE
+Piero Hincapié|ECU|CB|2002|B04,ARS
+Kevin De Bruyne|BEL|AM|1991|GNK,CHE,WOB,MCI,NAP
+Eden Hazard|BEL|W|1991|LOSC,CHE,RMA
+Romelu Lukaku|BEL|ST|1993|AND,CHE,WBA,EVE,MUN,INT,ROM,NAP
+Thibaut Courtois|BEL|GK|1992|GNK,ATM,CHE,RMA
+Vincent Kompany|BEL|CB|1986|AND,HSV,MCI
+Jan Vertonghen|BEL|CB|1987|AJA,TOT,BEN,AND
+Toby Alderweireld|BEL|CB|1989|AJA,ATM,SOU,TOT
+Dries Mertens|BEL|W|1987|PSV,NAP,GAL
+Axel Witsel|BEL|DM|1989|BEN,ZEN,BVB,ATM
+Marouane Fellaini|BEL|CM|1987|EVE,MUN
+Youri Tielemans|BEL|CM|1997|AND,ASM,LEI,AVL
+Jérémy Doku|BEL|W|2002|AND,REN,MCI
+Leandro Trossard|BEL|W|1994|GNK,BHA,ARS
+Luka Modrić|CRO|CM|1985|DZG,TOT,RMA,MIL
+Ivan Rakitić|CRO|CM|1988|BAS,S04,SEV,BAR
+Mario Mandžukić|CRO|ST|1986|DZG,WOB,BAY,ATM,JUV,MIL
+Ivan Perišić|CRO|W|1989|CLB,BVB,WOB,INT,BAY,TOT,PSV
+Joško Gvardiol|CRO|CB|2002|DZG,RBL,MCI
+Mateo Kovačić|CRO|CM|1994|DZG,INT,RMA,CHE,MCI
+Nemanja Vidić|SRB|CB|1981|MUN,INT
+Branislav Ivanović|SRB|FB|1984|CHE,ZEN
+Sergej Milinković-Savić|SRB|CM|1995|GNK,LAZ,HIL
+Aleksandar Mitrović|SRB|ST|1994|AND,NEW,FUL,HIL
+Dušan Vlahović|SRB|ST|2000|FIO,JUV
+Zlatan Ibrahimović|SWE|ST|1981|MFF,AJA,JUV,INT,BAR,MIL,PSG,MUN,LAG
+Henrik Larsson|SWE|ST|1971|FEY,CELT,BAR,MUN
+Alexander Isak|SWE|ST|1999|BVB,RSO,NEW,LIV
+Viktor Gyökeres|SWE|ST|1998|BHA,SCP,ARS
+Dejan Kulusevski|SWE|W|2000|ATA,PAR,JUV,TOT
+Erling Haaland|NOR|ST|2000|RBS,BVB,MCI
+Martin Ødegaard|NOR|AM|1998|RMA,RSO,ARS
+Ole Gunnar Solskjær|NOR|ST|1973|MUN
+John Arne Riise|NOR|FB|1980|ASM,LIV,ROM,FUL
+Kasper Schmeichel|DEN|GK|1986|MCI,LEE,LEI,NIC,CELT
+Christian Eriksen|DEN|AM|1992|AJA,TOT,INT,MUN,WOB
+Pierre-Emile Højbjerg|DEN|DM|1995|BAY,SOU,TOT,OM
+Rasmus Højlund|DEN|ST|2003|ATA,MUN,NAP
+Robert Lewandowski|POL|ST|1988|BVB,BAY,BAR
+Wojciech Szczęsny|POL|GK|1990|ARS,ROM,JUV,BAR
+Andriy Shevchenko|UKR|ST|1976|DYK,MIL,CHE
+Oleksandr Zinchenko|UKR|FB|1996|MCI,ARS,NFO
+Mykhailo Mudryk|UKR|W|2001|SHK,CHE
+Pavel Nedvěd|CZE|AM|1972|LAZ,JUV
+Petr Čech|CZE|GK|1982|REN,CHE,ARS
+Tomáš Rosický|CZE|AM|1980|BVB,ARS
+Dimitar Berbatov|BUL|ST|1981|B04,TOT,MUN,FUL,ASM
+Khvicha Kvaratskhelia|GEO|W|2001|NAP,PSG
+Granit Xhaka|SUI|CM|1992|BAS,BMG,ARS,B04,SUN
+Xherdan Shaqiri|SUI|W|1991|BAS,BAY,INT,STK,LIV,OL,CHF
+Manuel Akanji|SUI|CB|1995|BAS,BVB,MCI,INT
+Yann Sommer|SUI|GK|1988|BAS,BMG,BAY,INT
+David Alaba|AUT|CB|1992|BAY,RMA
+Marko Arnautović|AUT|ST|1989|INT,SVW,STK,WHU,BLG
+Hakan Şükür|TUR|ST|1971|GAL,INT,PAR,BLB
+Hakan Çalhanoğlu|TUR|CM|1994|HSV,B04,MIL,INT
+Arda Güler|TUR|AM|2005|FEN,RMA
+Kenan Yıldız|TUR|W|2005|JUV
+Martin Škrtel|SVK|CB|1984|ZEN,LIV,FEN
+Marek Hamšík|SVK|CM|1987|BRS,NAP
+Jan Oblak|SVN|GK|1993|BEN,ATM
+Benjamin Šeško|SVN|ST|2003|RBS,RBL,MUN
+Edin Džeko|BIH|ST|1986|WOB,MCI,ROM,INT,FEN,FIO
+Miralem Pjanić|BIH|CM|1990|OL,ROM,JUV,BAR,BJK
+Henrikh Mkhitaryan|ARM|AM|1989|SHK,BVB,MUN,ARS,ROM,INT
+Dominik Szoboszlai|HUN|AM|2000|RBS,RBL,LIV
+Didier Drogba|CIV|ST|1978|OM,CHE,GAL
+Yaya Touré|CIV|CM|1983|OLY,ASM,BAR,MCI
+Kolo Touré|CIV|CB|1981|ARS,MCI,LIV,CELT
+Wilfried Zaha|CIV|W|1992|CRY,MUN,GAL
+Amad Diallo|CIV|W|2002|ATA,MUN
+Samuel Eto'o|CMR|ST|1981|RMA,MLL,BAR,INT,CHE,EVE
+Bryan Mbeumo|CMR|W|1999|BREN,MUN
+Sadio Mané|SEN|W|1992|RBS,SOU,LIV,BAY,NAS
+Kalidou Koulibaly|SEN|CB|1991|GNK,NAP,CHE,HIL
+Edouard Mendy|SEN|GK|1992|REN,CHE,AHL
+Nicolas Jackson|SEN|ST|2001|VIL,CHE,BAY
+Mohamed Salah|EGY|W|1992|BAS,CHE,FIO,ROM,LIV
+Omar Marmoush|EGY|ST|1999|WOB,SGE,MCI
+Mohamed Aboutrika|EGY|AM|1978|AHLE
+Jay-Jay Okocha|NGA|AM|1973|SGE,FEN,PSG,BOLT
+Nwankwo Kanu|NGA|ST|1976|AJA,INT,ARS,WBA,POR
+Victor Osimhen|NGA|ST|1998|WOB,LOSC,NAP,GAL
+Ademola Lookman|NGA|W|1997|EVE,RBL,LEI,ATA
+Alex Iwobi|NGA|W|1996|ARS,EVE,FUL
+Wilfred Ndidi|NGA|DM|1996|GNK,LEI,BJK
+Riyad Mahrez|ALG|W|1991|LEI,MCI,AHL
+Achraf Hakimi|MAR|FB|1998|RMA,BVB,INT,PSG
+Hakim Ziyech|MAR|W|1993|AJA,CHE,GAL
+Yassine Bounou|MAR|GK|1991|ATM,GIR,SEV,HIL
+Brahim Díaz|MAR|AM|1999|MCI,RMA,MIL
+Noussair Mazraoui|MAR|FB|1997|AJA,BAY,MUN
+Sofyan Amrabat|MAR|DM|1996|FEY,CLB,FIO,MUN,FEN,BET
+Youssef En-Nesyri|MAR|ST|1997|MAL,SEV,FEN,ITT
+Wahbi Khazri|TUN|AM|1991|BOR,SUN,REN,ASSE,MHSC
+Ellyes Skhiri|TUN|DM|1995|MHSC,KOE,SGE
+Hannibal Mejbri|TUN|AM|2003|MUN,BUR
+Youssef Msakni|TUN|W|1990|ESTN
+Ali Maâloul|TUN|FB|1990|AHLE
+Michael Essien|GHA|CM|1982|OL,CHE,RMA,MIL
+Thomas Partey|GHA|DM|1993|ATM,ARS,VIL
+Mohammed Kudus|GHA|W|2000|AJA,WHU,TOT
+Pierre-Emerick Aubameyang|GAB|ST|1989|ASSE,BVB,ARS,BAR,CHE,OM
+Serhou Guirassy|GUI|ST|1996|KOE,REN,VFB,BVB
+Frédéric Kanouté|MLI|ST|1977|OL,WHU,TOT,SEV
+Emmanuel Adebayor|TOG|ST|1984|ASM,ARS,MCI,RMA,TOT
+Yoane Wissa|COD|ST|1996|BREN,NEW
+Son Heung-min|KOR|W|1992|HSV,B04,TOT,LAFC
+Park Ji-sung|KOR|W|1981|PSV,MUN,QPR
+Kim Min-jae|KOR|CB|1996|FEN,NAP,BAY
+Takefusa Kubo|JPN|W|2001|RMA,MLL,RSO
+Kaoru Mitoma|JPN|W|1997|BHA
+Shinji Kagawa|JPN|AM|1989|BVB,MUN
+Wataru Endo|JPN|DM|1993|VFB,LIV
+Mehdi Taremi|IRN|ST|1992|FCP,INT,OLY
+Salem Al-Dawsari|KSA|W|1991|HIL,VIL
+Tim Cahill|AUS|AM|1979|EVE,NYRB
+Harry Kewell|AUS|W|1978|LEE,LIV,GAL
+Christian Pulisic|USA|W|1998|BVB,CHE,MIL
+Landon Donovan|USA|W|1982|B04,LAG,EVE,BAY
+Clint Dempsey|USA|AM|1983|FUL,TOT
+Tim Howard|USA|GK|1979|MUN,EVE
+Weston McKennie|USA|CM|1998|S04,JUV,LEE
+Alphonso Davies|CAN|FB|2000|VAN,BAY
+Jonathan David|CAN|ST|2000|LOSC,JUV
+Javier Hernández|MEX|ST|1988|MUN,RMA,B04,WHU,SEV,LAG
+Rafael Márquez|MEX|CB|1979|ASM,BAR,NYRB
+Raúl Jiménez|MEX|ST|1991|ATM,BEN,WOL,FUL
+Hirving Lozano|MEX|W|1995|PSV,NAP
+Keylor Navas|CRC|GK|1986|RMA,PSG,NFO`;
+
+const GROUP = {GK:"Goalkeeper",CB:"Defender",FB:"Defender",DM:"Midfielder",CM:"Midfielder",AM:"Midfielder",W:"Forward",ST:"Forward"};
+const POSNAME = {GK:"Goalkeeper",CB:"Centre-back",FB:"Full-back",DM:"Defensive mid",CM:"Central mid",AM:"Attacking mid",W:"Winger",ST:"Striker"};
+
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[øØ]/g,"o").replace(/ı/g,"i").replace(/ł/g,"l").toLowerCase();
+const PLAYERS = RAW.split("\n").map(l=>l.trim()).filter(Boolean).map((l,i)=>{
+  const [name,nat,pos,born,clubs] = l.split("|");
+  const cl = clubs.split(",");
+  return {id:i,name,nat,pos,born:+born,clubs:cl,leagues:[...new Set(cl.map(c=>CLUB[c][1]))],key:norm(name)};
+});
+
+/* ---------- Similarity ---------- */
+function score(a,b){
+  let s=0;
+  if(a.nat===b.nat) s+=30; else if(NAT[a.nat][2]===NAT[b.nat][2]) s+=6;
+  const dy=Math.abs(a.born-b.born);
+  const shared=a.clubs.filter(c=>b.clubs.includes(c));
+  shared.forEach((c,i)=>{ s+= i===0?24 : i===1?14 : 8; });
+  if(shared.length && dy<=5) s+=8; // likely teammates
+  let lg=0; a.leagues.forEach(x=>{ if(b.leagues.includes(x)) lg++; });
+  s+=Math.min(lg,3)*4;
+  if(a.pos===b.pos) s+=12; else if(GROUP[a.pos]===GROUP[b.pos]) s+=6;
+  if((a.pos==="GK")!==(b.pos==="GK")) s-=8;
+  s+=16*Math.max(0,1-dy/16);
+  return s;
+}
+function hashStr(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function rankFor(secret){
+  const arr=PLAYERS.map(p=>({p,s:p.id===secret.id?1e9:score(secret,p),t:hashStr(p.name+secret.name)}));
+  arr.sort((x,y)=>y.s-x.s||x.t-y.t);
+  const ranks=new Map(); arr.forEach((o,i)=>ranks.set(o.p.id,i+1));
+  return {ranks,order:arr.map(o=>o.p)};
+}
+function links(a,b){ // what a guess b shares with secret a
+  const dy=Math.abs(a.born-b.born);
+  const shared=a.clubs.filter(c=>b.clubs.includes(c));
+  const lg=a.leagues.some(x=>b.leagues.includes(x));
+  return {
+    nation: a.nat===b.nat?2:NAT[a.nat][2]===NAT[b.nat][2]?1:0,
+    club: shared.length?2:0, shared,
+    league: lg?2:0,
+    pos: a.pos===b.pos?2:GROUP[a.pos]===GROUP[b.pos]?1:0,
+    era: dy<=3?2:dy<=7?1:0
+  };
+}
+function whyText(a,b){
+  const L=links(a,b), out=[];
+  if(L.nation===2) out.push(NAT[a.nat][0]);
+  if(L.shared.length) out.push(L.shared.map(c=>CLUB[c][0]).join(", "));
+  else if(L.league) out.push("same league");
+  if(L.pos===2) out.push(POSNAME[a.pos].toLowerCase());
+  if(L.era===2) out.push("same age group");
+  return out.length?out.join(" · "):"loose link";
+}
+
+/* ---------- State ---------- */
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const puzzleNo=ds=>Math.floor((Date.parse(ds+"T00:00:00Z")-Date.parse("2026-01-01T00:00:00Z"))/864e5)+1;
+const DAILY_POOL=PLAYERS.filter(p=>p.clubs.length>=2);
+
+let settings=store.get("cc-settings",{chips:true,era:"all"});
+let stats=store.get("cc-stats",{d:{played:0,won:0,streak:0,best:0,guesses:0,last:null},f:{played:0,won:0,guesses:0,hints:0}});
+let mode="daily", game=null, ctx=null, sugIdx=-1, sugList=[];
+
+function newDaily(){
+  const ds=todayStr();
+  const saved=store.get("cc-daily-"+ds,null);
+  if(saved) return saved;
+  const secret=DAILY_POOL[hashStr("cc-"+ds)%DAILY_POOL.length];
+  return {kind:"daily",date:ds,secret:secret.id,guesses:[],hints:[],status:"playing"};
+}
+function newFree(){
+  const pool=PLAYERS.filter(p=>settings.era==="all"||(settings.era==="modern"?p.born>=1990:p.born<1990)).filter(p=>p.clubs.length>=2);
+  const prev=game&&game.kind==="free"?game.secret:-1;
+  let s; do{ s=pool[Math.floor(Math.random()*pool.length)]; }while(pool.length>1&&s.id===prev);
+  return {kind:"free",secret:s.id,guesses:[],hints:[],status:"playing"};
+}
+function save(){ if(game.kind==="daily") store.set("cc-daily-"+game.date,game); else store.set("cc-free",game); }
+function load(m){
+  mode=m;
+  $("tabDaily").setAttribute("aria-selected",m==="daily");
+  $("tabFree").setAttribute("aria-selected",m==="free");
+  if(m==="daily") game=newDaily();
+  else { const f=store.get("cc-free",null); game=(f&&f.status==="playing"&&PLAYERS[f.secret])?f:newFree(); }
+  ctx=rankFor(PLAYERS[game.secret]);
+  $("msg").textContent=""; $("giveUpConfirm").hidden=true;
+  render();
+}
+
+/* ---------- Guessing ---------- */
+function guess(p){
+  if(game.status!=="playing") return;
+  if(game.guesses.includes(p.id)){ flash(p.name+" is already on your list at #"+ctx.ranks.get(p.id)+".",true); return; }
+  game.guesses.push(p.id);
+  if(p.id===game.secret) finish(true);
+  else { $("msg").textContent=""; }
+  save(); render();
+}
+function finish(won){
+  game.status=won?"won":"lost";
+  const n=game.guesses.length, h=game.hints.length;
+  if(game.kind==="daily"){
+    const d=stats.d; d.played++;
+    if(won){ d.won++; d.guesses+=n;
+      const y=new Date(Date.parse(game.date+"T00:00:00Z")-864e5).toISOString().slice(0,10);
+      d.streak=(d.last===y)?d.streak+1:1; d.best=Math.max(d.best,d.streak); d.last=game.date;
+    } else { d.streak=0; d.last=game.date; }
+  } else { const f=stats.f; f.played++; if(won){f.won++; f.guesses+=n; f.hints+=h;} }
+  store.set("cc-stats",stats);
+}
+function flash(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+
+/* ---------- Hints ---------- */
+function bestRank(){ return game.guesses.reduce((m,id)=>Math.min(m,ctx.ranks.get(id)),PLAYERS.length+1); }
+function hintCloser(){
+  if(game.status!=="playing") return;
+  const best=bestRank();
+  if(best<=2){ flash("You're already as close as a hint can get you.",true); return; }
+  let target=Math.max(2,Math.floor(best/2));
+  let pick=null;
+  for(let r=target;r<best&&!pick;r++){ const p=ctx.order[r-1]; if(!game.guesses.includes(p.id)) pick=p; }
+  for(let r=target-1;r>=2&&!pick;r--){ const p=ctx.order[r-1]; if(!game.guesses.includes(p.id)) pick=p; }
+  if(!pick) return;
+  game.hints.push("closer"); game.guesses.push(pick.id); save(); render();
+  flash("Hint: "+pick.name+" is #"+ctx.ranks.get(pick.id)+".");
+}
+function hintFact(kind){
+  if(game.status!=="playing"||game.hints.includes(kind)) return;
+  game.hints.push(kind); save(); render();
+}
+
+/* ---------- Search ---------- */
+function search(q){
+  const n=norm(q.trim()); if(!n) return [];
+  const words=n.split(/\s+/);
+  const res=[];
+  for(const p of PLAYERS){
+    const parts=p.key.split(/[\s\-']+/);
+    const ok=words.every(w=>parts.some(x=>x.startsWith(w))||p.key.includes(w));
+    if(ok){ const pre=parts.some(x=>x.startsWith(words[0]))?0:1; res.push([pre,p]); }
+  }
+  res.sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name));
+  return res.slice(0,8).map(r=>r[1]);
+}
+function showSug(){
+  const box=$("suggest"), q=$("guess").value;
+  sugList=search(q);
+  if(!q.trim()){ box.hidden=true; return; }
+  box.innerHTML="";
+  if(!sugList.length){
+    const d=document.createElement("div"); d.className="sug none"; d.textContent="No player by that name in the database"; box.appendChild(d);
+  }
+  sugList.forEach((p,i)=>{
+    const b=document.createElement("button"); b.className="sug"; b.type="button"; b.setAttribute("role","option");
+    b.setAttribute("aria-selected",i===sugIdx);
+    const used=game.guesses.includes(p.id);
+    b.innerHTML=`<span class="n"></span><span class="d"></span>`;
+    b.querySelector(".n").textContent=p.name;
+    b.querySelector(".d").textContent=used?"Guessed · #"+ctx.ranks.get(p.id):NAT[p.nat][1]+" "+GROUP[p.pos];
+    b.addEventListener("mousedown",e=>{e.preventDefault(); pick(p);});
+    box.appendChild(b);
+  });
+  box.hidden=false;
+}
+function pick(p){ $("guess").value=""; sugIdx=-1; $("suggest").hidden=true; guess(p); $("guess").focus(); }
+
+/* ---------- Render ---------- */
+function tone(r){ return r<=10?"--hot":r<=40?"--warm":r<=100?"--mild":r<=200?"--cool":"--cold"; }
+function fillPct(r){ const N=PLAYERS.length; return Math.max(4,100*(1-Math.log(r)/Math.log(N))); }
+function chipHTML(L){
+  const c=(v,t)=>`<span class="chip ${v===2?"on":v===1?"half":""}">${t}</span>`;
+  return `<div class="chips">${c(L.nation,"Nation")}${c(L.club,"Club")}${c(L.league,"League")}${c(L.pos,"Position")}${c(L.era,"Age")}</div>`;
+}
+function render(){
+  const secret=PLAYERS[game.secret], playing=game.status==="playing";
+  $("poolSize").textContent=PLAYERS.length;
+  if(game.kind==="daily"){
+    $("metaLeft").innerHTML=`Match <b>#${puzzleNo(game.date)}</b> · ${game.date}`;
+  } else {
+    $("metaLeft").innerHTML=`<label for="eraSel">Secret from</label> <select id="eraSel"><option value="all">Any era</option><option value="modern">Born 1990+</option><option value="classic">Before 1990</option></select>`;
+    $("eraSel").value=settings.era;
+    $("eraSel").onchange=e=>{settings.era=e.target.value; store.set("cc-settings",settings); if(game.guesses.length===0||game.status!=="playing"){ game=newFree(); save(); ctx=rankFor(PLAYERS[game.secret]); render(); } else flash("The new filter applies from your next player.");};
+  }
+  $("metaRight").innerHTML=`<b>${game.guesses.length}</b> guesses · <b>${game.hints.length}</b> hints`;
+  $("guess").disabled=!playing;
+  ["hCloser","hPos","hEra","hRegion","giveUp"].forEach(id=>$(id).disabled=!playing);
+  $("hPos").disabled=!playing||game.hints.includes("pos");
+  $("hEra").disabled=!playing||game.hints.includes("era");
+  $("hRegion").disabled=!playing||game.hints.includes("region");
+  const cc=game.hints.filter(h=>h==="closer").length; $("hCloserCt").textContent=cc?"×"+cc:"";
+  $("actions").hidden=!playing;
+
+  // hint notes
+  const notes=[];
+  if(game.hints.includes("pos")) notes.push(`Plays as a <b>${GROUP[secret.pos].toLowerCase()}</b>.`);
+  if(game.hints.includes("era")) notes.push(`Born in the <b>${Math.floor(secret.born/10)*10}s</b>.`);
+  if(game.hints.includes("region")) notes.push(`Represents a country in <b>${REGION[NAT[secret.nat][2]]}</b>.`);
+  $("hintNotes").innerHTML=notes.map(n=>`<div class="hint-note">Hint: ${n}</div>`).join("");
+
+  // result
+  const slot=$("resultSlot"); slot.innerHTML="";
+  if(!playing){
+    const won=game.status==="won", n=game.guesses.length, h=game.hints.length;
+    const card=document.createElement("div"); card.className="result";
+    card.innerHTML=`<div class="eyebrow">${won?"Found in "+n+" guess"+(n===1?"":"es"):"Answer revealed"}</div>
+      <h2></h2>
+      <div class="facts"><span>${NAT[secret.nat][1]} ${NAT[secret.nat][0]}</span><span>${POSNAME[secret.pos]}</span><span>Born ${secret.born}</span></div>
+      <div class="career"></div>
+      <div class="stats"><div><b>${n}</b><span>Guesses</span></div><div><b>${h}</b><span>Hints</span></div><div><b>${bestTwo()}</b><span>Best before answer</span></div></div>
+      <div class="actions"><button class="btn" id="shareBtn">Copy result</button>${game.kind==="daily"?'<button class="btn ghost" id="toFree">Play unlimited</button>':'<button class="btn ghost" id="again">New player</button>'}</div>
+      <div class="msg" id="shareMsg" style="color:inherit;opacity:.85"></div>`;
+    card.querySelector("h2").textContent=secret.name;
+    card.querySelector(".career").textContent="Clubs: "+secret.clubs.map(c=>CLUB[c][0]).join(" → ");
+    slot.appendChild(card);
+    $("shareBtn").onclick=share;
+    if($("toFree")) $("toFree").onclick=()=>load("free");
+    if($("again")) $("again").onclick=()=>{ game=newFree(); save(); ctx=rankFor(PLAYERS[game.secret]); $("msg").textContent=""; render(); };
+  }
+
+  // list
+  const list=$("list"); list.innerHTML="";
+  const best=bestRank();
+  $("bestLabel").textContent=game.guesses.length?"Best #"+best:"";
+  $("listLabel").textContent=playing?"Your guesses, closest first":"Closest players to "+secret.name;
+  if(!game.guesses.length){
+    list.innerHTML=`<div class="empty"><span>Start with any player. Each guess shows how close it is to the secret player, from #${PLAYERS.length} (no link) to #1 (the answer). For example, if the answer were Ronaldinho:</span>
+      <div class="ex"><span>Rivaldo · Brazil, Barcelona, Milan</span><span style="color:var(--hot)">#${exampleRank("Rivaldo")}</span><span>Jordan Pickford · nothing in common</span><span style="color:var(--cold)">#${exampleRank("Jordan Pickford")}</span></div></div>`;
+  }
+  if(playing){
+    const last=game.guesses[game.guesses.length-1];
+    const sorted=[...game.guesses].sort((a,b)=>ctx.ranks.get(a)-ctx.ranks.get(b));
+    const ordered=game.guesses.length>1?[last,...sorted]:sorted;
+    ordered.forEach((id,i)=>list.appendChild(rowEl(PLAYERS[id],secret,i===0&&game.guesses.length>1)));
+  } else {
+    // reveal: top 15 closest with reasons, mark the ones you guessed
+    const wrap=document.createElement("div"); wrap.className="nearest";
+    ctx.order.slice(1,16).forEach(p=>{
+      const d=document.createElement("div"); d.className="near"+(game.guesses.includes(p.id)?" guessed":"");
+      d.innerHTML=`<span class="r" style="color:var(${tone(ctx.ranks.get(p.id))})">${ctx.ranks.get(p.id)}</span><div><div class="nm"></div><div class="why"></div></div>`;
+      d.querySelector(".nm").textContent=p.name+(game.guesses.includes(p.id)?"  ✓ guessed":"");
+      d.querySelector(".why").textContent=whyText(secret,p);
+      wrap.appendChild(d);
+    });
+    list.appendChild(wrap);
+    const lbl=document.createElement("div"); lbl.className="section-label"; lbl.innerHTML="<span>Your guesses</span>"; list.appendChild(lbl);
+    [...game.guesses].sort((a,b)=>ctx.ranks.get(a)-ctx.ranks.get(b)).forEach(id=>list.appendChild(rowEl(PLAYERS[id],secret,false)));
+  }
+}
+function rowEl(p,secret,latest){
+  const r=ctx.ranks.get(p.id), row=document.createElement("div");
+  row.className="row"+(latest?" latest":"");
+  const L=links(secret,p);
+  const showChips=settings.chips&&p.id!==secret.id;
+  row.innerHTML=`<span class="fill" style="width:${fillPct(r)}%;background:var(${tone(r)})"></span>
+    <div class="who"><span class="nm"></span>${showChips?chipHTML(L):""}</div>
+    <span class="rk" style="color:var(${tone(r)})">${r===1?"#1":r}</span>`;
+  row.querySelector(".nm").textContent=(latest?"Latest · ":"")+p.name;
+  if(r===1) row.querySelector(".fill").style.opacity=".55";
+  return row;
+}
+function exampleRank(name){
+  const r=PLAYERS.find(p=>p.name==="Ronaldinho"), g=PLAYERS.find(p=>p.name===name);
+  if(!r||!g) return "?"; if(!exampleRank.c) exampleRank.c=rankFor(r);
+  return exampleRank.c.ranks.get(g.id);
+}
+function bestTwo(){ const rs=game.guesses.filter(id=>id!==game.secret).map(id=>ctx.ranks.get(id)); return rs.length?"#"+Math.min(...rs):"–"; }
+function share(){
+  const sq=r=>r===1?"⚽":r<=10?"🟥":r<=40?"🟧":r<=100?"🟨":r<=200?"🟦":"⬜";
+  const ranks=game.guesses.map(id=>ctx.ranks.get(id));
+  const shown=ranks.length>24?ranks.slice(0,11).concat(["…"],ranks.slice(-12)):ranks;
+  const head=game.kind==="daily"?`Close Control #${puzzleNo(game.date)}`:"Close Control · Unlimited";
+  const line=game.status==="won"?`Found in ${ranks.length} guesses, ${game.hints.length} hints`:`Gave up after ${ranks.length} guesses`;
+  const txt=`${head}\n${line}\n${shown.map(r=>r==="…"?"…":sq(r)).join("")}`;
+  const done=()=>{$("shareMsg").textContent="Copied. Paste it anywhere.";};
+  const fail=()=>{$("shareMsg").textContent=txt;};
+  try{ navigator.clipboard.writeText(txt).then(done,fail); }catch(e){ fail(); }
+}
+
+/* ---------- Stats dialog ---------- */
+function renderStats(){
+  const d=stats.d,f=stats.f;
+  const cell=(v,l)=>`<div><b>${v}</b><span>${l}</span></div>`;
+  $("dailyStats").innerHTML=cell(d.played,"Played")+cell(d.played?Math.round(100*d.won/d.played)+"%":"–","Solved")+cell(d.streak,"Streak")+cell(d.won?(d.guesses/d.won).toFixed(1):"–","Avg guesses");
+  $("freeStats").innerHTML=cell(f.played,"Played")+cell(f.won,"Solved")+cell(f.won?(f.guesses/f.won).toFixed(1):"–","Avg guesses")+cell(f.won?(f.hints/f.won).toFixed(1):"–","Avg hints");
+}
+
+/* ---------- Wiring ---------- */
+$("guess").addEventListener("input",()=>{sugIdx=0; showSug(); if(!sugList.length) sugIdx=-1;});
+$("guess").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){e.preventDefault(); if(sugList.length){sugIdx=(sugIdx+1)%sugList.length; showSug();}}
+  else if(e.key==="ArrowUp"){e.preventDefault(); if(sugList.length){sugIdx=(sugIdx-1+sugList.length)%sugList.length; showSug();}}
+  else if(e.key==="Enter"){e.preventDefault(); const p=sugList[sugIdx>=0?sugIdx:0];
+    if(p) pick(p); else if($("guess").value.trim()) flash("That player isn't in the database yet. Pick one from the list.",true);}
+  else if(e.key==="Escape"){ $("suggest").hidden=true; }
+});
+$("guess").addEventListener("blur",()=>setTimeout(()=>$("suggest").hidden=true,120));
+$("tabDaily").onclick=()=>load("daily");
+$("tabFree").onclick=()=>load("free");
+$("hCloser").onclick=hintCloser;
+$("hPos").onclick=()=>hintFact("pos");
+$("hEra").onclick=()=>hintFact("era");
+$("hRegion").onclick=()=>hintFact("region");
+$("giveUp").onclick=()=>{$("giveUpConfirm").hidden=false;};
+$("giveUpNo").onclick=()=>{$("giveUpConfirm").hidden=true;};
+$("giveUpYes").onclick=()=>{$("giveUpConfirm").hidden=true; finish(false); save(); render();};
+const open=id=>{$(id).hidden=false;}, close=id=>{$(id).hidden=true;};
+$("helpBtn").onclick=()=>open("helpDlg");
+$("statsBtn").onclick=()=>{renderStats(); open("statsDlg");};
+document.querySelectorAll(".overlay").forEach(o=>{
+  o.addEventListener("click",e=>{ if(e.target===o||e.target.hasAttribute("data-close")) o.hidden=true; });
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".overlay").forEach(o=>o.hidden=true); });
+$("chipToggle").checked=settings.chips;
+$("chipToggle").onchange=e=>{settings.chips=e.target.checked; store.set("cc-settings",settings); render();};
+
+load("daily");
+if(!store.get("cc-seen-help",false)){ open("helpDlg"); store.set("cc-seen-help",true); }
+</script>
