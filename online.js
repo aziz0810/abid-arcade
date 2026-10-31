@@ -198,8 +198,17 @@ function renderSignIn(){
       <div class="actions"><button class="btn primary" id="ol-guest">Play as guest</button>${S.net.auth.canGoogle?`<button class="btn" id="ol-google">Sign in with Google</button>`:""}</div>
       <p class="note" style="margin:0">Guests just need a name. Google sign-in keeps the same player on every device.</p></div>`;
   bindProfile();
-  q("ol-guest").onclick=async()=>{ if(!saveProfile()) return; try{ await S.net.auth.guest(); afterSignIn(); }catch(e){ toast("Couldn't sign in: "+(e.message||e)); } };
-  if(q("ol-google")) q("ol-google").onclick=async()=>{ const n=(q("ol-name").value||"").trim(); try{ await S.net.auth.google(); const u=S.net.auth.user(); if(!n&&u&&u.displayName){ q("ol-name").value=u.displayName.split(" ")[0]; } if(!saveProfile()) return; afterSignIn(); }catch(e){ toast("Google sign-in didn't work: "+(e.message||e)); } };
+  q("ol-guest").onclick=async()=>{ if(!saveProfile()) return; try{ await S.net.auth.guest(); afterSignIn(); }catch(e){ toast(authError(e)); } };
+  if(q("ol-google")) q("ol-google").onclick=async()=>{ const n=(q("ol-name").value||"").trim(); try{ await S.net.auth.google(); const u=S.net.auth.user(); if(!n&&u&&u.displayName){ q("ol-name").value=u.displayName.split(" ")[0]; } if(!saveProfile()) return; afterSignIn(); }catch(e){ toast(authError(e)); } };
+}
+function authError(e){
+  const c=String((e&&(e.code||e.message))||e);
+  if(/configuration-not-found|CONFIGURATION_NOT_FOUND/.test(c)) return "Online sign-in isn't switched on yet: the site owner needs to open Firebase → Authentication → Get started.";
+  if(/operation-not-allowed|admin-restricted/.test(c)) return "This sign-in method is turned off. The site owner needs to enable it in Firebase → Authentication → Sign-in method.";
+  if(/unauthorized-domain/.test(c)) return "This website isn't on Firebase's list of allowed domains yet (Authentication → Settings → Authorized domains).";
+  if(/popup-closed|cancelled-popup/.test(c)) return "Sign-in window was closed.";
+  if(/network/.test(c)) return "No connection. Check your internet and try again.";
+  return "Couldn't sign in: "+(e.message||c);
 }
 function afterSignIn(){ S.uid=S.net.uid(); const h=location.hash.replace("#",""); const m=h.match(/^join-([A-Z]{5})$/); if(m) enterRoom(m[1]); else renderHome(); }
 
