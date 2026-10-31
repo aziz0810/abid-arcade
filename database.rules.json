@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "chat": {
+          "$msg": {
+            ".validate": "newData.hasChildren(['t', 'ts']) && newData.child('t').isString() && newData.child('t').val().length <= 200"
+          }
+        }
+      }
+    },
+    "secrets": {
+      "$code": {
+        ".read": "auth != null && root.child('rooms').child($code).child('meta/host').val() === auth.uid",
+        ".write": "auth != null && root.child('rooms').child($code).child('meta/host').val() === auth.uid"
+      }
+    },
+    "hands": {
+      "$code": {
+        ".write": "auth != null && root.child('rooms').child($code).child('meta/host').val() === auth.uid",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('rooms').child($code).child('meta/host').val() === auth.uid)"
+        }
+      }
+    }
+  }
+}
