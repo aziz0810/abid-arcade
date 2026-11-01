@@ -1523,7 +1523,7 @@ window.addEventListener("cc-daily-done",async e=>{ const d0=e.detail||{}; if(d0.
 async function renderLeaders(){
   const main=q("ol-main"); S.view="leaders";
   main.innerHTML=`<h2 class="view-title">Leaderboards</h2>
-    <div class="tabs" role="tablist"><button class="tab" role="tab" id="lb-m" aria-selected="true">This month</button><button class="tab" role="tab" id="lb-d" aria-selected="false">Today's Guess the Player</button><button class="tab" role="tab" id="lb-r" aria-selected="false">Ratings</button></div>
+    <div class="tabs tabs3" role="tablist"><button class="tab" role="tab" id="lb-m" aria-selected="true">This month</button><button class="tab" role="tab" id="lb-d" aria-selected="false">Daily match</button><button class="tab" role="tab" id="lb-r" aria-selected="false">Ratings</button></div>
     <div class="panel" id="lb-body"><p class="note">Loading…</p></div>
     <div class="actions"><button class="btn ghost" data-go="online">← Play online</button></div>`;
   const body=q("lb-body");

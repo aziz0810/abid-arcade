@@ -216,3 +216,8 @@ html[dir=rtl] .dialog .close{right:auto;left:12px}
 html[dir=rtl] .dialog h3{padding-left:90px;padding-right:0}
 html[dir=rtl] .ol-roomline b,html[dir=rtl] .ol-code-b{unicode-bidi:isolate;direction:ltr}
 html[dir=rtl] #ol-roomcode{unicode-bidi:isolate;direction:ltr;margin-inline-start:6px}
+a.btn{color:var(--ink);text-decoration:none}
+a.btn.primary{color:#fff}
+.ch-row .pf-bar{background:var(--line)}
+.tabs.tabs3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tabs.tabs3 .tab{font-size:14px;letter-spacing:.03em;padding:9px 4px}
