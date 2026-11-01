@@ -18,10 +18,11 @@ head = '''<!doctype html>
 <script src="i18n.js"></script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}</style>
 '''
+s = s.replace('family=Barlow+Condensed:wght@500;600;700&display=swap', 'family=Barlow+Condensed:wght@500;600;700&family=Cairo:wght@400;600;800&display=swap')
 i = s.index('<div class="wrap">')
 tail = '''
 <script src="firebase-config.js"></script>
 <script src="online.js"></script>
 '''
-s = s.replace('family=Barlow+Condensed:wght@500;600;700&display=swap', 'family=Barlow+Condensed:wght@500;600;700&family=Cairo:wght@400;600;800&display=swap')
+assert s[:i].rstrip().endswith('</style>'), 'online.css link would land inside the page styles'
 open(sys.argv[2], 'w').write(head + s[:i] + '<link rel="stylesheet" href="online.css">\n</head>\n<body>\n' + s[i:] + tail + '</body>\n</html>\n')
