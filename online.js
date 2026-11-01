@@ -184,6 +184,10 @@ const GAMES={
     set:{rounds:[[3,"3 rounds"],[5,"5 rounds"]],secs:[[30,"30s"],[60,"60s"],[90,"90s"]],scoring:[["unique","Unique ×2"],["count","1 point each"]],theme:THEME_OPTS},def:{rounds:3,secs:60,scoring:"unique",theme:"all"}},
   chain:{name:"Name Chain",icon:"O→O",blurb:"Take turns. Each name starts with the last letter of the one before.",
     set:{secs:[[10,"10s"],[15,"15s"],[20,"20s"],[30,"30s"]],theme:THEME_OPTS},def:{secs:20,theme:"all"}},
+  career:{name:"Career Path",icon:"⇢",blurb:"A career appears club by club, oldest first. Name the player early for more points.",
+    set:{rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[5,"Club every 5s"],[7,"Every 7s"],[10,"Every 10s"]],level:[["0","Stars"],["1","Well known"]],theme:THEME_OPTS},def:{rounds:5,secs:7,level:"0",theme:"all"}},
+  worldcup:{name:"World Cup Run",icon:"🏆",blurb:"Seven matches from the group stage to the final. Name players of the opposing nation to score goals.",
+    set:{secs:[[30,"30s matches"],[45,"45s"],[60,"60s"]]},def:{secs:45}},
   whoami:{name:"Who Am I?",icon:"?",blurb:"Clues appear one by one for everyone. Name the mystery player early for more points.",
     set:{rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[5,"Clue every 5s"],[7,"Every 7s"],[10,"Every 10s"]],level:[["0","Stars"],["1","Well known"]],theme:THEME_OPTS},def:{rounds:5,secs:7,level:"0",theme:"all"}},
   linkup:{name:"Link Up",icon:"▮▮▮",blurb:"The football card game. Private hands, CPUs can fill seats.",
@@ -241,13 +245,13 @@ function authError(e){
   return "Couldn't sign in: "+(e.message||c);
 }
 function afterSignIn(){ S.uid=S.net.uid(); socialStart(); const pend=ls.get("arc-daily-pending",null); if(pend) postDaily(pend);
-  const h=location.hash.replace("#",""); const m=h.match(/^join-([A-Z]{5})$/); if(m) enterRoom(m[1]); else if(h==="leaders") renderLeaders(); else if(h==="friends") renderFriends(); else renderHome(); }
+  const h=location.hash.replace("#",""); const m=h.match(/^join-([A-Z]{5})$/); if(m) enterRoom(m[1]); else if(h==="leaders") renderLeaders(); else if(h==="friends") renderFriends(); else if(h==="profile") renderProfile(S.uid); else if(/^u-/.test(h)) renderProfile(h.slice(2)); else renderHome(); }
 
 function renderHome(){
   const main=q("ol-main"); S.view="home";
   const u=S.net.auth.user();
   main.innerHTML=`${rejoinHTML()}<div class="ol-me"><span class="ol-av big">${E(S.profile.av)}</span><div><b>${E(S.profile.name)}</b><div class="note">${u&&!u.isAnonymous?"Signed in with Google":"Playing as a guest"}</div></div>
-      <button class="btn ghost" id="ol-edit">Edit</button><button class="btn ghost" id="ol-out">Sign out</button><a class="btn" href="#leaders" style="text-decoration:none">🏆 Leaderboards</a></div>
+      <button class="btn ghost" id="ol-edit">Edit</button><button class="btn ghost" id="ol-out">Sign out</button><a class="btn" href="#leaders" style="text-decoration:none">🏆 Leaderboards</a><a class="btn" href="#profile" style="text-decoration:none">👤 Profile</a><a class="btn" href="#challenges" style="text-decoration:none">🎯 Challenges</a></div>
     <div class="ol-two">
       <div class="panel"><h3 class="ol-h">Create a room</h3><p class="note" style="margin:0">Pick the first game. You can switch games in the room.</p>
         <div class="ol-games" id="ol-pick">${Object.entries(GAMES).map(([k,g],i)=>`<button type="button" class="ol-game" aria-pressed="${i===0}" data-g="${k}"><span class="glyph">${g.icon}</span><span><b>${g.name}</b><small>${g.blurb}</small></span></button>`).join("")}</div>
@@ -461,7 +465,7 @@ function renderStage(){
 function skel(st,key,html){ if(st.dataset.key!==key){ st.dataset.key=key; st.innerHTML=html; return true; } return false; }
 
 const LBL={mode:"Mode",secs:"Time",cpus:"Computer players",level:"Difficulty",era:"Era",hand:"Cards each",rounds:"Rounds",scoring:"Scoring",theme:"Theme"};
-const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"}};
+const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"}};
 const setLabel=(game,k)=>(LBL_GAME[game]&&LBL_GAME[game][k])||LBL[k]||k;
 function renderLobby(st){
   const m=S.meta, g=GAMES[m.game], host=S.host;
@@ -480,7 +484,7 @@ function renderLobby(st){
     ?`<button class="btn primary go" id="ol-go" ${need||over?"disabled":""}>Start ${E(g.name)}</button><span class="note">${need?"Link Up needs 2 seats: invite a friend or add a CPU.":over?`Link Up supports up to ${LINKUP_MAX} players (the deck runs out). Remove CPUs or pick another game.`:`${n} player${n>1?"s":""} in the room`}</span>`
     :`<span class="note">Waiting for ${E(pname(m.host))} to start the game…</span>`;
   if(host&&q("ol-go")) q("ol-go").onclick=()=>startGame();
-  const rs=q("ol-roomset"), rk=JSON.stringify([m.vis,m.max,m.title,host,n]); if(rs.dataset.k!==rk){ rs.dataset.k=rk; rs.innerHTML=roomSettingsHTML(); bindRoomSettings(); }
+  const rs=q("ol-roomset"), rk=JSON.stringify([m.vis,m.max,m.title,m.ranked,host,n]); if(rs.dataset.k!==rk){ rs.dataset.k=rk; rs.innerHTML=roomSettingsHTML(); bindRoomSettings(); }
   const tw=q("ol-tour"), tk=JSON.stringify([S.meta.tour||null,host,Object.keys(S.players).length]);
   if(tw.dataset.k!==tk){ tw.dataset.k=tk; q("ol-champ").innerHTML=championHTML(); tw.innerHTML=tourPanel(); bindTourPanel();
     if(q("ol-tclear")) q("ol-tclear").onclick=()=>S.net.set(R("meta/tour"),null); }
@@ -510,6 +514,7 @@ function bindEnd(st){ st.querySelectorAll("[data-end]").forEach(b=>b.onclick=asy
   if(a==="tend"){ await S.net.set(R("meta/tour"),null); return toLobby(); } return toLobby(); }); }
 function onGameChange(old,g){
   if(!g) return;
+  if(g.phase==="over"){ recordResult(g); applyElo(g); }
   const eng=ENG[g.kind]; eng&&eng.onChange&&eng.onChange(old,g);
 }
 
@@ -521,7 +526,8 @@ const Host={on:false,iv:null,unsub:null,q:Promise.resolve(),cache:null,
   stop(){ this.on=false; clearInterval(this.iv); clearInterval(this.hb); this.unsub&&this.unsub(); this.unsub=null; this.cache=null; },
   run(fn){ this.q=this.q.then(()=>this.on?fn():null).catch(e=>console.error(e)); return this.q; },
   async action(k,a){ await S.net.remove(R("actions/"+k)); if(!a||!S.game||S.meta.status!=="playing") return; const e=ENG[S.game.kind]; e&&e.hostAction&&await e.hostAction(a); },
-  async tick(){ if(!S.game||!S.meta||S.meta.status!=="playing") return; if(S.game.phase==="over"){ await tourScore(); return; } const e=ENG[S.game.kind]; e&&e.hostTick&&await e.hostTick(); }
+  async tick(){ if(!S.game||!S.meta||S.meta.status!=="playing") return;
+    if(S.game.phase==="over"){ if(S.game.elo===undefined&&!S.game.eloDone){ const g2=clone(S.game); g2.eloDone=true; const d=await computeElo(g2); if(d) g2.elo=d; await setGame(g2); } await tourScore(); return; } const e=ENG[S.game.kind]; e&&e.hostTick&&await e.hostTick(); }
 };
 async function setGame(g){ S.game=g; refresh(); await S.net.set(R("game"),g); }
 const act=(type,payload)=>S.net.push(R("actions"),Object.assign({u:S.uid,type,ts:now()},payload||{}));
@@ -928,7 +934,7 @@ function timedEngine(kind){
       if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
       if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} doesn't fit.`; SFX.play("bad"); return; }
       if(list.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already on your list.`; return; }
-      list.push(r.p.id); ss.set(myKey(g),list); S.net.set(R(`answers/${g.round}/${S.uid}`),list);
+      list.push(r.p.id); ss.set(myKey(g),list); S.net.set(R(`answers/${g.round}/${S.uid}`),list); track("names");
       fb.className="feedback ok"; fb.textContent=`✓ ${r.p.base}`; SFX.play("ok");
       this.paintMine(g);
     },
@@ -1063,7 +1069,7 @@ ENG.chain={
     if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
     if(used["p"+r.p.id]){ fb.className="feedback err"; fb.textContent=`${r.p.base} has already been named.`; SFX.play("bad"); return; }
     if(!r.ok){ fb.className="feedback err"; fb.textContent=r.p.starts.has(L)?`${r.p.base} doesn't fit the theme (${th.l}).`:`${r.p.base} doesn't start with ${L.toUpperCase()}.`; SFX.play("bad"); return; }
-    CH.pending=true; q("ch-in").disabled=true; fb.className="feedback ok"; fb.textContent=`✓ ${r.p.base}`;
+    CH.pending=true; q("ch-in").disabled=true; fb.className="feedback ok"; fb.textContent=`✓ ${r.p.base}`; track("chain");
     act("chain",{id:r.p.id});
   }
 };
@@ -1325,14 +1331,17 @@ function openSettings(){
     <div class="field"><span>Text size</span>${seg("size",[["1","Normal"],["1.12","Large"],["1.25","Extra large"]],UI.size)}</div>
     <div class="field"><span>Sound effects</span>${seg("sound",[["on","On"],["off","Off"]],SFX.muted?"off":"on")}</div>
     <div class="field"><span>Vibration</span>${seg("vibrate",[["true","On"],["false","Off"]],String(UI.vibrate))}</div>
+    ${window.I18N?`<div class="field"><span>Language</span><div class="seg notranslate" data-set="lang">${Object.entries(I18N.LANGS).map(([v,l])=>`<button type="button" data-v="${v}" lang="${v}" aria-pressed="${I18N.lang===v}">${l}</button>`).join("")}</div></div>`:""}
+    <div class="field" id="set-push"></div>
     <div class="field" id="set-install"></div>`);
   o.querySelectorAll("[data-set]").forEach(g=>g.querySelectorAll("button").forEach(b=>b.onclick=()=>{
     g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true");
     const k=g.dataset.set, v=b.dataset.v;
+    if(k==="lang"){ I18N.set(v); return; }
     if(k==="sound"){ if((v==="off")!==SFX.muted) SFX.toggle(); paintMute(); SFX.play("ok"); return; }
     UI[k]=k==="vibrate"?v==="true":v; ls.set("arc-ui",UI); applyUI(); if(k==="vibrate") haptic("ok");
   }));
-  paintInstall();
+  paintInstall(); paintPushSetting();
 }
 function paintInstall(){
   const w=q("set-install"); if(!w) return;
@@ -1348,7 +1357,8 @@ const HAPT={ok:[18],bad:[40,50,40],turn:[120,60,120],win:[60,40,60,40,160],go:[3
 function haptic(t){ if(!UI.vibrate||(navigator.userActivation&&!navigator.userActivation.hasBeenActive)) return; const p=HAPT[t]; if(p) try{ navigator.vibrate&&navigator.vibrate(p); }catch(e){} }
 const baseTitle=document.title; let titleIv=null;
 function flashTitle(text){
-  if(!document.hidden) return; clearInterval(titleIv); let on=false;
+  if(!document.hidden) return;
+  notify(text); clearInterval(titleIv); let on=false;
   titleIv=setInterval(()=>{ document.title=(on=!on)?text:baseTitle; },900);
 }
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&titleIv){ clearInterval(titleIv); titleIv=null; document.title=baseTitle; } });
@@ -1426,7 +1436,8 @@ const TOUR_PTS=[5,3,2];
 function ranking(g){
   const sc=o=>Object.keys(o||{}).filter(u=>o[u]>0).sort((a,b)=>o[b]-o[a]);
   switch(g.kind){
-    case "thirty": case "letters": case "whoami": return sc(g.scores);
+    case "thirty": case "letters": case "whoami": case "career": return sc(g.scores);
+    case "worldcup": return ENG.worldcup.order(g).filter(u=>((g.goals||{})[u]||0)>0||((g.reach||{})[u]||0)>0);
     case "chain": return [g.winner,...arr(g.outOrder).slice().reverse()].filter(Boolean).filter((u,i,a)=>a.indexOf(u)===i);
     case "linkup": { const c=g.counts||{}; return g.seats.filter(s=>!s.cpu).map(s=>s.id).sort((a,b)=>a===g.winner?-1:b===g.winner?1:(c[a]||0)-(c[b]||0)); }
     case "close": if(g.mode==="coop") return [g.winner,...arr(g.order).filter(u=>u!==g.winner)].filter(Boolean);
@@ -1461,6 +1472,7 @@ async function tourNext(){
     const pts=t.pts||{}, champ=Object.keys(pts).sort((a,b)=>pts[b]-pts[a])[0];
     await S.net.update(R("meta/tour"),{done:true,idx});
     if(champ){ await award([champ],5,true); sys(`👑 ${pname(champ)} is the tournament champion!`); }
+    await S.net.set(R("meta/tour/champ"),champ||"");
     return toLobby();
   }
   const k=t.list[idx], settings=Object.assign({},GAMES[k].def,GAMES[k].set.theme?{theme:t.theme}:{});
@@ -1471,7 +1483,7 @@ let champShown=null;
 function championHTML(){
   const t=S.meta.tour; if(!t||!t.done) return "";
   const pts=t.pts||{}, order=Object.keys(pts).sort((a,b)=>pts[b]-pts[a]);
-  if(champShown!==t.id){ champShown=t.id; if(order[0]===S.uid){ SFX.play("win"); } confetti(); }
+  if(champShown!==t.id){ champShown=t.id; if(order[0]===S.uid){ SFX.play("win"); const k="arc-tour-"+t.id; if(!ls.get(k,false)){ ls.set(k,true); addStats({tour:1}); track("tourwin"); } } confetti(); }
   const pod=[order[1],order[0],order[2]];
   return `<div class="panel ol-champ"><div class="section-label"><span>Tournament over</span></div>
     <h3 class="view-title" style="font-size:34px">👑 ${E(order[0]?pname(order[0]):"Nobody")} is the champion</h3>
@@ -1506,20 +1518,27 @@ async function postDaily(d){
   const path=`daily/${d.date}/${S.net.uid()}`;
   try{ if(await S.net.get(path)) return; await S.net.set(path,{n:S.profile.name,a:S.profile.av,g:d.won?d.guesses:999,h:d.hints,won:!!d.won,ts:now()}); ls.set("arc-daily-pending",null); toast("Your result is on today's leaderboard 🏆"); }catch(e){}
 }
-window.addEventListener("cc-daily-done",async e=>{ try{ if(!S.net) S.net=await getNet(); await postDaily(e.detail); }catch(err){} });
+window.addEventListener("cc-daily-done",async e=>{ const d0=e.detail||{}; if(d0.won){ track("daily"); if(d0.guesses<=6) track("daily6"); }
+  try{ if(!S.net) S.net=await getNet(); await postDaily(e.detail); }catch(err){} });
 async function renderLeaders(){
   const main=q("ol-main"); S.view="leaders";
   main.innerHTML=`<h2 class="view-title">Leaderboards</h2>
-    <div class="tabs" role="tablist"><button class="tab" role="tab" id="lb-m" aria-selected="true">This month</button><button class="tab" role="tab" id="lb-d" aria-selected="false">Today's Guess the Player</button></div>
+    <div class="tabs" role="tablist"><button class="tab" role="tab" id="lb-m" aria-selected="true">This month</button><button class="tab" role="tab" id="lb-d" aria-selected="false">Today's Guess the Player</button><button class="tab" role="tab" id="lb-r" aria-selected="false">Ratings</button></div>
     <div class="panel" id="lb-body"><p class="note">Loading…</p></div>
     <div class="actions"><button class="btn ghost" data-go="online">← Play online</button></div>`;
   const body=q("lb-body");
   const row=(i,r,me,val,sub)=>`<div class="ol-brow${me?" me":""}"><b class="pts" style="min-width:2.2ch;text-align:left">${i+1}</b><span class="ol-av">${E(r.a||"⚽")}</span><span class="nm">${E(r.n||"Player")}</span><span class="st">${sub}</span><b class="pts">${val}</b></div>`;
   const show=async which=>{
-    q("lb-m").setAttribute("aria-selected",String(which==="m")); q("lb-d").setAttribute("aria-selected",String(which==="d"));
+    q("lb-m").setAttribute("aria-selected",String(which==="m")); q("lb-d").setAttribute("aria-selected",String(which==="d")); q("lb-r").setAttribute("aria-selected",String(which==="r"));
     if(S.net.kind!=="firebase"){ body.innerHTML=`<p class="note" style="margin:0">Leaderboards need online play, which isn't switched on in demo mode.</p>`; return; }
     body.innerHTML=`<p class="note">Loading…</p>`;
     try{
+      if(which==="r"){
+        const v=await S.net.top("users","st/elo",100,false)||{};
+        const rows=Object.entries(v).filter(([u,r])=>r&&r.st&&r.st.games).sort((a,b)=>(b[1].st.elo||1000)-(a[1].st.elo||1000));
+        body.innerHTML=`<p class="note" style="margin:0">Ratings go up and down after every ranked online game, like chess Elo. Everyone starts at 1000. Divisions: 🥉 Bronze · 🥈 Silver 1100 · 🥇 Gold 1300 · 💠 Platinum 1500 · 👑 Legend 1700.</p>`+(rows.map(([u,r],i)=>{ const d=division(r.st.elo); return row(i,r,u===S.uid,r.st.elo||1000,`${d.icon} ${d.name} · ${r.st.games} games`); }).join("")||`<p class="note">No rated players yet.</p>`);
+        return;
+      }
       if(which==="m"){
         const v=await S.net.top(`seasons/${monthKey()}`,"pts",100,false)||{};
         const rows=Object.entries(v).sort((a,b)=>(b[1].pts||0)-(a[1].pts||0)||(b[1].wins||0)-(a[1].wins||0));
@@ -1532,7 +1551,7 @@ async function renderLeaders(){
       }
     }catch(e){ body.innerHTML=`<p class="note" style="margin:0">Couldn't load the leaderboard. If you run this site, publish the latest database.rules.json in Firebase.</p>`; }
   };
-  q("lb-m").onclick=()=>show("m"); q("lb-d").onclick=()=>show("d"); show("m");
+  q("lb-m").onclick=()=>show("m"); q("lb-d").onclick=()=>show("d"); q("lb-r").onclick=()=>show("r"); show("m");
 }
 
 /* ================= Who Am I? ================= */
@@ -1577,8 +1596,9 @@ ENG.whoami={
     const t=now()+3500;
     return {kind:"whoami",at:now(),round:0,total,rounds,clueMs:(+set.secs||7)*1000,startsAt:t,phase:"play",scores:{},res:{},players:onlineUids(),theme:set.theme||"all"};
   },
-  clueIdx(g){ return Math.max(-1,Math.min(WHO_N-1,Math.floor((now()-g.startsAt)/g.clueMs))); },
-  endAt(g){ return g.startsAt+WHO_N*g.clueMs+6000; },
+  nOf(g){ return arr(arr(g.rounds)[g.round].cl).length||WHO_N; },
+  clueIdx(g){ return Math.max(-1,Math.min(this.nOf(g)-1,Math.floor((now()-g.startsAt)/g.clueMs))); },
+  endAt(g){ return g.startsAt+this.nOf(g)*g.clueMs+6000; },
   secret(g){ return CC.PLAYERS[dec(arr(g.rounds)[g.round].sx)]; },
   async hostTick(){
     const g=S.game;
@@ -1612,7 +1632,7 @@ ENG.whoami={
     if(now()<WA.lockUntil){ return; }
     const c=this.clueIdx(g); if(c<0) return;
     if(p.id===this.secret(g).id){
-      S.net.set(R(`answers/${g.round}/${S.uid}`),{t:now()-g.startsAt,c});
+      S.net.set(R(`answers/${g.round}/${S.uid}`),{t:now()-g.startsAt,c}); if(c<=2) track("early");
       fb.className="feedback ok"; fb.textContent=`✓ Correct! ${p.name} on clue ${c+1}.`; SFX.play("win");
     } else {
       WA.wrong++; WA.lockUntil=now()+2500; fb.className="feedback err"; fb.textContent=`✗ Not ${p.name}. Wait 2 seconds…`; SFX.play("bad");
@@ -1620,7 +1640,7 @@ ENG.whoami={
     refresh();
   },
   render(st){
-    const g=S.game, gm=GAMES.whoami;
+    const g=S.game, gm=GAMES[g.kind];
     if(g.phase==="over"){
       if(skel(st,`wa-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="wa-stand"></div><div id="wa-end"></div>`)){
         const sc=g.scores||{}; q("wa-stand").innerHTML=`<div class="standings">${Object.keys(sc).sort((a,b)=>sc[b]-sc[a]).map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${sc[u]}</b></div>`).join("")||"<div><span>Nobody scored</span><b>0</b></div>"}</div>`;
@@ -1632,7 +1652,7 @@ ENG.whoami={
     const rd=arr(g.rounds)[g.round], secret=this.secret(g);
     if(g.phase==="results"){
       if(skel(st,`wa-res-${g.startsAt}`,`<div class="prompt"><span class="who">${gm.name} · round ${g.round+1} of ${g.total} · results${themeTag(g)}</span><span class="cat">It was ${E(secret.name)}</span></div>
-          <div id="wa-reveal"></div>${clueList(arr(rd.cl),WHO_N)}
+          <div id="wa-reveal"></div>${clueList(arr(rd.cl),arr(rd.cl).length)}
           <div id="wa-res"></div><div class="section-label"><span>Total</span></div><div id="wa-tot"></div>
           <div class="actions">${S.host?`<button class="btn primary" id="wa-next">${g.round+1>=g.total?"Final results":"Next player"}</button>`:""}<span class="note" id="wa-auto"></span></div>`)){
         q("wa-reveal").innerHTML=revealCard(secret);
@@ -1644,7 +1664,7 @@ ENG.whoami={
       return;
     }
     const inGame=g.players.includes(S.uid);
-    if(skel(st,`wa-play-${g.startsAt}`,`<div class="prompt"><span class="who">${gm.name} · round ${g.round+1} of ${g.total}${themeTag(g)}</span><span class="cat">Name the mystery footballer</span></div>
+    if(skel(st,`wa-play-${g.startsAt}`,`<div class="prompt"><span class="who">${gm.name} · round ${g.round+1} of ${g.total}${themeTag(g)}</span><span class="cat">${g.kind==="career"?"Whose career is this?":"Name the mystery footballer"}</span></div>
         <div class="ol-count" id="wa-count"></div>
         <div class="clock" id="wa-clock"><b id="wa-pts">10</b><span class="bar"><i id="wa-bar"></i></span><span class="note" id="wa-next-in"></span></div>
         ${inGame?`<div class="search"><input id="wa-in" type="text" autocomplete="off" spellcheck="false" placeholder="Who is it?" aria-label="Guess the mystery player"><div class="suggest" id="wa-sug" role="listbox" hidden></div></div>`:`<div class="ol-note">You joined mid-game. You'll play from the next game.</div>`}
@@ -1659,7 +1679,7 @@ ENG.whoami={
     q("wa-live").innerHTML=g.players.map(u=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${ans[u]?`✓ got it on clue ${ans[u].c+1}`:"thinking…"}</span><b class="pts">${(g.scores||{})[u]||0}</b></div>`).join("");
   },
   clientTick(){
-    const g=S.game; if(!g||g.kind!=="whoami"||g.phase!=="play") { if(g&&g.phase==="results"){ const a=q("wa-auto"); if(a) a.textContent=`Next player in ${Math.max(0,Math.ceil((g.nextAt-now())/1000))}s`; } return; }
+    const g=S.game; if(!g||!(g.kind==="whoami"||g.kind==="career")||g.phase!=="play") { if(g&&g.phase==="results"){ const a=q("wa-auto"); if(a) a.textContent=`Next player in ${Math.max(0,Math.ceil((g.nextAt-now())/1000))}s`; } return; }
     const cnt=q("wa-count"); if(!cnt) return;
     const t=now(), c=this.clueIdx(g), rd=arr(g.rounds)[g.round];
     if(t<g.startsAt){ const s=Math.ceil((g.startsAt-t)/1000); if(cnt.textContent!==String(s)){ cnt.textContent=String(s); SFX.play("tick"); } }
@@ -1669,44 +1689,49 @@ ENG.whoami={
     const mine=(S.answers[g.round]||{})[S.uid];
     const ptsNow=Math.max(1,WHO_N-Math.max(0,c));
     q("wa-pts").textContent=mine?"✓":ptsNow;
-    const nextAt=g.startsAt+(c+1)*g.clueMs, frac=c>=WHO_N-1?0:Math.max(0,(nextAt-t)/g.clueMs);
+    const NN=this.nOf(g), nextAt=g.startsAt+(c+1)*g.clueMs, frac=c>=NN-1?0:Math.max(0,(nextAt-t)/g.clueMs);
     q("wa-bar").style.width=(t<g.startsAt?100:frac*100)+"%";
-    q("wa-next-in").textContent=mine?"You got it! Waiting for the others…":c>=WHO_N-1?"Last clue":`points now · next clue in ${Math.ceil(Math.max(0,nextAt-t)/1000)}s`;
+    q("wa-next-in").textContent=mine?"You got it! Waiting for the others…":c>=NN-1?"Last clue":`points now · next clue in ${Math.ceil(Math.max(0,nextAt-t)/1000)}s`;
     const inp=q("wa-in"); if(inp){ const dis=!!mine||t<g.startsAt||t<WA.lockUntil; if(inp.disabled!==dis){ inp.disabled=dis; if(!dis) inp.focus(); } }
   }
 };
 
 /* Who Am I? on your own (no account needed) */
 const WhoSolo={
-  open(){
-    const main=q("ol-main"); S.view="whoami";
-    const cfg=ls.get("arc-who",{level:"0",theme:"all"});
-    main.innerHTML=`<h2 class="view-title">Who Am I?</h2>
-      <p class="lede">Clues appear one at a time. Name the mystery footballer as early as you can: the first clue is worth 10 points, each extra clue costs 1, and a wrong guess costs 1. Five players per game.</p>
+  kind:"whoami",
+  title(){ return this.kind==="career"?"Career Path":"Who Am I?"; },
+  clues(id){ return this.kind==="career"?careerClues(id):whoClues(id); },
+  pool(lv,th){ return this.kind==="career"?careerPool(lv,th):whoPool(lv,th); },
+  open(kind){
+    this.kind=kind||"whoami";
+    const main=q("ol-main"); S.view=this.kind;
+    const cfg=ls.get("arc-who",{level:"0",theme:"all"}); const bestKey=this.kind==="career"?"arc-career-best":"arc-who-best";
+    main.innerHTML=`<h2 class="view-title">${this.title()}</h2>
+      <p class="lede">${this.kind==="career"?"A player's career appears club by club, oldest first. Name the player as early as you can: the first club is worth 10 points, each extra club costs 1, and a wrong guess costs 1. Five players per game.":`Clues appear one at a time. Name the mystery footballer as early as you can: the first clue is worth 10 points, each extra clue costs 1, and a wrong guess costs 1. Five players per game.`}</p>
       <div class="panel" id="ws-setup"></div>
-      <p class="note">Want to play with friends? Choose <b>Who Am I?</b> in an online room.</p>`;
+      <p class="note">Want to play with friends? Choose <b>${this.title()}</b> in an online room.</p>`;
     const s=q("ws-setup");
     s.appendChild(field("Mystery player from",seg("ws-l",[["0","Stars"],["1","Well known"]],cfg.level,v=>cfg.level=v)));
     const sel=document.createElement("select"); sel.id="ws-theme"; sel.setAttribute("aria-label","Theme"); sel.innerHTML=THEME_OPTS.map(([k,l])=>`<option value="${k}">${l}</option>`).join(""); sel.value=cfg.theme;
     sel.onchange=()=>cfg.theme=sel.value; s.appendChild(field("Theme",sel));
-    const best=ls.get("arc-who-best",0);
+    const best=ls.get(bestKey,0);
     const go=document.createElement("button"); go.className="btn primary go"; go.textContent="Start"+(best?` · best ${best}`:"");
     go.onclick=()=>{ ls.set("arc-who",cfg); this.start(+cfg.level,cfg.theme); }; s.appendChild(go);
   },
   start(lv,theme){
-    const pool=whoPool(lv,theme), ids=[]; while(ids.length<5){ const p=pickOne(pool); if(!ids.includes(p.id)||ids.length>=pool.length) ids.push(p.id); }
-    this.st={lv,theme,ids,round:0,score:0,shown:1,pts:WHO_N,clues:whoClues(ids[0]),done:false,log:[]};
+    const pool=this.pool(lv,theme), ids=[]; while(ids.length<5){ const p=pickOne(pool); if(!ids.includes(p.id)||ids.length>=pool.length) ids.push(p.id); }
+    this.st={lv,theme,ids,round:0,score:0,shown:1,pts:WHO_N,clues:this.clues(ids[0]),done:false,log:[]};
     this.paint();
   },
   paint(){
     const st=this.st, main=q("ol-main"), secret=CC.PLAYERS[st.ids[st.round]];
-    main.innerHTML=`<h2 class="view-title">Who Am I?</h2>
+    main.innerHTML=`<h2 class="view-title">${this.title()}</h2>
       <div class="prompt"><span class="who">Player ${st.round+1} of 5 · score ${st.score}${THEMES[st.theme]&&THEMES[st.theme].t?" · "+THEMES[st.theme].l:""}</span><span class="cat">${st.done?E(secret.name):"Worth "+st.pts+" points"}</span></div>
       ${st.done?revealCard(secret):""}
       ${st.done?"":`<div class="search"><input id="ws-in" type="text" autocomplete="off" spellcheck="false" placeholder="Who is it?" aria-label="Guess the mystery player"><div class="suggest" id="ws-sug" hidden></div></div>`}
       <div class="feedback" id="ws-fb" aria-live="polite">${st.msg||""}</div>
-      <div class="actions">${st.done?`<button class="btn primary" id="ws-next">${st.round<4?"Next player":"See your score"}</button>`:`<button class="btn" id="ws-clue" ${st.shown>=WHO_N?"disabled":""}>Next clue (−1)</button><button class="btn ghost" id="ws-give">Give up</button>`}</div>
-      ${clueList(st.clues,st.done?WHO_N:st.shown)}`;
+      <div class="actions">${st.done?`<button class="btn primary" id="ws-next">${st.round<4?"Next player":"See your score"}</button>`:`<button class="btn" id="ws-clue" ${st.shown>=st.clues.length?"disabled":""}>${this.kind==="career"?"Next club (−1)":"Next clue (−1)"}</button><button class="btn ghost" id="ws-give">Give up</button>`}</div>
+      ${clueList(st.clues,st.done?st.clues.length:st.shown)}`;
     if(!st.done){
       ccSearch(q("ws-in"),q("ws-sug"),p=>this.guess(p),()=>false); q("ws-in").focus();
       q("ws-clue").onclick=()=>{ st.shown++; st.pts=Math.max(1,st.pts-1); st.msg=""; SFX.play("draw"); this.paint(); };
@@ -1715,19 +1740,19 @@ const WhoSolo={
   },
   guess(p){
     const st=this.st, secret=CC.PLAYERS[st.ids[st.round]];
-    if(p.id===secret.id){ st.score+=st.pts; st.done=true; st.msg=`✓ Correct! +${st.pts} points`; SFX.play("win"); }
+    if(p.id===secret.id){ st.score+=st.pts; st.done=true; st.msg=`✓ Correct! +${st.pts} points`; SFX.play("win"); if(st.shown<=3) track("early"); }
     else { st.pts=Math.max(1,st.pts-1); st.msg=`✗ Not ${p.name}. −1 point`; SFX.play("bad"); }
     this.paint();
   },
   next(){
     const st=this.st;
     if(st.round>=4){
-      const best=Math.max(ls.get("arc-who-best",0),st.score); ls.set("arc-who-best",best); if(st.score>=best&&st.score>0) confetti();
-      q("ol-main").innerHTML=`<h2 class="view-title">Who Am I?</h2><div class="panel"><div style="display:flex;align-items:flex-end;gap:12px"><span class="score-big">${st.score}</span><span class="note">points out of 50 · best ${best}</span></div>
+      const bk=this.kind==="career"?"arc-career-best":"arc-who-best"; const best=Math.max(ls.get(bk,0),st.score); ls.set(bk,best); if(st.score>=best&&st.score>0) confetti();
+      q("ol-main").innerHTML=`<h2 class="view-title">${this.title()}</h2><div class="panel"><div style="display:flex;align-items:flex-end;gap:12px"><span class="score-big">${st.score}</span><span class="note">points out of 50 · best ${best}</span></div>
         <div class="actions"><button class="btn primary" id="ws-again">Play again</button><button class="btn ghost" id="ws-set">Change settings</button></div></div>`;
-      q("ws-again").onclick=()=>this.start(st.lv,st.theme); q("ws-set").onclick=()=>this.open(); return;
+      q("ws-again").onclick=()=>this.start(st.lv,st.theme); q("ws-set").onclick=()=>this.open(this.kind); return;
     }
-    st.round++; st.shown=1; st.pts=WHO_N; st.done=false; st.msg=""; st.clues=whoClues(st.ids[st.round]); this.paint();
+    st.round++; st.shown=1; st.pts=WHO_N; st.done=false; st.msg=""; st.clues=this.clues(st.ids[st.round]); this.paint();
   }
 };
 
@@ -1756,19 +1781,21 @@ function syncLobby(force){
 function visTag(){
   const m=S.meta; if(!m) return "";
   const n=onlineUids().length, mx=m.max||8;
-  return `${m.vis==="public"?"🌍 Public":"🔒 Private"} · ${n}/${mx} players`;
+  return `${m.vis==="public"?"🌍 Public":"🔒 Private"} · ${n}/${mx} players${m.ranked===false?"":" · 🏆 ranked"}`;
 }
 function roomSettingsHTML(){
   const m=S.meta, mx=m.max||8;
   if(!S.host) return `<div class="ol-note">${E(visTag())}${m.vis==="public"?` · listed as “${E(m.title||pname(m.host)+"'s room")}”`:" · join with the code only"}</div>`;
   return `<div class="panel"><div class="section-label"><span>Room settings</span><span>${E(visTag())}</span></div>
     <div class="field"><span>Who can join</span><div class="seg" id="rs-vis"><button type="button" data-v="private" aria-pressed="${m.vis!=="public"}">🔒 Private · code only</button><button type="button" data-v="public" aria-pressed="${m.vis==="public"}">🌍 Public · anyone can find it</button></div></div>
+    <div class="field"><span>Ranked (rating changes after each game)</span><div class="seg" id="rs-rank"><button type="button" data-v="1" aria-pressed="${m.ranked!==false}">🏆 Ranked</button><button type="button" data-v="0" aria-pressed="${m.ranked===false}">Just for fun</button></div></div>
     <div class="field"><span>Max players</span><div class="seg" id="rs-max">${MAX_OPTS.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===mx}">${v}</button>`).join("")}</div></div>
     ${m.vis==="public"?`<div class="field"><span>Room name in the public list</span><input id="rs-title" maxlength="28" value="${E(m.title||"")}" placeholder="${E(pname(m.host))}'s room" class="ol-text"></div>`:""}</div>`;
 }
 function bindRoomSettings(){
   const v=q("rs-vis"); if(!v) return;
   v.querySelectorAll("button").forEach(b=>b.onclick=()=>S.net.set(R("meta/vis"),b.dataset.v));
+  q("rs-rank").querySelectorAll("button").forEach(b=>b.onclick=()=>S.net.set(R("meta/ranked"),b.dataset.v==="1"));
   q("rs-max").querySelectorAll("button").forEach(b=>b.onclick=()=>{ const n=+b.dataset.v, cur=onlineUids().length; if(n<cur){ toast(`There are already ${cur} players here.`); return; } S.net.set(R("meta/max"),n); });
   const t=q("rs-title"); if(t) t.onchange=()=>S.net.set(R("meta/title"),t.value.trim().slice(0,28)||null);
 }
@@ -1800,9 +1827,10 @@ async function socialStart(){
   SO.subs.push(S.net.presenceAt(`users/${uid}`,{on:true,last:"__TS__"},{on:false,last:"__TS__"}));
   SO.subs.push(S.net.on(`friends/${uid}`,v=>{ SO.friends=v||{}; syncFriendSubs(); paintSocial(); }));
   SO.subs.push(S.net.on(`freq/${uid}`,v=>{ const old=SO.reqIn; SO.reqIn=v||{};
-    Object.keys(SO.reqIn).forEach(f=>{ if(!old[f]&&SO.ready){ toast(`👥 ${SO.reqIn[f].n} sent you a friend request`); SFX.play("msg"); } }); paintSocial(); }));
+    Object.keys(SO.reqIn).forEach(f=>{ if(!old[f]&&SO.ready){ toast(`👥 ${SO.reqIn[f].n} sent you a friend request`); SFX.play("msg"); flashTitle(`👥 ${SO.reqIn[f].n} sent you a friend request`); } }); paintSocial(); }));
   SO.subs.push(S.net.on(`invites/${uid}`,v=>{ SO.invites=v||{}; paintInvites(); paintSocial(); }));
   setTimeout(()=>{ SO.ready=true; },2000);
+  flushPendingStats(); registerPushToken();
   paintSocial();
 }
 function socialStop(){
@@ -1853,14 +1881,14 @@ async function acceptReq(uid){
   await S.net.set(`friends/${S.uid}/${uid}`,{since:now()});
   await S.net.set(`friends/${uid}/${S.uid}`,{since:now()});
   await S.net.remove(`freq/${S.uid}/${uid}`);
-  toast("You're now friends 🤝"); haptic("win");
+  toast("You're now friends 🤝"); haptic("win"); track("friend");
 }
 const declineReq=uid=>S.net.remove(`freq/${S.uid}/${uid}`);
 async function removeFriend(uid){ await S.net.remove(`friends/${S.uid}/${uid}`); await S.net.remove(`friends/${uid}/${S.uid}`); toast("Friend removed"); }
 async function inviteFriend(uid){
   if(!S.code) return toast("Create or join a room first, then invite friends.");
   await S.net.set(`invites/${uid}/${S.uid}`,{code:S.code,n:S.profile.name,a:S.profile.av,g:(GAMES[S.meta.game]||{}).name||"",ts:now()});
-  toast(`Invite sent to ${(SO.fusers[uid]||{}).n||"your friend"} ✓`); haptic("ok");
+  toast(`Invite sent to ${(SO.fusers[uid]||{}).n||"your friend"} ✓`); haptic("ok"); track("invite");
 }
 function relation(uid){ if(SO.friends[uid]) return "friend"; if(SO.reqIn[uid]) return "incoming"; const s=ls.get("arc-sent",{}); if(s[uid]&&Date.now()-s[uid]<7*864e5) return "sent"; return "none"; }
 function friendsSorted(){ return Object.keys(SO.friends).map(u=>({u,d:SO.fusers[u]||{}})).sort((a,b)=>((b.d.on?1:0)-(a.d.on?1:0))||((b.d.last||0)-(a.d.last||0))); }
@@ -1873,7 +1901,7 @@ function paintSocial(){
     const reqs=Object.entries(SO.reqIn||{}), fr=friendsSorted();
     body.innerHTML=`${reqs.length?`<div class="panel"><h3 class="ol-h">Friend requests</h3>${reqs.map(([u,r])=>`<div class="ol-brow"><span class="ol-av">${E(r.a)}</span><span class="nm">${E(r.n)}<small class="fr-st">${ago(r.ts)}</small></span><button class="btn primary" data-acc="${E(u)}">Accept</button><button class="btn ghost" data-dec="${E(u)}">Decline</button></div>`).join("")}</div>`:""}
       <div class="panel"><h3 class="ol-h">Your friends · ${fr.length}</h3>${fr.map(({u,d})=>{ const st=statusOf(d);
-        return `<div class="ol-brow fr-row"><span class="ol-av">${E(d.a||"⚽")}<i class="dot${st.on?" on":""}"></i></span><span class="nm">${E(d.n||"Player")}<small class="fr-st${st.on?" on":""}">${E(st.txt)}</small></span>
+        return `<div class="ol-brow fr-row"><span class="ol-av">${E(d.a||"⚽")}<i class="dot${st.on?" on":""}"></i></span><span class="nm"><a href="#u-${E(u)}" class="fr-link">${E(d.n||"Player")}</a><small class="fr-st${st.on?" on":""}">${E(st.txt)}</small></span>
           ${S.code&&d.room!==S.code?`<button class="btn" data-inv="${E(u)}">Invite</button>`:""}${d.on&&d.room&&d.room!==S.code?`<button class="btn primary" data-join="${E(d.room)}">Join</button>`:""}<button class="btn ghost" data-rm="${E(u)}" aria-label="Remove ${E(d.n||"friend")}">✕</button></div>`; }).join("")||`<p class="note" style="margin:0">No friends yet. Share your code, add someone's code above, or tap a player's name in any room.</p>`}</div>`;
     body.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>acceptReq(b.dataset.acc));
     body.querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>declineReq(b.dataset.dec));
@@ -1922,6 +1950,7 @@ function openPlayer(u){
     <p class="note" style="margin:0">${E(st)} · ${p.pts||0} points · ${p.wins||0} wins in this room${S.meta.host===u?" · 👑 host":""}</p>
     <div class="actions">
       ${isMe?`<span class="note">That's you!</span>`:!SO.on?`<span class="note">Sign in to add friends.</span>`:rel==="friend"?`<span class="tag ok">Friends ✓</span>`:rel==="incoming"?`<button class="btn primary" data-pa="acc">Accept friend request</button>`:rel==="sent"?`<span class="tag">Request sent</span>`:`<button class="btn primary" data-pa="add">👥 Add friend</button>`}
+      ${SO.on?`<a class="btn" href="#u-${E(u)}" style="text-decoration:none">👤 Profile</a>`:""}
       ${host?`<button class="btn" data-pa="host">Make host</button><button class="btn ghost" data-pa="kick">Remove from room</button>`:""}
     </div>`);
   o.querySelectorAll("[data-pa]").forEach(b=>b.onclick=async()=>{
@@ -1934,6 +1963,409 @@ function openPlayer(u){
   });
 }
 
+/* ================= Career Path (built on the Who Am I? engine) ================= */
+function careerClues(id){
+  const p=PLAYERS[id], cp=CC.PLAYERS[id], K=COUNTRIES[p.k];
+  const st=[...cp.stints].filter(s=>s.a).sort((a,b)=>a.a-b.a||a.b-b.b);
+  const last=st.length?st[st.length-1]:null;
+  const yr=s=>`${s.a}–${s===last&&s.b>=2025?"":String(s.b+1).slice(-2)}`;
+  const out=st.slice(0,9).map(s=>`${yr(s)} · ${CC.CLUBS[s.c].name}`);
+  out.push(`Nationality: ${K.flag} ${K.name}`);
+  out.push((n=>`Plays as ${/^[aeiou]/.test(n)?"an":"a"} ${n}`)(POSN[p.pos]||"footballer"));
+  return out;
+}
+function careerPool(lv,theme){
+  const th=THEMES[theme]||THEMES.all;
+  const ok=p=>{ const n=CC.PLAYERS[p.id].stints.filter(s=>s.a).length; return n>=3&&n<=12; };
+  const pool=PLAYERS.filter(p=>p.tier<=lv&&ok(p)&&(!th.t||th.t(p)));
+  return pool.length>=10?pool:PLAYERS.filter(p=>p.tier===0&&ok(p));
+}
+ENG.career=Object.assign({},ENG.whoami,{
+  async start(set){
+    const pool=careerPool(+set.level,set.theme), total=+set.rounds, used=new Set(), rounds=[];
+    while(rounds.length<total){ const p=pickOne(pool); if(used.has(p.id)&&used.size<pool.length) continue; used.add(p.id); rounds.push({sx:enc(p.id),cl:careerClues(p.id)}); }
+    const t=now()+3500;
+    return {kind:"career",at:now(),round:0,total,rounds,clueMs:(+set.secs||7)*1000,startsAt:t,phase:"play",scores:{},res:{},players:onlineUids(),theme:set.theme||"all"};
+  }
+});
+
+/* ================= World Cup Run ================= */
+const WC_STAGES=[["Group stage · match 1",3],["Group stage · match 2",3],["Group stage · match 3",3],["Round of 16",4],["Quarter-final",5],["Semi-final",6],["Final",7]];
+let WC_NATS=null;
+function wcNations(){
+  if(WC_NATS) return WC_NATS;
+  const n={}; PLAYERS.forEach(p=>{ if(p.tier<=1) n[p.k]=(n[p.k]||0)+1; });
+  WC_NATS=Object.keys(n).map(Number).filter(k=>n[k]>=12).sort((a,b)=>n[b]-n[a]);
+  return WC_NATS;
+}
+function wcDraw(mine){
+  const pool=wcNations().filter(k=>k!==mine), pick=(lo,hi,used)=>{ const c=pool.slice(lo,hi).filter(k=>!used.includes(k)); return pickOne(c.length?c:pool.filter(k=>!used.includes(k))); };
+  const used=[];
+  [[10,30],[10,30],[10,30],[6,16],[4,10],[2,6],[0,4]].forEach(([lo,hi])=>used.push(pick(lo,hi,used)));
+  return used;
+}
+const wcPred=k=>p=>p.k===k;
+const wcLabel=k=>`${COUNTRIES[k].flag} ${COUNTRIES[k].name}`;
+
+ENG.worldcup={
+  async start(set){
+    const opps=wcDraw(-1), t=now()+4000;
+    return {kind:"worldcup",at:now(),round:0,total:WC_STAGES.length,opps,secs:+set.secs||45,startsAt:t,endsAt:t+(+set.secs||45)*1000,phase:"play",
+      players:onlineUids(),goals:{},losses:{},out:{},reach:{},res:{}};
+  },
+  alive(g){ return arr(g.players).filter(u=>!(g.out||{})[u]); },
+  async hostTick(){
+    const g=S.game;
+    if(g.phase==="play"&&now()>g.endsAt+1500) await this.score();
+    else if(g.phase==="results"&&now()>g.nextAt) await this.next();
+  },
+  async score(){
+    const g=clone(S.game); if(g.phase!=="play") return;
+    const r=g.round, need=WC_STAGES[r][1], ans=S.answers[r]||{}, res={};
+    g.goals=g.goals||{}; g.losses=g.losses||{}; g.out=g.out||{}; g.reach=g.reach||{};
+    this.alive(g).forEach(u=>{
+      const n=arr(ans[u]).length, won=n>=need; g.goals[u]=(g.goals[u]||0)+n;
+      if(won) g.reach[u]=r+1;
+      else if(r<3){ g.losses[u]=(g.losses[u]||0)+1; if(g.losses[u]>=2) g.out[u]=1; else g.reach[u]=r+1; }
+      else g.out[u]=1;
+      res[u]={n,won};
+    });
+    // after the group stage, anyone who lost 2 of 3 is already out
+    g.res=g.res||{}; g.res["r"+r]=res; g.phase="results"; g.nextAt=now()+12000;
+    await setGame(g);
+    const opp=wcLabel(g.opps[r]), pass=Object.values(res).filter(x=>x.won).length;
+    sys(`🏟️ ${WC_STAGES[r][0]} vs ${opp}: ${pass}/${Object.keys(res).length} through`);
+  },
+  async next(){
+    const g=clone(S.game); if(g.phase!=="results") return;
+    const alive=this.alive(g);
+    if(g.round+1>=g.total||!alive.length){
+      g.phase="over"; if(g.round+1>=g.total) alive.forEach(u=>g.reach[u]=7);
+      await setGame(g);
+      const champs=g.round+1>=g.total?alive:[];
+      if(champs.length){ await award(champs,3,true); sys(`🏆 World Cup winner${champs.length>1?"s":""}: ${champs.map(pname).join(" & ")}!`); }
+      else sys(`🏟️ Nobody lifted the trophy this time`);
+      return;
+    }
+    g.round++; g.phase="play"; g.startsAt=now()+4000; g.endsAt=g.startsAt+g.secs*1000; delete g.nextAt; await setGame(g);
+  },
+  mine(g){ const k=`arc-wc-${S.code}-${g.at}-${g.round}`; if(this._k!==k){ this._k=k; this._l=ss.get(k,[]); } return this._l; },
+  submit(v){
+    const g=S.game, k=g.opps[g.round], fb=q("wc-fb"), list=this.mine(g);
+    if(now()<g.startsAt||now()>g.endsAt||(g.out||{})[S.uid]) return;
+    const r=resolve(v,wcPred(k));
+    if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+    if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} isn't from ${COUNTRIES[k].name}.`; SFX.play("bad"); return; }
+    if(list.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already on your team sheet.`; return; }
+    list.push(r.p.id); ss.set(this._k,list); S.net.set(R(`answers/${g.round}/${S.uid}`),list); track("names");
+    fb.className="feedback ok"; fb.textContent=`⚽ Goal! ${r.p.base}`; SFX.play("ok"); this.paint(g);
+  },
+  paint(g){
+    const list=this.mine(g), need=WC_STAGES[g.round][1], me=q("wc-score");
+    if(me) me.innerHTML=`<span>${E(S.profile.av)} You</span><b>${list.length} – ${need-1}</b><span>${wcLabel(g.opps[g.round])}</span>`;
+    const t=q("wc-mine"); if(t) t.innerHTML=list.slice().reverse().map(id=>`<span class="tag ok">${E(PLAYERS[id].base)}</span>`).join("");
+  },
+  render(st){
+    const g=S.game, out=g.out||{};
+    if(g.phase==="over"){
+      if(skel(st,`wc-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="wc-stand"></div><div id="wc-end"></div>`)){
+        const ord=this.order(g);
+        q("wc-stand").innerHTML=`<div class="standings">${ord.map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${(g.reach||{})[u]>=7?"🏆":E(this.stageName(g,u))} · ${(g.goals||{})[u]||0}⚽</b></div>`).join("")}</div>`;
+        q("wc-end").innerHTML=endButtons(); bindEnd(st);
+        if((g.reach||{})[S.uid]>=7){ SFX.play("win"); confetti(); }
+      }
+      return;
+    }
+    const r=g.round, k=g.opps[r], need=WC_STAGES[r][1];
+    if(g.phase==="results"){
+      if(skel(st,`wc-res-${g.startsAt}`,`<div class="prompt"><span class="who">World Cup Run · ${E(WC_STAGES[r][0])} · result</span><span class="cat">vs ${E(wcLabel(k))} · ${need} goals to win</span></div><div id="wc-res"></div><div class="actions">${S.host?`<button class="btn primary" id="wc-next">${r+1>=g.total||!this.alive(g).length?"Final whistle":"Next match"}</button>`:""}<span class="note" id="wc-auto"></span></div>`)){
+        const res=(g.res||{})["r"+r]||{}, ans=S.answers[r]||{};
+        q("wc-res").innerHTML=Object.keys(res).map(u=>`<div class="ol-resrow"><div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${res[u].won?"✅ through":out[u]?"❌ knocked out":"⚠️ lost (one more loss and you're out)"}</span><b class="pts">${res[u].n}–${need-1}</b></div><div class="tally">${arr(ans[u]).map(id=>`<span class="tag">${E(PLAYERS[id].base)}</span>`).join("")}</div></div>`).join("");
+        if(q("wc-next")) q("wc-next").onclick=()=>Host.run(()=>this.next());
+      }
+      return;
+    }
+    const playing=arr(g.players).includes(S.uid)&&!out[S.uid];
+    if(skel(st,`wc-play-${g.startsAt}`,`<div class="prompt"><span class="who">World Cup Run · ${E(WC_STAGES[r][0])}</span><span class="cat">Name ${E(COUNTRIES[k].name)} players · ${need} to win</span></div>
+        <div class="wc-score" id="wc-score"></div>
+        <div class="ol-count" id="wc-count"></div>
+        ${clockHTML("wc-clock",g.endsAt,g.secs,true)}
+        ${playing?`<form class="answer" id="wc-form"><input id="wc-in" autocomplete="off" spellcheck="false" placeholder="A ${E(COUNTRIES[k].name)} player…" aria-label="Player name"><button class="btn primary">Shoot</button></form>`:`<div class="ol-note">${out[S.uid]?"You're knocked out. Watch the others and cheer them on!":"You joined mid-tournament. You'll play the next one."}</div>`}
+        <div class="feedback" id="wc-fb" aria-live="polite"></div><div class="tally" id="wc-mine"></div>
+        <div class="section-label"><span>Live</span><span>Group stage: 2 losses and you're out · knockouts: one loss</span></div><div class="ol-board" id="wc-live"></div>`)){
+      if(q("wc-form")) q("wc-form").onsubmit=e=>{ e.preventDefault(); const v=q("wc-in").value; q("wc-in").value=""; if(v.trim()) this.submit(v); };
+      this.paint(g); this.clientTick();
+    }
+    const ans=S.answers[r]||{};
+    q("wc-live").innerHTML=arr(g.players).map(u=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${out[u]?"out":`${arr(ans[u]).length} goal${arr(ans[u]).length===1?"":"s"}`}</span><b class="pts">${(g.goals||{})[u]||0}</b></div>`).join("");
+  },
+  stageName(g,u){ const r=(g.reach||{})[u]||0; return ["Group stage","Group stage","Group stage","Round of 16","Quarter-finals","Semi-finals","Final","Champion"][Math.min(r,7)]; },
+  order(g){ const re=g.reach||{}, go=g.goals||{}; return arr(g.players).slice().sort((a,b)=>(re[b]||0)-(re[a]||0)||(go[b]||0)-(go[a]||0)); },
+  clientTick(){
+    const g=S.game; if(!g||g.kind!=="worldcup") return;
+    if(g.phase==="results"){ const a=q("wc-auto"); if(a) a.textContent=`Next match in ${Math.max(0,Math.ceil((g.nextAt-now())/1000))}s`; return; }
+    if(g.phase!=="play") return;
+    const inp=q("wc-in"), cnt=q("wc-count"); if(!cnt) return; const t=now();
+    if(t<g.startsAt){ const s=Math.ceil((g.startsAt-t)/1000); if(cnt.textContent!==String(s)){ cnt.textContent=String(s); SFX.play("tick"); } if(inp) inp.disabled=true; }
+    else if(t<=g.endsAt){ if(cnt.textContent){ cnt.textContent=""; SFX.play("go"); } if(inp&&inp.disabled){ inp.disabled=false; inp.focus(); } }
+    else if(inp&&!inp.disabled){ inp.disabled=true; cnt.textContent="Full time!"; }
+  }
+};
+
+/* World Cup Run on your own */
+const WCSolo={
+  open(){
+    const main=q("ol-main"); S.view="worldcup";
+    const cfg=ls.get("arc-wc",{nat:countryIdx("Tunisia"),secs:45});
+    const nats=COUNTRIES.map((c,k)=>[k,c]).filter(([k])=>PLAYERS.some(p=>p.k===k&&p.tier<=1)).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+    const best=ls.get("arc-wc-best",null);
+    main.innerHTML=`<h2 class="view-title">World Cup Run</h2>
+      <p class="lede">Take your country through a World Cup. In every match you name players from the opposing nation before the final whistle: each name is a goal. Score enough to beat them. Win 2 of 3 group games, then it's knockout all the way to the final.</p>
+      <div class="panel" id="wcs-setup">
+        <div class="field"><span>Your team</span><select id="wcs-nat" class="ol-text" aria-label="Your team">${nats.map(([k,c])=>`<option value="${k}">${c.flag} ${E(c.name)}</option>`).join("")}</select></div>
+        <div class="field"><span>Match length</span><div class="seg" id="wcs-secs">${[[30,"30s"],[45,"45s"],[60,"60s"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v===cfg.secs}">${l}</button>`).join("")}</div></div>
+        <button class="btn primary go" id="wcs-go">Kick off</button>
+        ${best?`<p class="note" style="margin:0">Best run: ${E(best.stage)} with ${best.goals} goals</p>`:""}
+      </div>
+      <p class="note">Playing with friends? Choose <b>World Cup Run</b> in an online room.</p>`;
+    if(cfg.nat>=0) q("wcs-nat").value=String(cfg.nat);
+    q("wcs-secs").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("wcs-secs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); cfg.secs=+b.dataset.v; });
+    q("wcs-go").onclick=()=>{ cfg.nat=+q("wcs-nat").value; ls.set("arc-wc",cfg); this.start(cfg); };
+  },
+  start(cfg){ this.st={nat:cfg.nat,secs:cfg.secs,opps:wcDraw(cfg.nat),r:0,goals:0,losses:0,log:[]}; this.match(); },
+  match(){
+    const st=this.st, r=st.r, k=st.opps[r], need=WC_STAGES[r][1], me=COUNTRIES[st.nat];
+    st.list=[];
+    q("ol-main").innerHTML=`<h2 class="view-title">World Cup Run</h2>
+      <div class="prompt"><span class="who">${E(WC_STAGES[r][0])}</span><span class="cat">Name ${E(COUNTRIES[k].name)} players · ${need} to win</span></div>
+      <div class="wc-score" id="wcs-score"></div>
+      <div class="ol-count" id="wcs-count">3</div>
+      <div class="clock" id="wcs-clock"><b id="wcs-secs">${st.secs}</b><span class="bar"><i id="wcs-bar"></i></span></div>
+      <form class="answer" id="wcs-form"><input id="wcs-in" autocomplete="off" spellcheck="false" placeholder="A ${E(COUNTRIES[k].name)} player…" aria-label="Player name" disabled><button class="btn primary">Shoot</button></form>
+      <div class="feedback" id="wcs-fb" aria-live="polite"></div><div class="tally" id="wcs-mine"></div>`;
+    const paint=()=>{ q("wcs-score").innerHTML=`<span>${me.flag} ${E(me.name)}</span><b>${st.list.length} – ${need-1}</b><span>${wcLabel(k)}</span>`;
+      q("wcs-mine").innerHTML=st.list.slice().reverse().map(id=>`<span class="tag ok">${E(PLAYERS[id].base)}</span>`).join(""); };
+    paint();
+    q("wcs-form").onsubmit=e=>{ e.preventDefault(); const v=q("wcs-in").value; q("wcs-in").value=""; if(!v.trim()) return;
+      const fb=q("wcs-fb"), r2=resolve(v,wcPred(k));
+      if(!r2){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+      if(!r2.ok){ fb.className="feedback err"; fb.textContent=`${r2.p.base} isn't from ${COUNTRIES[k].name}.`; SFX.play("bad"); return; }
+      if(st.list.includes(r2.p.id)){ fb.className="feedback err"; fb.textContent=`${r2.p.base} is already on your team sheet.`; return; }
+      st.list.push(r2.p.id); fb.className="feedback ok"; fb.textContent=`⚽ Goal! ${r2.p.base}`; SFX.play("ok"); paint(); track("names"); };
+    let c=3; const cd=setInterval(()=>{ c--; if(c>0){ q("wcs-count").textContent=c; SFX.play("tick"); return; } clearInterval(cd); q("wcs-count").textContent=""; SFX.play("go");
+      q("wcs-in").disabled=false; q("wcs-in").focus();
+      const end=Date.now()+st.secs*1000; this.iv=setInterval(()=>{ const left=Math.max(0,(end-Date.now())/1000); if(!q("wcs-secs")){ clearInterval(this.iv); return; }
+        q("wcs-secs").textContent=Math.ceil(left); q("wcs-bar").style.width=(100*left/st.secs)+"%"; q("wcs-clock").classList.toggle("low",left<=5);
+        if(left<=0){ clearInterval(this.iv); this.fullTime(); } },100); },1000);
+  },
+  fullTime(){
+    const st=this.st, r=st.r, k=st.opps[r], need=WC_STAGES[r][1], n=st.list.length, won=n>=need;
+    st.goals+=n; st.log.push({k,n,need,won});
+    let over=false, champion=false;
+    if(!won){ if(r<3){ st.losses++; if(st.losses>=2) over=true; } else over=true; }
+    if(!over&&r===WC_STAGES.length-1) { over=true; champion=true; }
+    const stage=champion?"🏆 World champion":over?`Out in the ${r<3?"group stage":WC_STAGES[r][0]}`:"";
+    SFX.play(won?"win":"bad"); if(champion) confetti();
+    if(champion) track("wcwin"); if(r>=4&&won||champion) track("wcqf");
+    if(over){ const b=ls.get("arc-wc-best",null), rank=champion?8:r; if(!b||rank>b.rank||(rank===b.rank&&st.goals>b.goals)) ls.set("arc-wc-best",{rank,stage:champion?"World champion":(r<3?"Group stage":WC_STAGES[r][0]),goals:st.goals}); }
+    q("ol-main").innerHTML=`<h2 class="view-title">World Cup Run</h2>
+      <div class="prompt"><span class="who">${E(WC_STAGES[r][0])} · full time</span><span class="cat">${COUNTRIES[st.nat].flag} ${n} – ${need-1} ${wcLabel(k)}</span></div>
+      <div class="panel"><p style="margin:0;font-size:18px"><b>${won?"✅ You win!":r<3&&!over?"⚠️ Defeat. One more loss in the group and you're out.":"❌ Defeat."}</b> ${stage?`<br>${E(stage)} · ${st.goals} goals in total`:""}</p>
+        <div class="tally">${st.list.map(id=>`<span class="tag ok">${E(PLAYERS[id].base)}</span>`).join("")||`<span class="note">No goals this match</span>`}</div>
+        <div class="field"><span>Your run</span><div class="tally">${st.log.map((m,i)=>`<span class="tag${m.won?" ok":""}">${E(WC_STAGES[i][0].replace("Group stage · ",""))}: ${m.n}–${m.need-1} ${COUNTRIES[m.k].flag}</span>`).join("")}</div></div>
+        <div class="actions">${over?`<button class="btn primary" id="wcs-again">Play again</button><button class="btn ghost" id="wcs-set">Change team</button>`:`<button class="btn primary" id="wcs-next">Next: ${E(WC_STAGES[r+1][0])} vs ${E(wcLabel(st.opps[r+1]))}</button>`}</div></div>`;
+    if(over){ q("wcs-again").onclick=()=>this.start(st); q("wcs-set").onclick=()=>this.open(); }
+    else q("wcs-next").onclick=()=>{ st.r++; this.match(); };
+  }
+};
+
+/* ================= Progression: challenges, stats, Elo, profiles ================= */
+const DIVS=[[0,"Bronze","🥉"],[1100,"Silver","🥈"],[1300,"Gold","🥇"],[1500,"Platinum","💠"],[1700,"Legend","👑"]];
+const division=e=>{ e=e||1000; let d=DIVS[0]; DIVS.forEach(x=>{ if(e>=x[0]) d=x; }); return {name:d[1],icon:d[2]}; };
+const level=xp=>Math.floor(Math.sqrt((xp||0)/50))+1;
+const dayKey=(d=new Date())=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function weekKey(d=new Date()){ const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); const y=new Date(Date.UTC(t.getUTCFullYear(),0,1)); return t.getUTCFullYear()+"-W"+String(Math.ceil(((t-y)/864e5+1)/7)).padStart(2,"0"); }
+const seedPick=(list,n,seed)=>{ const a=list.slice(); let h=0; for(const ch of seed) h=(h*31+ch.charCodeAt(0))>>>0; for(let i=a.length-1;i>0;i--){ h=(h*1103515245+12345)>>>0; const j=h%(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a.slice(0,n); };
+const CH_DAILY=[
+  {id:"play2",t:"Play 2 online games",ev:"play",need:2},
+  {id:"win1",t:"Win an online game",ev:"win",need:1},
+  {id:"names10",t:"Name 10 players in 30 Seconds, Letter Rush or World Cup Run",ev:"names",need:10},
+  {id:"daily",t:"Solve today's Daily match in Guess the Player",ev:"daily",need:1},
+  {id:"daily6",t:"Solve the Daily match in 6 guesses or fewer",ev:"daily6",need:1},
+  {id:"early",t:"Name a Who Am I? or Career Path player by clue 3",ev:"early",need:1},
+  {id:"linkup",t:"Play a game of Link Up",ev:"play:linkup",need:1},
+  {id:"chain5",t:"Add 5 names in Name Chain",ev:"chain",need:5},
+  {id:"invite",t:"Invite a friend to a room",ev:"invite",need:1},
+  {id:"wcqf",t:"Reach the World Cup quarter-finals",ev:"wcqf",need:1},
+];
+const CH_WEEKLY=[
+  {id:"w-play10",t:"Play 10 online games",ev:"play",need:10},
+  {id:"w-win5",t:"Win 5 online games",ev:"win",need:5},
+  {id:"w-names60",t:"Name 60 players in timed games",ev:"names",need:60},
+  {id:"w-daily5",t:"Solve the Daily match on 5 days",ev:"daily",need:5},
+  {id:"w-wc",t:"Win the World Cup (solo or online)",ev:"wcwin",need:1},
+  {id:"w-tour",t:"Win a tournament",ev:"tourwin",need:1},
+  {id:"w-friend",t:"Make a new friend",ev:"friend",need:1},
+  {id:"w-early5",t:"Name 5 mystery players by clue 3",ev:"early",need:5},
+];
+function chState(){
+  const d=dayKey(), w=weekKey(); const st=ls.get("arc-ch",{});
+  if(!st.d||st.d.key!==d){ const y=dayKey(new Date(Date.now()-864e5)); if(!(st.d&&st.d.key===y&&st.d.all)&&!(st.d&&st.d.key===d)) st.streak=0; st.d={key:d,prog:{},done:{}}; }
+  if(!st.w||st.w.key!==w) st.w={key:w,prog:{},done:{}};
+  return st;
+}
+const CH_DAILY_SEL=k=>seedPick(CH_DAILY,3,"d"+k);
+const CH_WEEKLY_SEL=k=>seedPick(CH_WEEKLY,3,"w"+k);
+function track(ev,data){
+  const st=chState(); let gained=0;
+  const bump=(slot,list,xp)=>list.forEach(c=>{ if(slot.done[c.id]) return; const hit=c.ev===ev||(c.ev==="play:linkup"&&ev==="play"&&data&&data.kind==="linkup");
+    if(!hit) return; slot.prog[c.id]=(slot.prog[c.id]||0)+((data&&data.n)||1);
+    if(slot.prog[c.id]>=c.need){ slot.done[c.id]=Date.now(); gained+=xp; toast(`✅ Challenge complete: ${c.t} (+${xp} XP)`); haptic("win"); } });
+  bump(st.d,CH_DAILY_SEL(st.d.key),50); bump(st.w,CH_WEEKLY_SEL(st.w.key),150);
+  if(CH_DAILY_SEL(st.d.key).every(c=>st.d.done[c.id])&&!st.d.all){ st.d.all=1; st.streak=(st.streak||0)+1; gained+=50; toast(`🔥 All daily challenges done! Streak: ${st.streak} day${st.streak>1?"s":""}`); }
+  ls.set("arc-ch",st);
+  if(gained) addStats({xp:gained,chStreak:st.streak||0});
+  if(S.view==="challenges") renderChallenges();
+}
+/* stats live in users/{uid}/st and are only written by their owner */
+function addStats(o){
+  if(!SO.on||!S.uid) { const pend=ls.get("arc-st-pend",{}); for(const k in o){ if(typeof o[k]==="number"&&k!=="chStreak") pend[k]=(pend[k]||0)+o[k]; else pend[k]=o[k]; } ls.set("arc-st-pend",pend); return; }
+  S.net.tx(`users/${S.uid}/st`,cur=>{ cur=cur||{}; for(const k in o){
+      if(k==="gp"||k==="gw"){ cur[k]=cur[k]||{}; for(const g in o[k]) cur[k][g]=(cur[k][g]||0)+o[k][g]; }
+      else if(k==="elo") cur.elo=Math.max(100,Math.round((cur.elo||1000)+o.elo));
+      else if(k==="chStreak"||k==="best1") cur[k]=Math.max(cur[k]||0,o[k]);
+      else if(typeof o[k]==="number") cur[k]=(cur[k]||0)+o[k];
+      else cur[k]=o[k]; }
+    return cur; }).catch(()=>{});
+}
+function flushPendingStats(){ const p=ls.get("arc-st-pend",null); if(p&&SO.on){ ls.set("arc-st-pend",null); addStats(p); } }
+/* Elo: computed by the host when a ranked game ends; each player applies their own change */
+async function computeElo(g){
+  if(!S.meta||S.meta.ranked===false) return null;
+  const humans=participants(g).filter(u=>S.players[u]); if(humans.length<2) return null;
+  const order=g.draw?[]:ranking(g).filter(u=>humans.includes(u));
+  const place=u=>{ const i=order.indexOf(u); return i<0?order.length:i; };
+  const R={}; for(const u of humans){ const st=await S.net.get(`users/${u}/st`).catch(()=>null); R[u]=(st&&st.elo)||1000; }
+  const K=32, d={}; humans.forEach(u=>d[u]=0);
+  for(let i=0;i<humans.length;i++) for(let j=i+1;j<humans.length;j++){
+    const a=humans[i], b=humans[j], Ea=1/(1+Math.pow(10,(R[b]-R[a])/400));
+    const Sa=place(a)<place(b)?1:place(a)>place(b)?0:.5;
+    d[a]+=K*(Sa-Ea)/(humans.length-1); d[b]+=K*((1-Sa)-(1-Ea))/(humans.length-1);
+  }
+  Object.keys(d).forEach(u=>d[u]=Math.round(d[u]));
+  return d;
+}
+function recordResult(g){
+  if(!g||g.phase!=="over"||!participants(g).includes(S.uid)) return;
+  const key=`arc-res-${S.uid}-${S.code}-${g.at}`; if(ls.get(key,false)) return; ls.set(key,true);
+  const order=ranking(g), team=g.kind==="close"&&g.mode==="coop";
+  const won=!g.draw&&(team?!!g.winner:order[0]===S.uid);
+  const o={games:1,wins:won?1:0,gp:{[g.kind]:1},gw:won?{[g.kind]:1}:{},xp:10+(won?20:0),last:now()};
+  if(g.kind==="worldcup"&&(g.reach||{})[S.uid]>=7){ o.wcWin=1; track("wcwin"); }
+  if(g.kind==="worldcup"&&(g.reach||{})[S.uid]>=5) track("wcqf");
+  if(g.kind==="close"&&g.winner===S.uid&&(S.progress[S.uid]||{}).g===1) o.oneGuess=1;
+  addStats(o); track("play",{kind:g.kind}); if(won) track("win",{kind:g.kind});
+}
+function applyElo(g){
+  const d=g&&g.elo&&g.elo[S.uid]; if(d==null) return;
+  const key=`arc-elo-${S.uid}-${S.code}-${g.at}`; if(ls.get(key,false)) return; ls.set(key,true);
+  addStats({elo:d}); if(d) toast(`${d>0?"📈":"📉"} Rating ${d>0?"+":""}${d}`);
+}
+const BADGES=[
+  {id:"first",i:"⚽",t:"First win",d:"Win an online game",ok:s=>(s.wins||0)>=1},
+  {id:"w10",i:"🔟",t:"Ten wins",d:"Win 10 online games",ok:s=>(s.wins||0)>=10},
+  {id:"w50",i:"🏅",t:"Fifty wins",d:"Win 50 online games",ok:s=>(s.wins||0)>=50},
+  {id:"g25",i:"🎮",t:"Regular",d:"Play 25 online games",ok:s=>(s.games||0)>=25},
+  {id:"gold",i:"🥇",t:"Gold division",d:"Reach a 1300 rating",ok:s=>(s.elo||1000)>=1300},
+  {id:"legend",i:"👑",t:"Legend",d:"Reach a 1700 rating",ok:s=>(s.elo||1000)>=1700},
+  {id:"champ",i:"🏆",t:"Champion",d:"Win a tournament",ok:s=>(s.tour||0)>=1},
+  {id:"wc",i:"🌍",t:"World champion",d:"Win an online World Cup Run",ok:s=>(s.wcWin||0)>=1},
+  {id:"sniper",i:"🎯",t:"Sniper",d:"Find the secret player with your first guess",ok:s=>(s.oneGuess||0)>=1},
+  {id:"streak",i:"🔥",t:"On fire",d:"Finish all daily challenges 5 days in a row",ok:s=>(s.chStreak||0)>=5},
+  {id:"allround",i:"🧩",t:"All-rounder",d:"Win 4 different online games",ok:s=>Object.keys(s.gw||{}).length>=4},
+  {id:"lvl10",i:"⭐",t:"Level 10",d:"Earn 4,050 XP",ok:s=>level(s.xp)>=10},
+];
+const GNAME=k=>(GAMES[k]||{}).name||k;
+async function renderProfile(uid){
+  S.view="profile"; stopPub();
+  const main=q("ol-main"); main.innerHTML=`<p class="note">Loading profile…</p>`;
+  const mine=uid===S.uid;
+  const u=await S.net.get(`users/${uid}`).catch(()=>null)||{};
+  const s=u.st||{}, div=division(s.elo), lv=level(s.xp), next=Math.pow(lv,2)*50, prev=Math.pow(lv-1,2)*50;
+  const stt=statusOf(u), rel=mine?"me":relation(uid);
+  const games=Object.keys(GAMES).filter(k=>(s.gp||{})[k]);
+  main.innerHTML=`<div class="pf-head"><span class="ol-av pf-av">${E(u.a||"⚽")}<i class="dot${stt.on?" on":""}"></i></span>
+      <div class="pf-id"><h2 class="view-title" style="font-size:clamp(28px,7vw,40px)">${E(u.n||"Player")}</h2><span class="fr-st${stt.on?" on":""}">${E(stt.txt)}</span></div></div>
+    <div class="pf-tiles">
+      <div class="pf-tile"><b>${div.icon} ${s.elo||1000}</b><span>${div.name} rating</span></div>
+      <div class="pf-tile"><b>Lv ${lv}</b><span>${s.xp||0} XP</span><i class="pf-bar"><i style="width:${Math.min(100,100*((s.xp||0)-prev)/Math.max(1,next-prev))}%"></i></i></div>
+      <div class="pf-tile"><b>${s.wins||0}/${s.games||0}</b><span>wins · ${s.games?Math.round(100*(s.wins||0)/s.games):0}% win rate</span></div>
+      <div class="pf-tile"><b>🔥 ${s.chStreak||0}</b><span>best challenge streak</span></div>
+    </div>
+    ${mine?`<div class="actions"><a class="btn" href="#challenges" style="text-decoration:none">🎯 Daily & weekly challenges</a><a class="btn" href="#friends" style="text-decoration:none">👥 Friends</a></div>`
+      :rel==="friend"?`<div class="actions"><span class="tag ok">Friends ✓</span>${S.code?`<button class="btn primary" id="pf-inv">Invite to my room</button>`:""}${u.on&&u.room&&u.room!==S.code?`<a class="btn" href="#join-${E(u.room)}" style="text-decoration:none">Join their room</a>`:""}</div>`
+      :rel==="sent"?`<div class="actions"><span class="tag">Friend request sent</span></div>`:SO.on?`<div class="actions"><button class="btn primary" id="pf-add">👥 Add friend</button></div>`:""}
+    <div class="panel"><h3 class="ol-h">Badges</h3><div class="pf-badges">${BADGES.map(b=>{ const ok=b.ok(s); return `<div class="pf-badge${ok?" on":""}" title="${E(b.d)}"><span>${b.i}</span><b>${E(b.t)}</b><small>${E(b.d)}</small></div>`; }).join("")}</div></div>
+    <div class="panel"><h3 class="ol-h">Games</h3>${games.length?games.map(k=>{ const p=s.gp[k]||0, w=(s.gw||{})[k]||0; return `<div class="ol-brow"><span class="nm tr">${E(GNAME(k))}</span><span class="st">${w} win${w===1?"":"s"} · ${p} played</span><b class="pts">${Math.round(100*w/p)}%</b></div>`; }).join(""):`<p class="note" style="margin:0">No online games yet.</p>`}</div>
+    <div class="actions"><a class="btn ghost" href="#online" style="text-decoration:none">← Play online</a></div>`;
+  if(q("pf-add")) q("pf-add").onclick=async()=>{ await sendRequest(uid); renderProfile(uid); };
+  if(q("pf-inv")) q("pf-inv").onclick=()=>inviteFriend(uid);
+}
+function renderChallenges(){
+  S.view="challenges"; const main=q("ol-main"); const st=chState();
+  const row=(c,slot,xp)=>{ const p=Math.min(c.need,slot.prog[c.id]||0), done=!!slot.done[c.id];
+    return `<div class="ch-row${done?" done":""}"><span class="ch-i">${done?"✅":"🎯"}</span><span class="nm tr">${E(c.t)}<i class="pf-bar"><i style="width:${100*p/c.need}%"></i></i></span><span class="st">${p}/${c.need}</span><b class="pts">+${xp}</b></div>`; };
+  const ends=()=>{ const n=new Date(), m=new Date(n); m.setHours(24,0,0,0); const h=Math.floor((m-n)/36e5), mi=Math.floor((m-n)%36e5/6e4); return `${h}h ${mi}m`; };
+  main.innerHTML=`<h2 class="view-title">Challenges</h2>
+    <p class="lede">New daily challenges every day, new weekly ones every Monday. Finish them for XP. Clear all three daily challenges to grow your streak (🔥 ${st.streak||0} day${st.streak===1?"":"s"}).</p>
+    <div class="panel"><div class="section-label"><span>Today</span><span>new in ${ends()}</span></div>${CH_DAILY_SEL(st.d.key).map(c=>row(c,st.d,50)).join("")}</div>
+    <div class="panel"><div class="section-label"><span>This week</span><span>${E(st.w.key)}</span></div>${CH_WEEKLY_SEL(st.w.key).map(c=>row(c,st.w,150)).join("")}</div>
+    <p class="note">Online challenges count when you're signed in to Play online. Progress is saved on this device.</p>
+    <div class="actions"><a class="btn ghost" href="#online" style="text-decoration:none">Play online</a><a class="btn ghost" href="#close" style="text-decoration:none">Today's Daily match</a></div>`;
+}
+
+/* ================= Notifications ================= */
+const PUSH={
+  supported:()=>"Notification" in window&&"serviceWorker" in navigator,
+  on:()=>ls.get("arc-push",false)&&"Notification" in window&&Notification.permission==="granted"
+};
+const tokKey=t=>{ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return "t"+h.toString(36)+t.length; };
+async function enablePush(){
+  if(!PUSH.supported()) return toast(isIOS()?"On iPhone: add Matchday to your Home Screen first, open it from there, then turn on notifications.":"This browser can't show notifications.");
+  let perm=Notification.permission; if(perm==="default") perm=await Notification.requestPermission();
+  if(perm!=="granted") return toast("Notifications are blocked. Allow them for this site in your browser settings.");
+  ls.set("arc-push",true); toast("🔔 Notifications on"); haptic("ok");
+  await registerPushToken();
+  paintPushSetting();
+}
+function disablePush(){ ls.set("arc-push",false); toast("🔕 Notifications off"); paintPushSetting(); if(S.uid&&S.net&&S.net.kind==="firebase") S.net.remove(`tokens/${S.uid}`).catch(()=>{}); }
+/* lets the server reach this device when the site is closed (needs the VAPID key and the Cloud Functions in /functions) */
+async function registerPushToken(){
+  try{
+    if(!PUSH.on()||!window.FIREBASE_VAPID_KEY||!S.net||S.net.kind!=="firebase"||!S.uid||!("PushManager" in window)) return;
+    if(!firebase.messaging) await loadScript(SDK+"firebase-messaging-compat.js");
+    const reg=await navigator.serviceWorker.ready;
+    const tok=await firebase.messaging().getToken({vapidKey:window.FIREBASE_VAPID_KEY,serviceWorkerRegistration:reg});
+    if(tok) await S.net.set(`tokens/${S.uid}/${tokKey(tok)}`,{t:tok,ts:now(),lang:(window.I18N&&I18N.lang)||"en"});
+  }catch(e){ console.warn("push token",e); }
+}
+/* shows a system notification while the site is open in the background */
+function notify(text){
+  if(!PUSH.on()||!document.hidden) return;
+  const body=String(text).replace(/^\S+\s/,""), title="Matchday Arcade";
+  const tt=window.I18N?I18N.t(String(text)):text;
+  navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body:tt,icon:"icons/icon-192.png",badge:"icons/icon-192.png",tag:"arc-"+location.hash,renotify:true,data:{url:location.pathname+location.hash}})).catch(()=>{});
+}
+function paintPushSetting(){
+  const w=q("set-push"); if(!w) return;
+  if(!PUSH.supported()){ w.innerHTML=`<span>Notifications</span><p class="note" style="margin:0">${isIOS()?"On iPhone, notifications work once Matchday is added to your Home Screen (iOS 16.4+).":"Not supported in this browser."}</p>`; return; }
+  const on=PUSH.on();
+  w.innerHTML=`<span>Notifications</span><div class="actions" style="margin:0">${on?`<span class="tag ok">🔔 On</span><button class="btn ghost" id="set-pushoff">Turn off</button>`:`<button class="btn primary" id="set-pushon">🔔 Turn on notifications</button>`}</div>
+    <p class="note" style="margin:0">Invites, friend requests, your turn and new messages${window.FIREBASE_VAPID_KEY?", plus a reminder for the Daily match":""}.${window.FIREBASE_VAPID_KEY?"":" Works while Matchday is open in the background."}</p>`;
+  if(q("set-pushon")) q("set-pushon").onclick=enablePush;
+  if(q("set-pushoff")) q("set-pushoff").onclick=disablePush;
+}
+
 /* ================= Entry points ================= */
 async function open(h){
   shell();
@@ -1941,7 +2373,10 @@ async function open(h){
   if(!S.net){ main.innerHTML=`<p class="note">Connecting…</p>`; S.net=await getNet(); }
   modeBadge();
   if(h==="duel") return Duel.open();
-  if(h==="whoami") return WhoSolo.open();
+  if(h==="whoami") return WhoSolo.open("whoami");
+  if(h==="career") return WhoSolo.open("career");
+  if(h==="worldcup") return WCSolo.open();
+  if(h==="challenges") return renderChallenges();
   if(S.view==="home"&&h!=="online") stopPub();
   if(!S.net.auth.signedIn()||!S.profile.name){ stopPub(); return renderSignIn(); }
   S.uid=S.net.uid();
@@ -1950,6 +2385,8 @@ async function open(h){
   socialStart();
   if(h==="leaders") return renderLeaders();
   if(h==="friends") return renderFriends();
+  if(h==="profile") return renderProfile(S.uid);
+  const um=h.match(/^u-([A-Za-z0-9_-]+)$/); if(um) return renderProfile(um[1]);
   if(S.code&&S.view!=="room"){ /* came back to the online home while still in a room */ }
   renderHome();
 }
@@ -1959,5 +2396,5 @@ if(ls.get("arc-online",false)&&S.profile.name&&!/^#(online|friends|leaders|join-
 window.addEventListener("hashchange",()=>setTimeout(paintRejoin,0));
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 window.addEventListener("beforeunload",()=>{});
-if(/^#(online|duel|whoami|leaders|friends|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
+if(/^#(online|duel|whoami|career|worldcup|challenges|leaders|friends|profile|u-[A-Za-z0-9_-]+|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
 })();

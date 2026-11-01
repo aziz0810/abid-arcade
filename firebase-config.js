@@ -10,3 +10,8 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "269425527496",
   appId: "1:269425527496:web:f23bdb9bc6c9c0a5a4b3fd"
 };
+
+/* Web Push key for notifications when the site is closed.
+   Firebase console → Project settings → Cloud Messaging → Web Push certificates → Generate key pair,
+   then paste the "Key pair" value here. Leave empty to only notify while the site is open. */
+window.FIREBASE_VAPID_KEY = "";

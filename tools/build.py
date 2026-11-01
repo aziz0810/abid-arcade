@@ -1,9 +1,9 @@
 """Build compact player data for Close Control from the Transfermarkt dataset + hand-written legends."""
-import pandas as pd, numpy as np, re, json, sys, unicodedata
+import pandas as pd, numpy as np, re, json, sys, os, unicodedata
 from collections import defaultdict, Counter
 
 D, HTML, CJSON, OUT = sys.argv[1:5]
-TODAY = pd.Timestamp('2026-10-31')
+TODAY = pd.Timestamp(os.environ.get('BUILD_DATE') or pd.Timestamp.today().normalize())
 
 def nz(s):
     s = unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode().lower()
