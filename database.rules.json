@@ -24,6 +24,30 @@
           ".read": "auth != null && (auth.uid === $uid || root.child('rooms').child($code).child('meta/host').val() === auth.uid)"
         }
       }
+    },
+    "seasons": {
+      "$month": {
+        ".read": "auth != null",
+        ".indexOn": [
+          "pts"
+        ],
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['n', 'pts']) && newData.child('pts').isNumber()"
+        }
+      }
+    },
+    "daily": {
+      "$date": {
+        ".read": "auth != null",
+        ".indexOn": [
+          "g"
+        ],
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists()",
+          ".validate": "newData.hasChildren(['n', 'g']) && newData.child('g').isNumber()"
+        }
+      }
     }
   }
 }
