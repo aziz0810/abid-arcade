@@ -147,8 +147,8 @@ const pav=u=>{ const p=S.players[u]; if(p) return p.av; const g=S.game; if(g&&g.
 
 /* ================= Games: settings ================= */
 const GAMES={
-  close:{name:"Close Control",icon:"#1",blurb:"Everyone hunts the same secret player. Live leaderboard.",
-    set:{level:[["0","Stars"],["1","Well known"],["2","Deep cuts"]],era:[["all","Any era"],["modern","Born 1990+"],["classic","Before 1990"]]},def:{level:"0",era:"all"}},
+  close:{name:"Guess the Player",icon:"#1",blurb:"Race: unlimited guesses, first to find the secret player wins. Team: take turns on one shared list.",
+    set:{mode:[["race","Race"],["coop","Team (take turns)"]],level:[["0","Stars"],["1","Well known"],["2","Deep cuts"]],era:[["all","Any era"],["modern","Born 1990+"],["classic","Before 1990"]],secs:[[20,"20s"],[30,"30s"],[45,"45s"],[60,"60s"]]},def:{mode:"race",level:"0",era:"all",secs:30}},
   thirty:{name:"30 Seconds",icon:"30",blurb:"Same category on every phone. Answers nobody else gave score double.",
     set:{rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[20,"20s"],[30,"30s"],[45,"45s"]],scoring:[["unique","Unique ×2"],["count","1 point each"]]},def:{rounds:5,secs:30,scoring:"unique"}},
   letters:{name:"Letter Rush",icon:"K",blurb:"One letter, everyone at once. Unique answers score double.",
@@ -374,7 +374,7 @@ function renderLobby(st){
     <div class="actions" id="ol-start"></div></div>`);
   st.querySelectorAll("#ol-lg button").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.g===m.game)); if(fresh&&host) b.onclick=()=>S.net.update(R("meta"),{game:b.dataset.g,settings:clone(GAMES[b.dataset.g].def)}); });
   const sets=q("ol-sets"); const cur=m.settings||g.def;
-  sets.innerHTML=Object.entries(g.set).map(([k,opts])=>`<div class="field"><span>${k==="secs"?"Time":k==="cpus"?"Computer players":k==="level"?(m.game==="close"?"Secret player from":"CPU strength"):k==="era"?"Era":k==="hand"?"Cards each":k==="rounds"?"Rounds":"Scoring"}</span><div class="seg">${opts.map(([v,l])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${String(cur[k])===String(v)}" ${host?"":"disabled"}>${l}</button>`).join("")}</div></div>`).join("");
+  sets.innerHTML=Object.entries(g.set).map(([k,opts])=>`<div class="field"><span>${k==="mode"?"Mode":k==="secs"?(m.game==="close"?"Time per turn (team mode)":"Time"):k==="cpus"?"Computer players":k==="level"?(m.game==="close"?"Secret player from":"CPU strength"):k==="era"?"Era":k==="hand"?"Cards each":k==="rounds"?"Rounds":"Scoring"}</span><div class="seg">${opts.map(([v,l])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${String(cur[k])===String(v)}" ${host?"":"disabled"}>${l}</button>`).join("")}</div></div>`).join("");
   if(host) sets.querySelectorAll("button").forEach(b=>b.onclick=()=>{ const o=GAMES[m.game].set[b.dataset.k].find(x=>String(x[0])===b.dataset.v); S.net.set(R("meta/settings/"+b.dataset.k),o[0]); });
   const n=onlineUids().length, need=m.game==="linkup"?Math.max(0,2-n-Number(cur.cpus||0)):0;
   q("ol-start").innerHTML=host
@@ -431,7 +431,7 @@ setInterval(()=>{
 },200);
 const clockHTML=(id,ends,total,sound)=>`<div class="clock" id="${id}" data-ends="${ends}" data-total="${total}" data-sound="${sound?1:0}"><b>${Math.ceil(Math.max(0,(ends-now())/1000))}</b><span class="bar"><i></i></span></div>`;
 
-/* ================= Shared bits for the Close Control games ================= */
+/* ================= Shared bits for the Guess the Player games ================= */
 const OBF=0x2BAD;
 const enc=id=>((id*7919+12345)^OBF), dec=x=>((x^OBF)-12345)/7919;
 function ccSearch(inputEl,sugEl,onPick,isUsed){
@@ -464,10 +464,10 @@ function revealCard(secret){
 
 const ENG={};
 
-/* ================= Close Control · race ================= */
-const CCR={key:null};
+/* ================= Guess the Player · race or team ================= */
+const CCR={key:null,turnKey:null,len:0};
 function ccCtx(g){
-  if(CCR.key!==g.at){ CCR.key=g.at; CCR.secret=CC.PLAYERS[dec(g.sx)]; CCR.ctx=CC.rankFor(CCR.secret); CCR.mine=ss.get(`arc-cc-${S.code}-${g.at}`,{ids:[],hints:0}); CCR.last=null; }
+  if(CCR.key!==g.at){ CCR.key=g.at; CCR.secret=CC.PLAYERS[dec(g.sx)]; CCR.ctx=CC.rankFor(CCR.secret); CCR.mine=ss.get(`arc-cc-${S.code}-${g.at}`,{ids:[],hints:0}); CCR.last=null; CCR.pending=false; CCR.len=0; CCR.turnKey=null; }
   return CCR;
 }
 ENG.close={
@@ -475,21 +475,55 @@ ENG.close={
     const lv=+set.level;
     let pool=CC.PLAYERS.filter(p=>p.tier<=lv&&p.clubs.size>=2&&(set.era==="all"||(set.era==="modern"?p.born>=1990:p.born<1990)));
     if(!pool.length) pool=CC.PLAYERS.slice(0,500);
-    return {kind:"close",at:now(),sx:enc(pickOne(pool).id),players:onlineUids(),phase:"play"};
+    const g={kind:"close",at:now(),sx:enc(pickOne(pool).id),players:onlineUids(),phase:"play",mode:set.mode==="coop"?"coop":"race"};
+    if(g.mode==="coop"){ g.order=shuffle(g.players.slice()); g.turn=0; g.secs=+set.secs||30; g.deadline=now()+2500+g.secs*1000; }
+    return g;
   },
   async hostTick(){
     const g=S.game; if(g.phase!=="play") return;
+    if(g.mode==="coop") return this.coopTick();
+    if(g.players.some(u=>S.progress[u]&&S.progress[u].done)) return this.finish();
     const act=g.players.filter(u=>S.players[u]&&S.players[u].online);
-    const fin=u=>{ const p=S.progress[u]; return p&&(p.done||p.gaveUp); };
-    if(act.length&&act.every(fin)) await this.finish();
+    if(act.length&&act.every(u=>S.progress[u]&&S.progress[u].gaveUp)) return this.finish();
   },
   async finish(){
     const g=clone(S.game); if(g.phase!=="play") return;
-    g.phase="over"; await setGame(g);
-    const solvers=g.players.filter(u=>S.progress[u]&&S.progress[u].done).sort((a,b)=>S.progress[a].t-S.progress[b].t);
-    const pts=[3,2,1]; for(let i=0;i<solvers.length&&i<3;i++) await award([solvers[i]],pts[i],i===0);
-    sys(`The secret player was ${CC.PLAYERS[dec(g.sx)].name}`);
+    g.phase="over";
+    if(g.mode!=="coop"){ const solvers=g.players.filter(u=>S.progress[u]&&S.progress[u].done).sort((a,b)=>S.progress[a].t-S.progress[b].t); g.winner=solvers[0]||""; }
+    await setGame(g);
+    const name=CC.PLAYERS[dec(g.sx)].name;
+    if(g.winner){
+      await award([g.winner],3,true);
+      if(g.mode==="coop"){ await award(g.order.filter(u=>u!==g.winner),1,false); sys(`🤝 Team win! ${pname(g.winner)} named ${name} after ${arr(g.guesses).length} team guess${arr(g.guesses).length===1?"":"es"}`); }
+      else sys(`🏁 ${pname(g.winner)} found ${name} first and wins the race!`);
+    } else sys(`The secret player was ${name}`);
   },
+  /* ---- team mode (host side) ---- */
+  coopAdvance(g){
+    const n=g.order.length; let t=g.turn;
+    for(let i=0;i<n;i++){ t=(t+1)%n; const u=g.order[t]; if(S.players[u]&&S.players[u].online) break; }
+    g.turn=t; g.deadline=now()+g.secs*1000;
+  },
+  async coopTick(){
+    const g0=S.game, cur=g0.order[g0.turn], here=S.players[cur]&&S.players[cur].online, started=g0.deadline-g0.secs*1000;
+    if(now()>g0.deadline||(!here&&now()>started+3000)){
+      const g=clone(g0); this.coopAdvance(g); await setGame(g);
+      if(g.order.length>1) sys(`⏱ ${pname(cur)} ${here?"ran out of time":"isn't here"}. ${pname(g.order[g.turn])}'s turn`);
+    }
+  },
+  async hostAction(a){
+    const g0=S.game; if(g0.mode!=="coop"||g0.phase!=="play"||g0.order[g0.turn]!==a.u) return;
+    const g=clone(g0); g.guesses=arr(g.guesses);
+    const c=ccCtx(g), used=x=>g.guesses.some(y=>y.id===x.id); let id;
+    if(a.type==="ccguess") id=a.id;
+    else if(a.type==="cchint"){ const best=g.guesses.length?Math.min(...g.guesses.map(x=>c.ctx.ranks[x.id])):CC.N+1; if(best<=2) return; const p=closerPick(c.ctx,best,used); if(!p) return; id=p.id; }
+    else return;
+    if(!CC.PLAYERS[id]||g.guesses.some(x=>x.id===id)) return;
+    g.guesses.push({id,u:a.u,h:a.type==="cchint"?1:0});
+    if(id===c.secret.id){ g.winner=a.u; await setGame(g); return this.finish(); }
+    this.coopAdvance(g); await setGame(g);
+  },
+  /* ---- race mode (each player guesses on their own device) ---- */
   save(g){
     const c=ccCtx(g); ss.set(`arc-cc-${S.code}-${g.at}`,c.mine);
     const ids=c.mine.ids, best=ids.length?Math.min(...ids.map(i=>c.ctx.ranks[i])):0, done=ids.includes(c.secret.id);
@@ -498,26 +532,43 @@ ENG.close={
     return {best,done,prevBest:prev.b||0};
   },
   guess(p){
-    const g=S.game, c=ccCtx(g); if(c.mine.ids.includes(p.id)){ this.fb(`${p.name} is already on your list.`,true); return; }
+    const g=S.game, c=ccCtx(g);
+    if(g.phase!=="play") return;
+    if(g.mode==="coop"){
+      if(g.order[g.turn]!==S.uid){ this.fb("Wait for your turn.",true); return; }
+      if(arr(g.guesses).some(x=>x.id===p.id)){ this.fb(`${p.name} is already on the team list.`,true); return; }
+      if(c.pending) return; c.pending=true; this.fb(""); act("ccguess",{id:p.id}); return;
+    }
+    if(c.mine.ids.includes(p.id)){ this.fb(`${p.name} is already on your list.`,true); return; }
     c.mine.ids.push(p.id); c.last=p.id;
     const r=this.save(g), rank=c.ctx.ranks[p.id];
-    if(r.done){ SFX.play("win"); confetti(); sys(`🎯 ${S.profile.name} found the secret player in ${c.mine.ids.length} guesses!`); }
+    if(r.done){ SFX.play("win"); confetti(); { const n=c.mine.ids.length; sys(`🎯 ${S.profile.name} found the secret player in ${n} guess${n===1?"":"es"}!`); } }
     else { SFX.play(rank<=50?"ok":"draw"); if(r.best<=10&&(!r.prevBest||r.prevBest>10)) sys(`🔥 ${S.profile.name} is in the top 10!`); }
     this.fb(""); refresh();
   },
   fb(t,err){ const f=q("cc-fb"); if(f){ f.textContent=t; f.className="feedback"+(err?" err":""); } },
+  overHTML(g){
+    const head=g.winner?(g.mode==="coop"?`🤝 Team win · found by ${E(pname(g.winner))}`:`🏁 ${E(pname(g.winner))} wins the race`):"Nobody found it this time";
+    return `<div class="prompt"><span class="who">Guess the Player · ${g.mode==="coop"?"team mode":"race"}</span><span class="cat">${head}</span></div>
+      <div id="cc-reveal"></div><div class="section-label"><span>${g.mode==="coop"?"Team guesses":"Final standings"}</span></div><div class="${g.mode==="coop"?"list":"ol-board"}" id="cc-board"></div>
+      <div class="section-label"><span>Closest players</span></div><div class="nearest" id="cc-near"></div><div id="cc-end"></div>`;
+  },
   render(st){
-    const g=S.game, c=ccCtx(g), secret=c.secret, mine=c.mine;
-    const inGame=g.players.includes(S.uid);
+    const g=S.game, c=ccCtx(g), secret=c.secret;
     if(g.phase==="over"){
-      if(skel(st,"cc-over-"+g.at,`<div id="cc-reveal"></div><div class="section-label"><span>Final standings</span></div><div class="ol-board" id="cc-board"></div><div class="section-label"><span>Closest players</span></div><div class="nearest" id="cc-near"></div><div id="cc-end"></div>`)){
+      if(skel(st,"cc-over-"+g.at,this.overHTML(g))){
         q("cc-reveal").innerHTML=revealCard(secret);
         q("cc-near").innerHTML=c.ctx.order.slice(1,11).map(p=>`<div class="near"><span class="r" style="color:var(${CC.tone(c.ctx.ranks[p.id])})">${c.ctx.ranks[p.id]}</span><div><div class="nm">${E(p.name)}</div><div class="why">${E(CC.whyText(secret,p))}</div></div></div>`).join("");
         q("cc-end").innerHTML=endButtons(); bindEnd(st);
       }
-      this.board(); return;
+      if(g.mode==="coop") this.teamList(g); else this.board();
+      return;
     }
-    if(skel(st,"cc-play-"+g.at,`<div class="prompt"><span class="who">Close Control · live race</span><span class="cat">Find the secret footballer</span></div>
+    return g.mode==="coop"?this.renderCoop(st):this.renderRace(st);
+  },
+  renderRace(st){
+    const g=S.game, c=ccCtx(g), secret=c.secret, mine=c.mine, inGame=g.players.includes(S.uid);
+    if(skel(st,"cc-play-"+g.at,`<div class="prompt"><span class="who">Guess the Player · race</span><span class="cat">First to find the secret footballer wins</span></div>
       <div class="ol-board" id="cc-board"></div>
       ${inGame?`<div class="search"><input id="cc-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a player's name…" aria-label="Guess a player"><div class="suggest" id="cc-sug" role="listbox" hidden></div></div>
       <div class="actions"><button class="btn" id="cc-hint">Closer player</button><button class="btn ghost" id="cc-give">Give up</button>${S.host?`<button class="btn ghost" id="cc-end">Reveal for everyone</button>`:""}</div>`
@@ -530,26 +581,72 @@ ENG.close={
         q("cc-hint").onclick=()=>{ const best=mine.ids.length?Math.min(...mine.ids.map(i=>c.ctx.ranks[i])):CC.N+1;
           if(best<=2){ this.fb("You're as close as a hint can get you.",true); return; }
           const p=closerPick(c.ctx,best,x=>mine.ids.includes(x.id)); if(!p) return; mine.hints++; this.guess(p); this.fb(`Hint: ${p.name} is #${c.ctx.ranks[p.id]}.`); };
-        q("cc-give").onclick=()=>{ if(mine.done) return; mine.gaveUp=true; this.save(g); sys(`🏳️ ${S.profile.name} gave up`); refresh(); };
+        q("cc-give").onclick=()=>{ if(mine.gaveUp) return; mine.gaveUp=true; this.save(g); sys(`🏳️ ${S.profile.name} gave up`); refresh(); };
       }
       if(q("cc-end")) q("cc-end").onclick=()=>Host.run(()=>this.finish());
       if(q("cc-in")) q("cc-in").focus();
     }
     const done=mine.ids.includes(secret.id)||mine.gaveUp;
-    if(q("cc-in")){ q("cc-in").disabled=done; q("cc-in").placeholder=done?(mine.gaveUp?"You gave up. Waiting for the others…":"Found it! Waiting for the others…"):"Type a player's name…"; q("cc-hint").disabled=done; q("cc-give").disabled=done; }
+    if(q("cc-in")){ q("cc-in").disabled=done; q("cc-in").placeholder=done?"You gave up. Waiting for the others…":"Type a player's name…"; q("cc-hint").disabled=done; q("cc-give").disabled=done; }
     const ids=mine.ids, sorted=[...ids].sort((a,b)=>c.ctx.ranks[a]-c.ctx.ranks[b]);
-    const order=c.last!=null&&ids.length>1?[c.last,...sorted]:sorted;
-    q("cc-list").innerHTML=order.map((id,i)=>{ const p=CC.PLAYERS[id]; return ccRow(p,secret,c.ctx.ranks[id],(i===0&&ids.length>1&&c.last!=null?"Latest · ":"")+p.name,i===0&&ids.length>1&&c.last!=null); }).join("")||`<div class="empty">Each guess shows how close it is to the secret player: #${CC.fmt(CC.N)} means no link, #1 is the answer.</div>`;
+    const lat=c.last!=null&&ids.length>1, order=lat?[c.last,...sorted]:sorted;
+    q("cc-list").innerHTML=order.map((id,i)=>{ const p=CC.PLAYERS[id]; return ccRow(p,secret,c.ctx.ranks[id],(i===0&&lat?"Latest · ":"")+p.name,i===0&&lat); }).join("")||`<div class="empty">Each guess shows how close it is to the secret player: #${CC.fmt(CC.N)} means no link, #1 is the answer.</div>`;
     q("cc-best").textContent=ids.length?"Best #"+Math.min(...ids.map(i=>c.ctx.ranks[i])):"";
     this.board();
   },
-  board(){
-    const g=S.game, el=q("cc-board"); if(!el) return;
-    const rows=g.players.map(u=>({u,p:S.progress[u]||{}})).sort((a,b)=>{
-      const A=a.p,B=b.p; if(A.done!==B.done) return A.done?-1:1; if(A.done) return A.t-B.t; if(!!A.gaveUp!==!!B.gaveUp) return A.gaveUp?1:-1; return (A.b||1e9)-(B.b||1e9); });
-    el.innerHTML=rows.map(({u,p},i)=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${p.done?`✓ found it · ${p.g} guesses${p.h?` · ${p.h} hints`:""}`:p.gaveUp?"gave up":p.g?`best #${CC.fmt(p.b)} · ${p.g} guesses`:"thinking…"}</span>${p.done&&i<3?`<span class="medal">${["🥇","🥈","🥉"][i]}</span>`:""}</div>`).join("");
+  renderCoop(st){
+    const g=S.game, c=ccCtx(g), inGame=g.order.includes(S.uid), my=g.order[g.turn]===S.uid;
+    if(skel(st,"cc-coop-"+g.at,`<div class="prompt"><span class="who">Guess the Player · team mode</span><span class="cat" id="cq-who"></span></div>
+      <div class="seats" id="cq-seats"></div>
+      <div id="cq-clock"></div>
+      ${inGame?`<div class="search"><input id="cc-in" type="text" autocomplete="off" spellcheck="false" aria-label="Guess a player"><div class="suggest" id="cc-sug" role="listbox" hidden></div></div>
+      <div class="actions"><button class="btn" id="cq-hint">Closer player (uses your turn)</button>${S.host?`<button class="btn ghost" id="cc-end">Reveal answer</button>`:""}</div>`
+      :`<div class="ol-note">You joined during this round. You'll play from the next one.</div>${S.host?`<div class="actions"><button class="btn ghost" id="cc-end">Reveal answer</button></div>`:""}`}
+      <div class="feedback" id="cc-fb" aria-live="polite"></div>
+      <div class="section-label"><span>Team guesses, closest first</span><span id="cq-best"></span></div>
+      <div class="list" id="cc-board"></div>`)){
+      if(inGame){
+        ccSearch(q("cc-in"),q("cc-sug"),p=>this.guess(p),p=>arr(S.game.guesses).some(x=>x.id===p.id));
+        q("cq-hint").onclick=()=>{ if(S.game.order[S.game.turn]!==S.uid||c.pending) return; c.pending=true; act("cchint"); };
+      }
+      if(q("cc-end")) q("cc-end").onclick=()=>Host.run(()=>this.finish());
+    }
+    const cur=g.order[g.turn];
+    q("cq-who").textContent=my?"Your turn: make a guess":`${pname(cur)} is guessing…`;
+    q("cq-seats").innerHTML=g.order.map((u,i)=>`<span class="seat${i===g.turn?" on":""}">${E(pav(u))} ${E(pname(u))}${S.players[u]&&S.players[u].online?"":" 💤"}</span>`).join("");
+    const ck=q("cq-clock"); if(ck.dataset.d!==String(g.deadline)){ ck.dataset.d=String(g.deadline); ck.innerHTML=clockHTML("cq-c",g.deadline,g.secs,my); }
+    if(q("cc-in")){ const was=q("cc-in").disabled, dis=!my||c.pending; q("cc-in").disabled=dis; q("cq-hint").disabled=dis;
+      q("cc-in").placeholder=my?"Your guess…":`Wait: ${pname(cur)} is guessing`; if(was&&!dis) q("cc-in").focus(); }
+    this.teamList(g);
   },
-  onChange(old,g){ if(old&&old.phase==="play"&&g.phase==="over"){ const pr=S.progress[S.uid]; if(pr&&pr.done) SFX.play("win"); } }
+  teamList(g){
+    const c=ccCtx(g), el=q("cc-board"); if(!el) return;
+    const gs=arr(g.guesses), last=gs[gs.length-1], sorted=[...gs].sort((a,b)=>c.ctx.ranks[a.id]-c.ctx.ranks[b.id]);
+    const order=gs.length>1&&g.phase==="play"?[last,...sorted]:sorted;
+    el.innerHTML=order.map((x,i)=>{ const p=CC.PLAYERS[x.id], lat=i===0&&gs.length>1&&g.phase==="play"; return ccRow(p,c.secret,c.ctx.ranks[x.id],`${lat?"Latest · ":""}${p.name} · ${pname(x.u)}${x.h?" (hint)":""}`,lat); }).join("")||`<div class="empty">One shared list for the whole team. Each guess shows how close it is: #${CC.fmt(CC.N)} means no link, #1 is the answer.</div>`;
+    const b=q("cq-best"); if(b) b.textContent=gs.length?"Best #"+Math.min(...gs.map(x=>c.ctx.ranks[x.id])):"";
+  },
+  board(){
+    const g=S.game, el=q("cc-board"); if(!el||g.mode==="coop") return;
+    const rows=g.players.map(u=>({u,p:S.progress[u]||{}})).sort((a,b)=>{
+      const A=a.p,B=b.p; if(!!A.done!==!!B.done) return A.done?-1:1; if(A.done) return A.t-B.t; if(!!A.gaveUp!==!!B.gaveUp) return A.gaveUp?1:-1; return (A.b||1e9)-(B.b||1e9); });
+    el.innerHTML=rows.map(({u,p})=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${p.done?`✓ found it · ${p.g} guesses${p.h?` · ${p.h} hints`:""}`:p.gaveUp?"gave up":p.g?`best #${CC.fmt(p.b)} · ${p.g} guesses`:"thinking…"}</span>${p.done&&u===g.winner?`<span class="medal">🏆</span>`:""}</div>`).join("");
+  },
+  onChange(old,g){
+    const c=ccCtx(g);
+    if(old&&old.phase==="play"&&g.phase==="over"){
+      if(g.mode==="coop"&&g.winner){ SFX.play("win"); confetti(); }
+      else if(g.winner===S.uid){ SFX.play("win"); confetti(); }
+      else if(g.winner) SFX.play("bad");
+      return;
+    }
+    if(g.mode!=="coop"||g.phase!=="play") return;
+    const gs=arr(g.guesses);
+    if(gs.length>CCR.len){ const x=gs[gs.length-1]; if(old) SFX.play(c.ctx.ranks[x.id]<=50?"ok":"draw"); }
+    CCR.len=gs.length;
+    const k=g.turn+"|"+g.deadline;
+    if(CCR.turnKey!==k){ CCR.turnKey=k; c.pending=false; if(g.order[g.turn]===S.uid&&old){ SFX.play("turn"); vibrate(120); } }
+  }
 };
 
 /* ================= 30 Seconds & Letter Rush · simultaneous ================= */
@@ -936,12 +1033,12 @@ ENG.linkup={
   }
 };
 
-/* ================= Close Control · duel on one device ================= */
+/* ================= Guess the Player · duel on one device ================= */
 const Duel={st:null,
   open(){
     const main=q("ol-main"); S.view="duel";
     const cfg=ls.get("arc-duel",{n:2,level:"0"});
-    main.innerHTML=`<h2 class="view-title">Close Control Duel</h2>
+    main.innerHTML=`<h2 class="view-title">Guess the Player Duel</h2>
       <p class="lede">Two to four players, one phone or computer. Take turns guessing the same secret footballer. Everyone sees every guess, so use the others' clues. Whoever names the secret player wins.</p>
       <div class="panel" id="du-setup"></div>`;
     const s=q("du-setup"), names=document.createElement("div");
@@ -957,7 +1054,7 @@ const Duel={st:null,
     const pool=CC.PLAYERS.filter(p=>p.tier<=lv&&p.clubs.size>=2), secret=pickOne(pool);
     this.st={names,secret,ctx:CC.rankFor(secret),turn:0,guesses:[],over:false,winner:null};
     const main=q("ol-main");
-    main.innerHTML=`<h2 class="view-title">Close Control Duel</h2>
+    main.innerHTML=`<h2 class="view-title">Guess the Player Duel</h2>
       <div class="seats" id="du-seats"></div>
       <div class="prompt"><span class="who">Pass the phone</span><span class="cat" id="du-who"></span></div>
       <div class="search"><input id="du-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a player's name…" aria-label="Guess a player"><div class="suggest" id="du-sug" hidden></div></div>
