@@ -11,12 +11,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Matchday">
 <meta name="description" content="Five free football games: guess the secret player, 30-second challenges, letter rush, name chain and a football card game. 7,208 real players.">
+<script src="i18n.js"></script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}</style>
 <title>Matchday Arcade</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cairo:wght@400;600;800&display=swap">
 <style>
 /* Layout: one narrow match-sheet column; guess rows read like a league table, the temperature bar does the talking. */
 :root{
@@ -239,12 +240,12 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
 .log{display:flex;flex-direction:column;gap:3px;font-size:14px;color:var(--muted);max-height:180px;overflow-y:auto}
 .log b{color:var(--ink);font-weight:600}
 .note{font-size:13px;color:var(--muted)}
-@media (prefers-reduced-motion:reduce){button.card:hover,button.card[aria-pressed="true"]{transform:none}}
-</style>
-
-<link rel="stylesheet" href="online.css">
+@media (prefers-reduced-motion:reduce){button.card:hover,button.card[aria-pressed="true<link rel="stylesheet" href="online.css">
 </head>
 <body>
+"]{transform:none}}
+</style>
+
 <div class="wrap">
   <header>
     <div class="brand">
@@ -259,6 +260,9 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
   <section id="v-hub" class="hub">
     <button class="game-card online-card" data-go="online"><span class="glyph" style="font-size:30px">⚡</span><span><h2>Play online</h2><p>Create a room, share the code, play from different phones and computers. Chat, reactions, all five games.</p></span></button>
     <button class="game-card" data-go="whoami"><span class="glyph" style="font-size:40px">?</span><span><h2>Who Am I?</h2><p>Clues appear one by one. Name the mystery footballer early for more points.</p></span></button>
+    <button class="game-card" data-go="career"><span class="glyph" style="font-size:34px">⇢</span><span><h2>Career Path</h2><p>A career appears club by club. Name the player before the last club shows.</p></span></button>
+    <button class="game-card" data-go="worldcup"><span class="glyph" style="font-size:38px">🏆</span><span><h2>World Cup Run</h2><p>Take your country to the final: score by naming the opponents' players before the whistle.</p></span></button>
+    <button class="game-card" data-go="challenges"><span class="glyph" style="font-size:36px">🎯</span><span><h2>Challenges</h2><p>Three new daily challenges and three weekly ones. Earn XP and build a streak.</p></span></button>
     <button class="game-card" data-go="leaders"><span class="glyph" style="font-size:34px">🏆</span><span><h2>Leaderboards</h2><p>This month's top online players and today's fastest Guess the Player solvers.</p></span></button>
     <button class="game-card" data-go="duel"><span class="glyph" style="font-size:24px">#1 vs</span><span><h2>Guess the Player Duel</h2><p>2–4 players on one device take turns hunting the same secret player.</p></span></button>
     <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Guess the Player</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
@@ -958,13 +962,13 @@ function linkWin(i){
 $("l-rulesBtn").onclick=()=>{ $("l-rules").hidden=!$("l-rules").hidden; };
 
 /* ================= Routing ================= */
-function stopAll(){ [T.timer,C.timer,L.timer].forEach(t=>t&&t.stop()); clearTimeout(C.cpuT); clearTimeout(L.cpuT); $("cover").hidden=true; if(L.st) L.st.over=true; }
+function stopAll(){ [T.timer,C.timer,L.timer].forEach(t=>t&&t.stop()); clearTimeout(C.cpuT); clearTimeout(L.cpuT); $("cover").hidden=true; document.querySelectorAll(".overlay").forEach(o=>{ if(o.id==="helpDlg"||o.id==="statsDlg") o.hidden=true; else if(!o.hasAttribute("hidden")&&o.id!=="gu-dlg") o.remove(); }); if(L.st) L.st.over=true; }
 function route(){
   const h=location.hash.replace("#","");
   stopAll();
   ["hub","online","close","timed","chain","linkup"].forEach(v=>$("v-"+v).hidden=true);
   if(h==="thirty"||h==="letters"){ $("v-timed").hidden=false; openTimed(h); }
-  else if(h==="online"||h==="duel"||h==="whoami"||h==="leaders"||h==="friends"||/^join-[A-Z]{5}$/.test(h)){ $("v-online").hidden=false; if(window.ONLINE) window.ONLINE.open(h); else $("v-online").innerHTML='<p class="note">Online play needs the full site (online.js), so it isn\'t available in this preview.</p>'; }
+  else if(["online","duel","whoami","career","worldcup","challenges","leaders","friends","profile"].includes(h)||/^join-[A-Z]{5}$/.test(h)||/^u-[A-Za-z0-9_-]+$/.test(h)){ $("v-online").hidden=false; if(window.ONLINE) window.ONLINE.open(h); else $("v-online").innerHTML='<p class="note">Online play needs the full site (online.js), so it isn\'t available in this preview.</p>'; }
   else if(h==="close"){ $("v-close").hidden=false; window.openCloseControl&&window.openCloseControl(); }
   else if(h==="chain"){ $("v-chain").hidden=false; openChain(); }
   else if(h==="linkup"){ $("v-linkup").hidden=false; openLinkup(); }
@@ -1363,6 +1367,7 @@ $("chipToggle").onchange=e=>{settings.chips=e.target.checked; store.set("cc-sett
 window.CC={PLAYERS,N,rankFor,links,whyText,careerText,COUNTRIES,CLUBS,POSNAME,GROUP,tone,fillPct,chipHTML,fmt,byName,search,lastClub};
 let started=false;
 window.openCloseControl=()=>{ if(started) return; started=true; load("daily"); if(!store.get("cc-seen-help",false)){ open("helpDlg"); store.set("cc-seen-help",true); } };
+if(location.hash==="#close") window.openCloseControl();  // page opened or reloaded directly on this game
 })();
 </script>
 
