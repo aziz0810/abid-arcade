@@ -42,6 +42,9 @@ function FirebaseNet(){
     push:(p,v)=>{ const r=db.ref(p).push(); r.set(clone(v)); return r.key; },
     on:(p,cb)=>{ const r=db.ref(p), f=s=>cb(s.val()); r.on("value",f); return ()=>r.off("value",f); },
     onChild:(p,cb)=>{ const r=db.ref(p).limitToLast(80), f=s=>cb(s.key,s.val()); r.on("child_added",f); return ()=>r.off("child_added",f); },
+    presenceAt:(p,on,off)=>{ const TS=firebase.database.ServerValue.TIMESTAMP, fix=o=>{ const r={}; for(const k in o) r[k]=o[k]==="__TS__"?TS:o[k]; return r; };
+      const c=db.ref(".info/connected"), f=s=>{ if(s.val()){ db.ref(p).onDisconnect().update(fix(off)); db.ref(p).update(fix(on)); } }; c.on("value",f);
+      return ()=>{ c.off("value",f); db.ref(p).onDisconnect().cancel(); }; },
     presence:(p)=>{ const c=db.ref(".info/connected"), f=s=>{ if(s.val()){ db.ref(p).onDisconnect().set(false); db.ref(p).set(true); } }; c.on("value",f); return ()=>{ c.off("value",f); db.ref(p).onDisconnect().cancel(); }; },
     tx:(p,fn)=>db.ref(p).transaction(fn).then(r=>({committed:r.committed,val:r.snapshot.val()})),
     top:(p,child,n,asc)=>{ const r=db.ref(p).orderByChild(child); return (asc?r.limitToFirst(n):r.limitToLast(n)).get().then(s=>s.val()); },
@@ -68,7 +71,7 @@ function LocalNet(){
   if(bc) bc.onmessage=soon;
   window.addEventListener("storage",e=>{ if(e.key===KEY) soon(); });
   const disc=[];
-  window.addEventListener("pagehide",()=>{ if(disc.length) write(t=>disc.forEach(([p,v])=>setAt(t,p,v))); });
+  window.addEventListener("pagehide",()=>{ if(disc.length) write(t=>disc.forEach(([p,v,u])=>{ if(u) Object.keys(v).forEach(k=>setAt(t,p+"/"+k,v[k]==="__TS__"?Date.now():v[k])); else setAt(t,p,v); })); });
   let signed=sessionStorage.getItem("arc-local-signed")==="1";
   const unsub=l=>()=>{ const i=L.indexOf(l); if(i>=0) L.splice(i,1); };
   return {
@@ -85,6 +88,7 @@ function LocalNet(){
     push:(p,v)=>{ const k=pushKey(); write(t=>setAt(t,p+"/"+k,v)); return k; },
     on:(p,cb)=>{ const l={p,cb}; L.push(l); soon(); return unsub(l); },
     onChild:(p,cb)=>{ const l={p,cb,child:true,seen:new Set()}; L.push(l); soon(); return unsub(l); },
+    presenceAt:(p,on,off)=>{ write(t=>Object.keys(on).forEach(k=>setAt(t,p+"/"+k,on[k]==="__TS__"?Date.now():on[k]))); const d=[p,off,1]; disc.push(d); return ()=>{ const i=disc.indexOf(d); if(i>=0) disc.splice(i,1); }; },
     presence:(p)=>{ write(t=>setAt(t,p,true)); disc.push([p,false]); return ()=>{ const i=disc.findIndex(d=>d[0]===p); if(i>=0) disc.splice(i,1); }; },
     top:async(p)=>clone(getAt(load(),p)),
     tx:async(p,fn)=>write(t=>{ const cur=clone(getAt(t,p)); const nv=fn(cur); if(nv===undefined) return {committed:false,val:cur}; setAt(t,p,nv); return {committed:true,val:nv}; }),
@@ -236,8 +240,8 @@ function authError(e){
   if(/network/.test(c)) return "No connection. Check your internet and try again.";
   return "Couldn't sign in: "+(e.message||c);
 }
-function afterSignIn(){ S.uid=S.net.uid(); const pend=ls.get("arc-daily-pending",null); if(pend) postDaily(pend);
-  const h=location.hash.replace("#",""); const m=h.match(/^join-([A-Z]{5})$/); if(m) enterRoom(m[1]); else if(h==="leaders") renderLeaders(); else renderHome(); }
+function afterSignIn(){ S.uid=S.net.uid(); socialStart(); const pend=ls.get("arc-daily-pending",null); if(pend) postDaily(pend);
+  const h=location.hash.replace("#",""); const m=h.match(/^join-([A-Z]{5})$/); if(m) enterRoom(m[1]); else if(h==="leaders") renderLeaders(); else if(h==="friends") renderFriends(); else renderHome(); }
 
 function renderHome(){
   const main=q("ol-main"); S.view="home";
@@ -247,26 +251,38 @@ function renderHome(){
     <div class="ol-two">
       <div class="panel"><h3 class="ol-h">Create a room</h3><p class="note" style="margin:0">Pick the first game. You can switch games in the room.</p>
         <div class="ol-games" id="ol-pick">${Object.entries(GAMES).map(([k,g],i)=>`<button type="button" class="ol-game" aria-pressed="${i===0}" data-g="${k}"><span class="glyph">${g.icon}</span><span><b>${g.name}</b><small>${g.blurb}</small></span></button>`).join("")}</div>
+        <div class="field"><span>Who can join</span><div class="seg" id="ol-vis"><button type="button" data-v="private" aria-pressed="true">🔒 Private · code only</button><button type="button" data-v="public" aria-pressed="false">🌍 Public · anyone can find it</button></div></div>
+        <div class="field"><span>Max players</span><div class="seg" id="ol-max">${MAX_OPTS.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===8}">${v}</button>`).join("")}</div></div>
+        <div class="field" id="ol-titlef" hidden><span>Room name in the public list</span><input id="ol-title" class="ol-text" maxlength="28" placeholder="${E(S.profile.name)}'s room"></div>
         <button class="btn primary go" id="ol-create">Create room</button></div>
       <div class="panel"><h3 class="ol-h">Join a room</h3><p class="note" style="margin:0">Type the 5-letter code your friend sent you.</p>
         <form id="ol-joinf" class="answer"><input id="ol-code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="ABCDE" aria-label="Room code" style="text-transform:uppercase;letter-spacing:.3em;font-weight:700"><button class="btn primary">Join</button></form>
-        ${S.net.kind==="local"?`<p class="note" style="margin:0">Demo mode: open this page in another tab to join your own room.</p>`:""}</div>
+        ${S.net.kind==="local"?`<p class="note" style="margin:0">Demo mode: open this page in another tab to join your own room.</p>`:""}
+        <h3 class="ol-h" style="margin-top:8px">🌍 Public rooms</h3>
+        <div class="ol-board" id="ol-pub"><p class="note" style="margin:0">Looking for rooms…</p></div>
+        <button class="btn" id="ol-quick">⚡ Quick join</button></div>
     </div>`;
   let pick="close";
   q("ol-pick").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-pick").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); pick=b.dataset.g; });
-  q("ol-create").onclick=()=>createRoom(pick); bindRejoin(main);
+  let vis="private", max=8;
+  q("ol-vis").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-vis").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); vis=b.dataset.v; q("ol-titlef").hidden=vis!=="public"; });
+  q("ol-max").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-max").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); max=+b.dataset.v; });
+  q("ol-create").onclick=()=>createRoom(pick,{vis,max,title:(q("ol-title").value||"").trim().slice(0,28)}); bindRejoin(main);
+  q("ol-quick").onclick=quickJoin; startPub(); paintSocial();
   q("ol-joinf").onsubmit=e=>{ e.preventDefault(); const c=(q("ol-code").value||"").toUpperCase().replace(/[^A-Z]/g,""); if(c.length!==5){ toast("Room codes have 5 letters."); return; } enterRoom(c); };
-  q("ol-out").onclick=async()=>{ await S.net.auth.signOut(); renderSignIn(); };
-  q("ol-edit").onclick=()=>{ const m=q("ol-main"); m.innerHTML=`<div class="panel">${profileForm()}<div class="actions"><button class="btn primary" id="ol-save">Save</button></div></div>`; bindProfile(); q("ol-save").onclick=()=>{ if(saveProfile()) renderHome(); }; };
+  q("ol-out").onclick=async()=>{ stopPub(); socialStop(); await S.net.auth.signOut(); renderSignIn(); };
+  q("ol-edit").onclick=()=>{ const m=q("ol-main"); m.innerHTML=`<div class="panel">${profileForm()}<div class="actions"><button class="btn primary" id="ol-save">Save</button></div></div>`; bindProfile(); q("ol-save").onclick=()=>{ if(saveProfile()){ if(SO.on) S.net.update(`users/${S.uid}`,{n:S.profile.name,a:S.profile.av}); renderHome(); } }; };
 }
 
 /* ================= Rooms ================= */
 const CODE_ABC="ABCDEFGHJKLMNPQRSTUVWXYZ";
 const genCode=()=>Array.from({length:5},()=>CODE_ABC[Math.floor(Math.random()*CODE_ABC.length)]).join("");
-async function createRoom(game){
+async function createRoom(game,opts){
+  opts=opts||{};
   for(let i=0;i<8;i++){
     const code=genCode();
-    const meta={host:S.uid,game,settings:clone(GAMES[game].def),status:"lobby",created:now(),v:1};
+    const meta={host:S.uid,game,settings:clone(GAMES[game].def),status:"lobby",created:now(),v:1,vis:opts.vis==="public"?"public":"private",max:+opts.max||8};
+    if(opts.title) meta.title=opts.title;
     const r=await S.net.tx(`rooms/${code}/meta`,cur=>cur?undefined:meta);
     if(r.committed){ await enterRoom(code,true); return; }
   }
@@ -277,17 +293,24 @@ async function enterRoom(code,fresh){
   if(S.code&&S.code!==code) await leaveRoom(true);
   const meta=await S.net.get(`rooms/${code}/meta`);
   if(!meta){ const lr=lastRoom(); if(lr&&lr.code===code) ls.set("arc-last-room",null); toast(`Room ${code} doesn't exist (or has closed).`); if(location.hash!=="#online") location.hash="online"; else renderHome(); return; }
+  if(await S.net.get(`rooms/${code}/kicked/${S.uid}`)){ toast(`The host removed you from room ${code}.`); if(location.hash!=="#online") location.hash="online"; else renderHome(); return; }
+  const already=await S.net.get(`rooms/${code}/players/${S.uid}`);
+  if(!already&&meta.max){ const ps=await S.net.get(`rooms/${code}/players`)||{}; const n=Object.values(ps).filter(p=>p&&p.online).length;
+    if(n>=meta.max){ toast(`Room ${code} is full (${n}/${meta.max}).`); if(location.hash!=="#online") location.hash="online"; else renderHome(); return; } }
+  stopPub();
   S.code=code; S.meta=meta; S.players={}; S.game=null; S.progress={}; S.answers={}; S.chat=[]; S.hand=[]; S.unread=0;
   const prev=await S.net.get(R(`players/${S.uid}`));
   S.joinedAt=(prev&&prev.joined)||now();
   await S.net.set(R(`players/${S.uid}`),{name:S.profile.name,av:S.profile.av,joined:S.joinedAt,online:true,pts:(prev&&prev.pts)||0,wins:(prev&&prev.wins)||0});
-  S.subs.push(S.net.presence(R(`players/${S.uid}/online`)));
+  S.subs.push(S.net.presenceAt(R(`players/${S.uid}`),{online:true},{online:false,seen:"__TS__"}));
   if(!prev) sys(`${S.profile.av} ${S.profile.name} joined the room`);
   if(location.hash!=="#join-"+code) history.replaceState(null,"","#join-"+code);
-  ls.set("arc-last-room",{code,at:Date.now()}); S.seen=null; S.typing={};
+  ls.set("arc-last-room",{code,at:Date.now()}); S.seen=null; S.typing={}; setMyRoom(code);
   S.view="room"; renderRoom();
-  S.subs.push(S.net.on(R("meta"),v=>{ if(!v){ roomClosed(); return; } S.meta=v; checkHost(); refresh(); }));
-  S.subs.push(S.net.on(R("players"),v=>{ S.players=v||{}; checkHost(); paintRoster(); trackSeason(); refresh(); }));
+  S.subs.push(S.net.on(R("meta"),v=>{ if(!v){ roomClosed(); return; } S.meta=v; checkHost(); syncLobby(); paintRoster(); refresh(); }));
+  S.subs.push(S.net.on(R("players"),v=>{ S.players=v||{};
+    if(!S.players[S.uid]&&S.view==="room"&&S.code){ const c=S.code; teardown(); ls.set("arc-last-room",null); toast(`You were removed from room ${c}.`); location.hash="online"; return; }
+    checkHost(); paintRoster(); trackSeason(); syncLobby(); refresh(); }));
   S.subs.push(S.net.on(R("typing"),v=>{ S.typing=v||{}; paintTyping(); }));
   S.subs.push(S.net.on(R("game"),v=>{ const old=S.game; S.game=v; onGameChange(old,v); refresh(); }));
   S.subs.push(S.net.on(R("progress"),v=>{ S.progress=v||{}; refresh(); }));
@@ -296,7 +319,7 @@ async function enterRoom(code,fresh){
   S.subs.push(S.net.onChild(R("chat"),(k,m)=>addChat(k,m)));
 }
 function roomClosed(){ toast("This room has closed."); teardown(); location.hash="online"; }
-function teardown(){ document.body.style.overflow=""; const pk=q("ol-peek"); if(pk) pk.remove(); S.subs.forEach(f=>{ try{f();}catch(e){} }); S.subs=[]; Host.stop(); S.code=null; S.meta=null; S.game=null; S.view=null; clearTimeout(S.hostWait); S.hostWait=null; S.host=false; }
+function teardown(){ setMyRoom(null); document.body.style.overflow=""; const pk=q("ol-peek"); if(pk) pk.remove(); S.subs.forEach(f=>{ try{f();}catch(e){} }); S.subs=[]; Host.stop(); S.code=null; S.meta=null; S.game=null; S.view=null; clearTimeout(S.hostWait); S.hostWait=null; S.host=false; }
 async function leaveRoom(silent){
   if(!S.code) return;
   const code=S.code, uid=S.uid, wasHost=S.meta&&S.meta.host===uid;
@@ -307,7 +330,7 @@ async function leaveRoom(silent){
   await S.net.remove(`rooms/${code}/players/${uid}`);
   if(wasHost){
     if(others.length) await S.net.set(`rooms/${code}/meta/host`,others[0]);
-    else { await S.net.remove(`secrets/${code}`); await S.net.remove(`hands/${code}`); await S.net.remove(`rooms/${code}`); }
+    else { await S.net.remove(`lobby/${code}`).catch(()=>{}); await S.net.remove(`secrets/${code}`); await S.net.remove(`hands/${code}`); await S.net.remove(`rooms/${code}`); }
   }
 }
 function checkHost(){
@@ -385,12 +408,12 @@ function paintChat(){
 }
 
 /* ================= Room screen ================= */
-function renderRoom(){
+function renderRoom(){ stopPub();
   const main=q("ol-main"); if(!main) return;
   main.innerHTML=`<div class="ol-room">
     <div class="ol-col">
       <div class="ol-roombar">
-        <div class="ol-code"><span class="note">Room</span><b id="ol-roomcode">${S.code}</b></div>
+        <div class="ol-code"><span class="note">Room · <span id="ol-vistag"></span></span><b id="ol-roomcode">${S.code}</b></div>
         <button class="btn primary" id="ol-invite">📲 Invite</button>
         <button class="btn ghost" id="ol-leave">Leave</button>
       </div>
@@ -421,7 +444,9 @@ function renderRoom(){
 function paintRoster(){
   const el=q("ol-roster"); if(!el) return;
   const list=Object.entries(S.players).sort((a,b)=>(a[1].joined||0)-(b[1].joined||0));
-  el.innerHTML=list.map(([u,p])=>`<span class="ol-chip${p.online?"":" off"}${u===S.uid?" me":""}"><span class="ol-av">${E(p.av)}</span>${E(p.name)}${S.meta&&S.meta.host===u?" 👑":""}<b title="Points in this room">${p.pts||0}</b></span>`).join("");
+  el.innerHTML=list.map(([u,p])=>`<button type="button" class="ol-chip${p.online?"":" off"}${u===S.uid?" me":""}" data-pu="${E(u)}" aria-label="${E(p.name)}: open player card"><span class="ol-av">${E(p.av)}${SO.friends[u]?`<i class="dot on" title="Friend"></i>`:""}</span>${E(p.name)}${S.meta&&S.meta.host===u?" 👑":""}${p.online?"":`<small>away · ${E(ago(p.seen))}</small>`}<b title="Points in this room">${p.pts||0}</b></button>`).join("");
+  el.querySelectorAll("[data-pu]").forEach(b=>b.onclick=()=>openPlayer(b.dataset.pu));
+  const vt=q("ol-vistag"); if(vt) vt.textContent=visTag();
 }
 let rAF=0;
 function refresh(){ if(rAF) return; rAF=requestAnimationFrame(()=>{ rAF=0; renderStage(); }); }
@@ -444,17 +469,18 @@ function renderLobby(st){
     <div class="section-label"><span>${host?"Choose the game":"Next game"}</span><span id="ol-hostlbl"></span></div>
     <div class="ol-games" id="ol-lg">${Object.entries(GAMES).map(([k,x])=>`<button type="button" class="ol-game" data-g="${k}" ${host?"":"disabled"}><span class="glyph">${x.icon}</span><span><b>${x.name}</b><small>${x.blurb}</small></span></button>`).join("")}</div>
     <div id="ol-sets"></div>
-    <div class="actions" id="ol-start"></div></div><div id="ol-tour"></div>`);
+    <div class="actions" id="ol-start"></div></div><div id="ol-roomset"></div><div id="ol-tour"></div>`);
   q("ol-hostlbl").textContent=host?"You're the host":"Host: "+pname(m.host);
   st.querySelectorAll("#ol-lg button").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.g===m.game)); if(fresh&&host) b.onclick=()=>S.net.update(R("meta"),{game:b.dataset.g,settings:clone(GAMES[b.dataset.g].def)}); });
   const sets=q("ol-sets"); const cur=m.settings||g.def;
   sets.innerHTML=Object.entries(g.set).map(([k,opts])=>`<div class="field"><span>${setLabel(m.game,k)}</span><div class="seg">${opts.map(([v,l])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${String(cur[k])===String(v)}" ${host?"":"disabled"}>${l}</button>`).join("")}</div></div>`).join("");
   if(host) sets.querySelectorAll("button").forEach(b=>b.onclick=()=>{ const o=GAMES[m.game].set[b.dataset.k].find(x=>String(x[0])===b.dataset.v); S.net.set(R("meta/settings/"+b.dataset.k),o[0]); });
-  const n=onlineUids().length, need=m.game==="linkup"?Math.max(0,2-n-Number(cur.cpus||0)):0;
+  const n=onlineUids().length, need=m.game==="linkup"?Math.max(0,2-n-Number(cur.cpus||0)):0, over=m.game==="linkup"&&n+Number(cur.cpus||0)>LINKUP_MAX;
   q("ol-start").innerHTML=host
-    ?`<button class="btn primary go" id="ol-go" ${need?"disabled":""}>Start ${E(g.name)}</button><span class="note">${need?"Link Up needs 2 seats: invite a friend or add a CPU.":`${n} player${n>1?"s":""} in the room`}</span>`
+    ?`<button class="btn primary go" id="ol-go" ${need||over?"disabled":""}>Start ${E(g.name)}</button><span class="note">${need?"Link Up needs 2 seats: invite a friend or add a CPU.":over?`Link Up supports up to ${LINKUP_MAX} players (the deck runs out). Remove CPUs or pick another game.`:`${n} player${n>1?"s":""} in the room`}</span>`
     :`<span class="note">Waiting for ${E(pname(m.host))} to start the game…</span>`;
   if(host&&q("ol-go")) q("ol-go").onclick=()=>startGame();
+  const rs=q("ol-roomset"), rk=JSON.stringify([m.vis,m.max,m.title,host,n]); if(rs.dataset.k!==rk){ rs.dataset.k=rk; rs.innerHTML=roomSettingsHTML(); bindRoomSettings(); }
   const tw=q("ol-tour"), tk=JSON.stringify([S.meta.tour||null,host,Object.keys(S.players).length]);
   if(tw.dataset.k!==tk){ tw.dataset.k=tk; q("ol-champ").innerHTML=championHTML(); tw.innerHTML=tourPanel(); bindTourPanel();
     if(q("ol-tclear")) q("ol-tclear").onclick=()=>S.net.set(R("meta/tour"),null); }
@@ -489,10 +515,10 @@ function onGameChange(old,g){
 
 /* ================= Host engine ================= */
 const Host={on:false,iv:null,unsub:null,q:Promise.resolve(),cache:null,
-  start(){ if(this.on) return; this.on=true; this.cache=null;
+  start(){ if(this.on) return; this.on=true; this.cache=null; this.hb=setInterval(()=>syncLobby(true),60000); setTimeout(()=>syncLobby(true),300);
     this.unsub=S.net.onChild(R("actions"),(k,a)=>this.run(()=>this.action(k,a)));
     this.iv=setInterval(()=>this.run(()=>this.tick()),400); },
-  stop(){ this.on=false; clearInterval(this.iv); this.unsub&&this.unsub(); this.unsub=null; this.cache=null; },
+  stop(){ this.on=false; clearInterval(this.iv); clearInterval(this.hb); this.unsub&&this.unsub(); this.unsub=null; this.cache=null; },
   run(fn){ this.q=this.q.then(()=>this.on?fn():null).catch(e=>console.error(e)); return this.q; },
   async action(k,a){ await S.net.remove(R("actions/"+k)); if(!a||!S.game||S.meta.status!=="playing") return; const e=ENG[S.game.kind]; e&&e.hostAction&&await e.hostAction(a); },
   async tick(){ if(!S.game||!S.meta||S.meta.status!=="playing") return; if(S.game.phase==="over"){ await tourScore(); return; } const e=ENG[S.game.kind]; e&&e.hostTick&&await e.hostTick(); }
@@ -1207,7 +1233,7 @@ const standalone=()=>(window.matchMedia&&matchMedia("(display-mode: standalone)"
 const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 function headerButtons(){
   const h=q("hdr-icons"); if(!h||h.dataset.ready) return; h.dataset.ready="1";
-  h.innerHTML=`<button class="icon-btn" id="hdr-set" aria-label="Settings">⚙ Settings</button>`;
+  h.innerHTML=`<a class="icon-btn" href="#friends" style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;position:relative">👥 Friends<b class="fr-badge" hidden></b></a><button class="icon-btn" id="hdr-set" aria-label="Settings">⚙ Settings</button>`;
   q("hdr-set").onclick=openSettings;
 }
 function dialog(id,title,body){
@@ -1245,7 +1271,7 @@ function paintMute(){ const m=q("ol-mute"); if(m) m.innerHTML=SFX.muted?`🔇<sp
 
 /* ================= Haptics & turn alerts ================= */
 const HAPT={ok:[18],bad:[40,50,40],turn:[120,60,120],win:[60,40,60,40,160],go:[30],draw:[12]};
-function haptic(t){ if(!UI.vibrate) return; const p=HAPT[t]; if(p) try{ navigator.vibrate&&navigator.vibrate(p); }catch(e){} }
+function haptic(t){ if(!UI.vibrate||(navigator.userActivation&&!navigator.userActivation.hasBeenActive)) return; const p=HAPT[t]; if(p) try{ navigator.vibrate&&navigator.vibrate(p); }catch(e){} }
 const baseTitle=document.title; let titleIv=null;
 function flashTitle(text){
   if(!document.hidden) return; clearInterval(titleIv); let on=false;
@@ -1276,7 +1302,9 @@ async function openInvite(){
     <div class="inv-qr" id="inv-qr"><span class="note">Loading QR code…</span></div>
     <p class="note" style="margin:0;text-align:center">Friends next to you can scan it with their phone camera.</p>
     <div class="actions" style="justify-content:center">${canShare?`<button class="btn primary" id="inv-share">Share…</button>`:""}<button class="btn${canShare?"":" primary"}" id="inv-copy">Copy link</button></div>
-    <input class="inv-link" id="inv-link" readonly value="${E(link)}" aria-label="Invite link">`);
+    <input class="inv-link" id="inv-link" readonly value="${E(link)}" aria-label="Invite link">
+    ${SO.on?`<div class="section-label"><span>Invite friends</span></div><div class="ol-board" id="inv-friends"></div>`:""}`);
+  paintInviteFriends();
   const text=`Join my Matchday Arcade room ${S.code} ⚽`;
   if(q("inv-share")) q("inv-share").onclick=()=>navigator.share({title:"Matchday Arcade",text,url:link}).catch(()=>{});
   q("inv-copy").onclick=()=>{ const fb=()=>{ q("inv-link").select(); toast("Select the link and copy it"); };
@@ -1629,6 +1657,209 @@ const WhoSolo={
   }
 };
 
+/* ================= Time helpers ================= */
+function ago(ts){
+  if(!ts) return "a while ago";
+  const s=Math.max(0,(now()-ts)/1000); if(s<60) return "just now";
+  const m=s/60; if(m<60) return `${Math.floor(m)} min ago`;
+  const h=m/60; if(h<24) return `${Math.floor(h)} h ago`;
+  const d=h/24; if(d<2) return "yesterday"; if(d<30) return `${Math.floor(d)} days ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+/* ================= Public / private rooms ================= */
+const MAX_OPTS=[2,4,6,8,10,12,16,20];
+const LINKUP_MAX=8;
+let lobbyT=0, lobbyTm=null;
+function syncLobby(force){
+  if(!S.host||!S.meta||!S.code) return;
+  const t=Date.now();
+  if(!force&&t-lobbyT<2500){ clearTimeout(lobbyTm); lobbyTm=setTimeout(()=>syncLobby(true),2600); return; }
+  lobbyT=t; const m=S.meta;
+  if(m.vis!=="public"){ S.net.remove(`lobby/${S.code}`).catch(()=>{}); return; }
+  S.net.set(`lobby/${S.code}`,{t:m.title||`${pname(m.host)}'s room`,g:m.game,h:pname(m.host),a:pav(m.host),n:onlineUids().length,m:m.max||8,st:m.status||"lobby",ts:now()}).catch(()=>{});
+}
+function visTag(){
+  const m=S.meta; if(!m) return "";
+  const n=onlineUids().length, mx=m.max||8;
+  return `${m.vis==="public"?"🌍 Public":"🔒 Private"} · ${n}/${mx} players`;
+}
+function roomSettingsHTML(){
+  const m=S.meta, mx=m.max||8;
+  if(!S.host) return `<div class="ol-note">${E(visTag())}${m.vis==="public"?` · listed as “${E(m.title||pname(m.host)+"'s room")}”`:" · join with the code only"}</div>`;
+  return `<div class="panel"><div class="section-label"><span>Room settings</span><span>${E(visTag())}</span></div>
+    <div class="field"><span>Who can join</span><div class="seg" id="rs-vis"><button type="button" data-v="private" aria-pressed="${m.vis!=="public"}">🔒 Private · code only</button><button type="button" data-v="public" aria-pressed="${m.vis==="public"}">🌍 Public · anyone can find it</button></div></div>
+    <div class="field"><span>Max players</span><div class="seg" id="rs-max">${MAX_OPTS.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===mx}">${v}</button>`).join("")}</div></div>
+    ${m.vis==="public"?`<div class="field"><span>Room name in the public list</span><input id="rs-title" maxlength="28" value="${E(m.title||"")}" placeholder="${E(pname(m.host))}'s room" class="ol-text"></div>`:""}</div>`;
+}
+function bindRoomSettings(){
+  const v=q("rs-vis"); if(!v) return;
+  v.querySelectorAll("button").forEach(b=>b.onclick=()=>S.net.set(R("meta/vis"),b.dataset.v));
+  q("rs-max").querySelectorAll("button").forEach(b=>b.onclick=()=>{ const n=+b.dataset.v, cur=onlineUids().length; if(n<cur){ toast(`There are already ${cur} players here.`); return; } S.net.set(R("meta/max"),n); });
+  const t=q("rs-title"); if(t) t.onchange=()=>S.net.set(R("meta/title"),t.value.trim().slice(0,28)||null);
+}
+let pubSub=null, PUB={};
+function stopPub(){ if(pubSub){ pubSub(); pubSub=null; } }
+function pubRows(){ const t=now(); return Object.entries(PUB||{}).filter(([c,r])=>r&&r.n>0&&t-(r.ts||0)<3*60e3).sort((a,b)=>(a[1].st==="lobby"?-1:0)-(b[1].st==="lobby"?-1:0)||(b[1].n-a[1].n)); }
+function paintPub(){
+  const el=q("ol-pub"); if(!el) return;
+  const rows=pubRows();
+  el.innerHTML=rows.map(([c,r])=>{ const full=r.n>=r.m; return `<div class="ol-brow pub-row"><span class="ol-av">${E(r.a||"⚽")}</span><span class="nm">${E(r.t)}<small class="fr-st">${E((GAMES[r.g]||{}).name||"")} · host ${E(r.h)} · ${r.st==="playing"?"playing now":"in the lobby"}</small></span><span class="st">${r.n}/${r.m}</span><button class="btn${full?"":" primary"}" data-pj="${E(c)}" ${full?"disabled":""}>${full?"Full":"Join"}</button></div>`; }).join("")||`<p class="note" style="margin:0">No public rooms right now. Create one and it will show up here for everyone.</p>`;
+  el.querySelectorAll("[data-pj]").forEach(b=>b.onclick=()=>enterRoom(b.dataset.pj));
+  const qj=q("ol-quick"); if(qj) qj.disabled=!rows.some(([c,r])=>r.n<r.m);
+}
+function startPub(){ stopPub(); pubSub=S.net.on("lobby",v=>{ PUB=v||{}; paintPub(); }); }
+function quickJoin(){ const r=pubRows().find(([c,x])=>x.n<x.m); if(r) enterRoom(r[0]); else toast("No public room has space right now. Create one!"); }
+
+/* ================= Friends, invites, presence ================= */
+const SO={on:false,subs:[],code:null,friends:{},fusers:{},fsubs:{},reqIn:{},invites:{},seenInv:new Set(),dismissed:new Set(),ready:false};
+const FC_ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+async function socialStart(){
+  if(SO.on||!S.net||!S.net.auth.signedIn()||!S.profile.name) return;
+  SO.on=true; const uid=S.uid=S.net.uid(); ls.set("arc-online",true);
+  try{
+    const me=await S.net.get(`users/${uid}`)||{};
+    if(!me.code){ for(let i=0;i<12&&!me.code;i++){ const c=Array.from({length:6},()=>FC_ABC[Math.floor(Math.random()*FC_ABC.length)]).join(""); const r=await S.net.tx(`fcodes/${c}`,cur=>cur?undefined:uid); if(r.committed) me.code=c; } }
+    SO.code=me.code||"";
+    await S.net.update(`users/${uid}`,{n:S.profile.name,a:S.profile.av,code:SO.code,room:S.code||null});
+  }catch(e){ console.warn("social",e); }
+  SO.subs.push(S.net.presenceAt(`users/${uid}`,{on:true,last:"__TS__"},{on:false,last:"__TS__"}));
+  SO.subs.push(S.net.on(`friends/${uid}`,v=>{ SO.friends=v||{}; syncFriendSubs(); paintSocial(); }));
+  SO.subs.push(S.net.on(`freq/${uid}`,v=>{ const old=SO.reqIn; SO.reqIn=v||{};
+    Object.keys(SO.reqIn).forEach(f=>{ if(!old[f]&&SO.ready){ toast(`👥 ${SO.reqIn[f].n} sent you a friend request`); SFX.play("msg"); } }); paintSocial(); }));
+  SO.subs.push(S.net.on(`invites/${uid}`,v=>{ SO.invites=v||{}; paintInvites(); paintSocial(); }));
+  setTimeout(()=>{ SO.ready=true; },2000);
+  paintSocial();
+}
+function socialStop(){
+  SO.subs.forEach(f=>{ try{f();}catch(e){} }); SO.subs=[];
+  Object.values(SO.fsubs).forEach(f=>{ try{f();}catch(e){} }); SO.fsubs={};
+  if(S.uid) S.net.update(`users/${S.uid}`,{on:false,last:now()}).catch(()=>{});
+  Object.assign(SO,{on:false,friends:{},fusers:{},reqIn:{},invites:{},ready:false});
+  paintSocial(); paintInvites();
+}
+function setMyRoom(code){ if(SO.on) S.net.update(`users/${S.uid}`,{room:code||null}).catch(()=>{}); }
+function syncFriendSubs(){
+  Object.keys(SO.fsubs).forEach(f=>{ if(!SO.friends[f]){ SO.fsubs[f](); delete SO.fsubs[f]; delete SO.fusers[f]; } });
+  Object.keys(SO.friends).forEach(f=>{ if(!SO.fsubs[f]) SO.fsubs[f]=S.net.on(`users/${f}`,v=>{ const was=SO.fusers[f]&&SO.fusers[f].on; SO.fusers[f]=v||{}; if(SO.ready&&v&&v.on&&!was) toast(`🟢 ${v.n} is online`); paintSocial(); }); });
+}
+function statusOf(u){
+  if(!u||!u.n) return {on:false,txt:"Offline"};
+  if(u.on) return {on:true,txt:u.room?`Online · in room ${u.room}`:"Online now"};
+  return {on:false,txt:`Last seen ${ago(u.last)}`};
+}
+function freshInvites(){ const t=now(); return Object.entries(SO.invites||{}).filter(([f,i])=>i&&t-(i.ts||0)<15*60e3&&i.code!==S.code&&!SO.dismissed.has(f+i.ts)); }
+function paintInvites(){
+  let bar=q("ol-invbar"); const list=freshInvites();
+  if(!list.length){ if(bar) bar.remove(); return; }
+  const [f,i]=list.sort((a,b)=>b[1].ts-a[1].ts)[0];
+  if(!SO.seenInv.has(f+i.ts)){ SO.seenInv.add(f+i.ts); SFX.play("turn"); flashTitle(`🎮 ${i.n} invited you`); }
+  if(!bar){ bar=document.createElement("div"); bar.id="ol-invbar"; bar.className="ol-invbar"; bar.setAttribute("role","alert"); document.body.appendChild(bar); }
+  bar.innerHTML=`<span class="ol-av">${E(i.a)}</span><span class="t"><b>${E(i.n)}</b> invites you to play ${E(i.g||"")}<small>Room ${E(i.code)} · ${ago(i.ts)}</small></span><button class="btn" id="ib-join">Join</button><button class="btn ghost" id="ib-x" aria-label="Dismiss">✕</button>`;
+  q("ib-join").onclick=()=>{ S.net.remove(`invites/${S.uid}/${f}`); bar.remove(); location.hash="join-"+i.code; };
+  q("ib-x").onclick=()=>{ SO.dismissed.add(f+i.ts); S.net.remove(`invites/${S.uid}/${f}`); bar.remove(); };
+}
+async function addFriendByCode(raw){
+  const code=String(raw||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(code.length!==6) return toast("Friend codes have 6 characters.");
+  if(code===SO.code) return toast("That's your own code 😄");
+  const uid=await S.net.get(`fcodes/${code}`); if(!uid) return toast("No player has that friend code.");
+  return sendRequest(uid);
+}
+async function sendRequest(uid){
+  if(!SO.on) return toast("Sign in to add friends.");
+  if(uid===S.uid) return;
+  if(SO.friends[uid]) return toast("You're already friends.");
+  if(SO.reqIn[uid]) return acceptReq(uid);
+  await S.net.set(`freq/${uid}/${S.uid}`,{n:S.profile.name,a:S.profile.av,ts:now()});
+  const sent=ls.get("arc-sent",{}); sent[uid]=Date.now(); ls.set("arc-sent",sent);
+  toast("Friend request sent ✓"); paintSocial();
+}
+async function acceptReq(uid){
+  await S.net.set(`friends/${S.uid}/${uid}`,{since:now()});
+  await S.net.set(`friends/${uid}/${S.uid}`,{since:now()});
+  await S.net.remove(`freq/${S.uid}/${uid}`);
+  toast("You're now friends 🤝"); haptic("win");
+}
+const declineReq=uid=>S.net.remove(`freq/${S.uid}/${uid}`);
+async function removeFriend(uid){ await S.net.remove(`friends/${S.uid}/${uid}`); await S.net.remove(`friends/${uid}/${S.uid}`); toast("Friend removed"); }
+async function inviteFriend(uid){
+  if(!S.code) return toast("Create or join a room first, then invite friends.");
+  await S.net.set(`invites/${uid}/${S.uid}`,{code:S.code,n:S.profile.name,a:S.profile.av,g:(GAMES[S.meta.game]||{}).name||"",ts:now()});
+  toast(`Invite sent to ${(SO.fusers[uid]||{}).n||"your friend"} ✓`); haptic("ok");
+}
+function relation(uid){ if(SO.friends[uid]) return "friend"; if(SO.reqIn[uid]) return "incoming"; const s=ls.get("arc-sent",{}); if(s[uid]&&Date.now()-s[uid]<7*864e5) return "sent"; return "none"; }
+function friendsSorted(){ return Object.keys(SO.friends).map(u=>({u,d:SO.fusers[u]||{}})).sort((a,b)=>((b.d.on?1:0)-(a.d.on?1:0))||((b.d.last||0)-(a.d.last||0))); }
+function badgeCount(){ return Object.keys(SO.reqIn||{}).length+freshInvites().length; }
+function paintSocial(){
+  const n=badgeCount();
+  document.querySelectorAll(".fr-badge").forEach(b=>{ b.textContent=n||""; b.hidden=!n; });
+  const body=q("fr-body");
+  if(body&&S.view==="friends"){
+    const reqs=Object.entries(SO.reqIn||{}), fr=friendsSorted();
+    body.innerHTML=`${reqs.length?`<div class="panel"><h3 class="ol-h">Friend requests</h3>${reqs.map(([u,r])=>`<div class="ol-brow"><span class="ol-av">${E(r.a)}</span><span class="nm">${E(r.n)}<small class="fr-st">${ago(r.ts)}</small></span><button class="btn primary" data-acc="${E(u)}">Accept</button><button class="btn ghost" data-dec="${E(u)}">Decline</button></div>`).join("")}</div>`:""}
+      <div class="panel"><h3 class="ol-h">Your friends · ${fr.length}</h3>${fr.map(({u,d})=>{ const st=statusOf(d);
+        return `<div class="ol-brow fr-row"><span class="ol-av">${E(d.a||"⚽")}<i class="dot${st.on?" on":""}"></i></span><span class="nm">${E(d.n||"Player")}<small class="fr-st${st.on?" on":""}">${E(st.txt)}</small></span>
+          ${S.code&&d.room!==S.code?`<button class="btn" data-inv="${E(u)}">Invite</button>`:""}${d.on&&d.room&&d.room!==S.code?`<button class="btn primary" data-join="${E(d.room)}">Join</button>`:""}<button class="btn ghost" data-rm="${E(u)}" aria-label="Remove ${E(d.n||"friend")}">✕</button></div>`; }).join("")||`<p class="note" style="margin:0">No friends yet. Share your code, add someone's code above, or tap a player's name in any room.</p>`}</div>`;
+    body.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>acceptReq(b.dataset.acc));
+    body.querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>declineReq(b.dataset.dec));
+    body.querySelectorAll("[data-inv]").forEach(b=>b.onclick=()=>inviteFriend(b.dataset.inv));
+    body.querySelectorAll("[data-join]").forEach(b=>b.onclick=()=>{ location.hash="join-"+b.dataset.join; });
+    body.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ if(b.dataset.sure){ removeFriend(b.dataset.rm); } else { b.dataset.sure="1"; b.textContent="Remove?"; b.classList.remove("ghost"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.textContent="✕"; b.classList.add("ghost"); } },3000); } });
+  }
+  const inv=q("inv-friends"); if(inv) paintInviteFriends();
+}
+setInterval(()=>{ if(S.view==="friends") paintSocial(); if(S.view==="room") paintRoster(); },30000);
+function renderFriends(){
+  S.view="friends"; stopPub();
+  const main=q("ol-main");
+  main.innerHTML=`<h2 class="view-title">Friends</h2>
+    <div class="ol-two">
+      <div class="panel"><h3 class="ol-h">Your friend code</h3><div class="inv-code" style="text-align:left;font-size:40px">${E(SO.code||"……")}</div>
+        <p class="note" style="margin:0">Send it to friends so they can add you. ${S.net.auth.user()&&!S.net.auth.user().isAnonymous?"":"As a guest your friends are saved on this device; sign in with Google to keep them on every device."}</p>
+        <div class="actions"><button class="btn" id="fr-copy">Copy code</button>${navigator.share?`<button class="btn" id="fr-share">Share…</button>`:""}</div></div>
+      <div class="panel"><h3 class="ol-h">Add a friend</h3>
+        <form class="answer" id="fr-add"><input id="fr-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="Friend code" aria-label="Friend code" style="text-transform:uppercase;letter-spacing:.2em;font-weight:700"><button class="btn primary">Add</button></form>
+        <p class="note" style="margin:0">You can also tap a player's name in any room to add them.</p></div>
+    </div>
+    <div id="fr-body"></div>
+    <div class="actions"><a class="btn ghost" href="#online" style="text-decoration:none">← Play online</a></div>`;
+  const msg=`Add me on Matchday Arcade ⚽ My friend code: ${SO.code}`;
+  q("fr-copy").onclick=()=>{ try{ navigator.clipboard.writeText(SO.code).then(()=>toast("Friend code copied"),()=>toast(SO.code)); }catch(e){ toast(SO.code); } };
+  if(q("fr-share")) q("fr-share").onclick=()=>navigator.share({title:"Matchday Arcade",text:msg,url:location.origin+location.pathname+"#friends"}).catch(()=>{});
+  q("fr-add").onsubmit=e=>{ e.preventDefault(); addFriendByCode(q("fr-code").value); q("fr-code").value=""; };
+  paintSocial();
+}
+function paintInviteFriends(){
+  const el=q("inv-friends"); if(!el) return;
+  const fr=friendsSorted();
+  el.innerHTML=!SO.on?"":fr.length?fr.map(({u,d})=>{ const st=statusOf(d), here=d.room===S.code&&d.on;
+    return `<div class="ol-brow"><span class="ol-av">${E(d.a||"⚽")}<i class="dot${st.on?" on":""}"></i></span><span class="nm">${E(d.n||"Player")}<small class="fr-st${st.on?" on":""}">${E(here?"In this room":st.txt)}</small></span>${here?"":`<button class="btn${st.on?" primary":""}" data-fi="${E(u)}">Invite</button>`}</div>`; }).join("")
+    :`<p class="note" style="margin:0">No friends yet. <a href="#friends">Add friends</a> to invite them in one tap.</p>`;
+  el.querySelectorAll("[data-fi]").forEach(b=>b.onclick=()=>{ inviteFriend(b.dataset.fi); b.textContent="Sent ✓"; b.disabled=true; });
+}
+
+/* ================= Player card (tap a name in the room) ================= */
+function openPlayer(u){
+  const p=S.players[u]; if(!p) return;
+  const rel=relation(u), isMe=u===S.uid, host=S.host&&!isMe;
+  const st=p.online?"In the room now":`Away · last seen ${ago(p.seen)}`;
+  const o=dialog("pl-dlg",`${E(p.av)} ${E(p.name)}`,`
+    <p class="note" style="margin:0">${E(st)} · ${p.pts||0} points · ${p.wins||0} wins in this room${S.meta.host===u?" · 👑 host":""}</p>
+    <div class="actions">
+      ${isMe?`<span class="note">That's you!</span>`:!SO.on?`<span class="note">Sign in to add friends.</span>`:rel==="friend"?`<span class="tag ok">Friends ✓</span>`:rel==="incoming"?`<button class="btn primary" data-pa="acc">Accept friend request</button>`:rel==="sent"?`<span class="tag">Request sent</span>`:`<button class="btn primary" data-pa="add">👥 Add friend</button>`}
+      ${host?`<button class="btn" data-pa="host">Make host</button><button class="btn ghost" data-pa="kick">Remove from room</button>`:""}
+    </div>`);
+  o.querySelectorAll("[data-pa]").forEach(b=>b.onclick=async()=>{
+    const a=b.dataset.pa;
+    if(a==="add"){ await sendRequest(u); o.remove(); }
+    else if(a==="acc"){ await acceptReq(u); o.remove(); }
+    else if(a==="host"){ await S.net.set(R("meta/host"),u); sys(`👑 ${p.name} is now the host`); o.remove(); }
+    else if(a==="kick"){ if(!b.dataset.sure){ b.dataset.sure="1"; b.textContent=`Remove ${p.name}?`; return; }
+      await S.net.set(R(`kicked/${u}`),true); await S.net.remove(R(`players/${u}`)); sys(`${p.name} was removed from the room`); o.remove(); }
+  });
+}
+
 /* ================= Entry points ================= */
 async function open(h){
   shell();
@@ -1637,18 +1868,22 @@ async function open(h){
   modeBadge();
   if(h==="duel") return Duel.open();
   if(h==="whoami") return WhoSolo.open();
-  if(!S.net.auth.signedIn()||!S.profile.name) return renderSignIn();
+  if(S.view==="home"&&h!=="online") stopPub();
+  if(!S.net.auth.signedIn()||!S.profile.name){ stopPub(); return renderSignIn(); }
   S.uid=S.net.uid();
   const m=h.match(/^join-([A-Z]{5})$/);
   if(m) return enterRoom(m[1]);
+  socialStart();
   if(h==="leaders") return renderLeaders();
+  if(h==="friends") return renderFriends();
   if(S.code&&S.view!=="room"){ /* came back to the online home while still in a room */ }
   renderHome();
 }
 window.ONLINE={open};
 applyUI(); headerButtons(); paintRejoin();
+if(ls.get("arc-online",false)&&S.profile.name&&!/^#(online|friends|leaders|join-)/.test(location.hash)) getNet().then(n=>{ S.net=S.net||n; if(S.net.auth.signedIn()){ S.uid=S.net.uid(); socialStart(); } }).catch(()=>{});
 window.addEventListener("hashchange",()=>setTimeout(paintRejoin,0));
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 window.addEventListener("beforeunload",()=>{});
-if(/^#(online|duel|whoami|leaders|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
+if(/^#(online|duel|whoami|leaders|friends|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
 })();
