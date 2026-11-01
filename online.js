@@ -165,7 +165,7 @@ function shell(){
   root.innerHTML=`<div class="backbar"><button class="btn ghost" data-go="">← All games</button>
       <span class="ol-tools"><span class="ol-mode" id="ol-mode"></span><button class="btn ghost" id="ol-mute" aria-label="Sound on or off"></button></span></div>
     <div id="ol-main"></div>`;
-  const mute=q("ol-mute"); const paint=()=>mute.textContent=SFX.muted?"🔇 Sound off":"🔊 Sound on";
+  const mute=q("ol-mute"); const paint=()=>mute.innerHTML=SFX.muted?`🔇<span class="lbl"> Sound off</span>`:`🔊<span class="lbl"> Sound on</span>`;
   paint(); mute.onclick=()=>{ SFX.toggle(); paint(); SFX.play("ok"); };
 }
 function modeBadge(){
@@ -268,7 +268,7 @@ async function enterRoom(code,fresh){
   S.subs.push(S.net.onChild(R("chat"),(k,m)=>addChat(k,m)));
 }
 function roomClosed(){ toast("This room has closed."); teardown(); location.hash="online"; }
-function teardown(){ S.subs.forEach(f=>{ try{f();}catch(e){} }); S.subs=[]; Host.stop(); S.code=null; S.meta=null; S.game=null; S.view=null; clearTimeout(S.hostWait); S.hostWait=null; S.host=false; }
+function teardown(){ document.body.style.overflow=""; const pk=q("ol-peek"); if(pk) pk.remove(); S.subs.forEach(f=>{ try{f();}catch(e){} }); S.subs=[]; Host.stop(); S.code=null; S.meta=null; S.game=null; S.view=null; clearTimeout(S.hostWait); S.hostWait=null; S.host=false; }
 async function leaveRoom(silent){
   if(!S.code) return;
   const code=S.code, uid=S.uid, wasHost=S.meta&&S.meta.host===uid;
@@ -304,20 +304,53 @@ function addChat(k,m){
   if(!m) return; S.chat.push(m); if(S.chat.length>120) S.chat.shift();
   const fresh=now()-(m.ts||0)<6000;
   if(m.k==="r"){ if(fresh) floatEmoji(m.t); }
-  else if(fresh&&m.u!==S.uid&&m.k==="m"){ SFX.play("msg"); if(!S.chatOpen&&!wideChat()){ S.unread++; } }
+  else if(fresh&&m.u!==S.uid&&m.k==="m"){ SFX.play("msg"); if(!S.chatOpen&&!wideChat()){ S.unread++; peek(m); } }
   paintChat();
 }
+function peek(m){
+  const old=q("ol-peek"); if(old) old.remove();
+  const b=document.createElement("button"); b.type="button"; b.className="ol-peek"; b.id="ol-peek";
+  b.innerHTML=`<b>${E(m.a)} ${E(m.n)}</b><span>${E(m.t)}</span>`;
+  b.onclick=()=>{ b.remove(); openChat(); };
+  document.body.appendChild(b); clearTimeout(peek.t); peek.t=setTimeout(()=>b.remove(),4000);
+}
+function openChat(){
+  const box=q("ol-chatbox"); if(!box) return;
+  S.chatOpen=true; S.unread=0; box.classList.add("open"); const pk=q("ol-peek"); if(pk) pk.remove();
+  if(!wideChat()){ q("ol-backdrop").hidden=false; document.body.style.overflow="hidden"; }
+  fitChat(); paintChat(); const l=q("ol-msgs"); l.scrollTop=l.scrollHeight;
+}
+function closeChat(){
+  const box=q("ol-chatbox"); S.chatOpen=false; if(box) box.classList.remove("open");
+  if(q("ol-backdrop")) q("ol-backdrop").hidden=true; document.body.style.overflow="";
+  if(document.activeElement&&document.activeElement.id==="ol-chatin") document.activeElement.blur();
+}
+/* keep the chat sheet above the phone keyboard */
+function fitChat(){
+  const box=q("ol-chatbox"), vv=window.visualViewport; if(!box||!vv) return;
+  const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+  box.style.setProperty("--kb",kb+"px"); box.style.setProperty("--vvh",Math.max(240,vv.height-24)+"px");
+  if(S.chatOpen){ const l=q("ol-msgs"); if(l) l.scrollTop=l.scrollHeight; }
+}
+window.addEventListener("hashchange",()=>{ if(S.chatOpen) closeChat(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&S.chatOpen) closeChat(); });
+if(window.visualViewport){ visualViewport.addEventListener("resize",fitChat); visualViewport.addEventListener("scroll",fitChat); }
 const wideChat=()=>window.matchMedia&&matchMedia("(min-width: 960px)").matches;
 function paintChat(){
   const list=q("ol-msgs"); if(!list) return;
-  const atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<60;
+  const atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
+  let prev=null;
+  const hm=ts=>{ const d=new Date(ts||0); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
   list.innerHTML=S.chat.map(m=>{
-    if(m.k==="s") return `<div class="msg-s">${E(m.t)}</div>`;
-    if(m.k==="r") return `<div class="msg-r"><span>${E(m.a)} ${E(m.n)}</span> ${E(m.t)}</div>`;
-    return `<div class="msg${m.u===S.uid?" mine":""}"><span class="msg-who">${E(m.a)} ${E(m.n)}</span><span class="msg-t">${E(m.t)}</span></div>`;
+    let h;
+    if(m.k==="s") h=`<div class="msg-s">${E(m.t)}</div>`;
+    else if(m.k==="r") h=`<div class="msg-r"><span>${E(m.a)} ${E(m.n)}</span> ${E(m.t)}</div>`;
+    else { const cont=prev&&prev.k==="m"&&prev.u===m.u&&(m.ts-prev.ts)<120000;
+      h=`<div class="msg${m.u===S.uid?" mine":""}${cont?" cont":""}">${cont?"":`<span class="msg-who">${m.u===S.uid?"You":E(m.a)+" "+E(m.n)}<span class="msg-time">${hm(m.ts)}</span></span>`}<span class="msg-t">${E(m.t)}</span></div>`; }
+    prev=m; return h;
   }).join("")||`<div class="msg-s">Say hi 👋</div>`;
   if(atBottom||S.chat.length<3) list.scrollTop=list.scrollHeight;
-  const b=q("ol-chatbadge"); if(b){ b.textContent=S.unread||""; b.hidden=!S.unread; }
+  const b=q("ol-chatbadge"); if(b){ b.textContent=S.unread>9?"9+":(S.unread||""); b.hidden=!S.unread; }
 }
 
 /* ================= Room screen ================= */
@@ -340,14 +373,17 @@ function renderRoom(){
       <form class="ol-chatform" id="ol-chatform"><input id="ol-chatin" maxlength="200" autocomplete="off" placeholder="Message…" aria-label="Chat message"><button class="btn primary">Send</button></form>
     </aside>
     <button class="ol-fab" id="ol-fab" aria-label="Open chat">💬<b id="ol-chatbadge" hidden></b></button>
+    <div class="ol-backdrop" id="ol-backdrop" hidden></div>
   </div>`;
   q("ol-invite").onclick=()=>{ const link=location.origin+location.pathname+"#join-"+S.code; const done=()=>toast("Invite link copied. Send it to your friends!");
     try{ navigator.clipboard.writeText(`Join my Matchday Arcade room: ${link} (code ${S.code})`).then(done,()=>prompt?toast(link):0); }catch(e){ toast(link); } };
   q("ol-leave").onclick=async()=>{ await leaveRoom(); location.hash="online"; };
   q("ol-chatform").onsubmit=e=>{ e.preventDefault(); const v=q("ol-chatin").value.trim(); if(!v) return; q("ol-chatin").value=""; sendChat(v); };
   q("ol-chatbox").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>sendChat(b.dataset.r,"r"));
-  q("ol-fab").onclick=()=>{ S.chatOpen=true; S.unread=0; q("ol-chatbox").classList.add("open"); paintChat(); q("ol-chatin").focus(); };
-  q("ol-chatclose").onclick=()=>{ S.chatOpen=false; q("ol-chatbox").classList.remove("open"); };
+  q("ol-fab").onclick=openChat;
+  q("ol-chatclose").onclick=closeChat;
+  q("ol-backdrop").onclick=closeChat;
+  q("ol-chatin").addEventListener("focus",()=>setTimeout(fitChat,250));
   paintRoster(); paintChat(); refresh();
 }
 function paintRoster(){
@@ -368,10 +404,11 @@ function skel(st,key,html){ if(st.dataset.key!==key){ st.dataset.key=key; st.inn
 function renderLobby(st){
   const m=S.meta, g=GAMES[m.game], host=S.host;
   const fresh=skel(st,"lobby-"+m.game+"-"+host,`<div class="panel">
-    <div class="section-label"><span>${host?"Choose the game":"Next game"}</span><span>${host?"You're the host":"Host: "+E(pname(m.host))}</span></div>
+    <div class="section-label"><span>${host?"Choose the game":"Next game"}</span><span id="ol-hostlbl"></span></div>
     <div class="ol-games" id="ol-lg">${Object.entries(GAMES).map(([k,x])=>`<button type="button" class="ol-game" data-g="${k}" ${host?"":"disabled"}><span class="glyph">${x.icon}</span><span><b>${x.name}</b><small>${x.blurb}</small></span></button>`).join("")}</div>
     <div id="ol-sets"></div>
     <div class="actions" id="ol-start"></div></div>`);
+  q("ol-hostlbl").textContent=host?"You're the host":"Host: "+pname(m.host);
   st.querySelectorAll("#ol-lg button").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.g===m.game)); if(fresh&&host) b.onclick=()=>S.net.update(R("meta"),{game:b.dataset.g,settings:clone(GAMES[b.dataset.g].def)}); });
   const sets=q("ol-sets"); const cur=m.settings||g.def;
   sets.innerHTML=Object.entries(g.set).map(([k,opts])=>`<div class="field"><span>${k==="mode"?"Mode":k==="secs"?(m.game==="close"?"Time per turn (team mode)":"Time"):k==="cpus"?"Computer players":k==="level"?(m.game==="close"?"Secret player from":"CPU strength"):k==="era"?"Era":k==="hand"?"Cards each":k==="rounds"?"Rounds":"Scoring"}</span><div class="seg">${opts.map(([v,l])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${String(cur[k])===String(v)}" ${host?"":"disabled"}>${l}</button>`).join("")}</div></div>`).join("");
@@ -379,7 +416,7 @@ function renderLobby(st){
   const n=onlineUids().length, need=m.game==="linkup"?Math.max(0,2-n-Number(cur.cpus||0)):0;
   q("ol-start").innerHTML=host
     ?`<button class="btn primary go" id="ol-go" ${need?"disabled":""}>Start ${E(g.name)}</button><span class="note">${need?"Link Up needs 2 seats: invite a friend or add a CPU.":`${n} player${n>1?"s":""} in the room`}</span>`
-    :`<span class="note">Waiting for ${E(pname(m.host))} to start…</span>`;
+    :`<span class="note">Waiting for ${E(pname(m.host))} to start the game…</span>`;
   if(host&&q("ol-go")) q("ol-go").onclick=()=>startGame();
 }
 async function startGame(){

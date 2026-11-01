@@ -54,15 +54,19 @@
 .ol-chat{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:0}
 @media (min-width:960px){.ol-chat{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);height:calc(100vh - 140px);max-height:720px}.ol-chathead .btn,.ol-fab{display:none}}
 @media (max-width:959px){
-  .ol-chat{position:fixed;left:0;right:0;bottom:0;z-index:45;height:min(70vh,560px);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.25);transform:translateY(105%);transition:transform .22s ease;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
+  .ol-chat{position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:46;height:min(72vh,560px);height:min(72dvh,var(--vvh,560px),560px);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.25);transform:translateY(105%);transition:transform .22s ease;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
   .ol-chat.open{transform:none}
 }
 .ol-chathead{display:flex;justify-content:space-between;align-items:center;font-family:var(--label);letter-spacing:.08em;text-transform:uppercase}
-.ol-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:120px;padding-right:2px}
-.msg{display:flex;flex-direction:column;gap:1px;max-width:88%;align-self:flex-start;background:var(--sunk);border-radius:12px 12px 12px 4px;padding:6px 10px}
+.ol-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:120px;padding-right:2px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+/* each message keeps its natural height; the list scrolls instead of squeezing bubbles */
+.ol-msgs>*{flex-shrink:0}
+.msg{display:flex;flex-direction:column;gap:1px;max-width:85%;min-width:0;align-self:flex-start;background:var(--sunk);border-radius:14px 14px 14px 4px;padding:7px 11px;line-height:1.35}
+.msg.cont{margin-top:-3px}
+.msg-time{font-family:var(--label);font-size:11px;opacity:.65;margin-left:6px}
 .msg.mine{align-self:flex-end;background:var(--pitch);color:var(--pitch-ink);border-radius:12px 12px 4px 12px}
 .msg-who{font-family:var(--label);font-size:12px;letter-spacing:.04em;opacity:.8}
-.msg-t{overflow-wrap:anywhere}
+.msg-t{overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;font-size:15px}
 .msg-s{font-size:13px;color:var(--muted);text-align:center}
 .msg-r{font-size:13px;color:var(--muted)}
 .msg-r span{font-weight:600}
@@ -79,3 +83,27 @@
 @keyframes olfloat{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1;transform:translateY(-40px) scale(1.15)}100%{transform:translateY(-60vh) scale(1);opacity:0}}
 .ol-confetti{position:fixed;inset:0;z-index:59;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.ol-float{animation-duration:1.2s}.ol-chat{transition:none}}
+
+/* ---- phone polish ---- */
+.ol-backdrop{position:fixed;inset:0;z-index:45;background:rgba(5,15,10,.45)}
+.ol-peek{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 68px);z-index:44;max-width:min(78vw,320px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px 14px 4px 14px;padding:8px 12px;box-shadow:0 8px 22px rgba(0,0,0,.2);text-align:left;font-size:14px;line-height:1.3;animation:olpeek .2s ease-out}
+.ol-peek b{display:block;font-family:var(--label);font-size:12px;letter-spacing:.04em;color:var(--muted)}
+.ol-peek span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+@keyframes olpeek{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (min-width:960px){.ol-backdrop,.ol-peek{display:none}}
+@media (max-width:600px){
+  body:has(#v-online:not([hidden]) .ol-room) header .brand p{display:none}
+  body:has(#v-online:not([hidden]) .ol-room) header .brand h1{font-size:30px}
+  body:has(#v-online:not([hidden]) .ol-room) .wrap{gap:10px;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  .ol-code b{font-size:28px}
+  #ol-mute .lbl{display:none}
+  #v-online>.backbar{flex-wrap:nowrap}
+  .ol-mode{font-size:11px;padding:2px 8px}
+  .ol-roombar{gap:6px}
+  .ol-roombar .btn{padding:7px 10px;font-size:13px}
+  .ol-chip{font-size:13px}
+  .ol-reacts button{width:38px;height:38px;font-size:19px}
+  .ol-chatform input{height:44px}
+  .ol-chatform .btn{min-width:64px}
+}
+@media (prefers-reduced-motion:reduce){.ol-peek{animation:none}}
