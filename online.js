@@ -574,6 +574,7 @@ function revealCard(secret){
 const ENG={};
 
 /* ================= Guess the Player · race or team ================= */
+const GU_WAIT=20000;
 const CCR={key:null,turnKey:null,len:0};
 function ccCtx(g){
   if(CCR.key!==g.at){ CCR.key=g.at; CCR.secret=CC.PLAYERS[dec(g.sx)]; CCR.ctx=CC.rankFor(CCR.secret); CCR.mine=ss.get(`arc-cc-${S.code}-${g.at}`,{ids:[],hints:0}); CCR.last=null; CCR.pending=false; CCR.len=0; CCR.turnKey=null; }
@@ -592,22 +593,44 @@ ENG.close={
   },
   async hostTick(){
     const g=S.game; if(g.phase!=="play") return;
+    if(g.gu&&g.gu.st==="pending"&&now()-g.gu.ts>GU_WAIT){ const g2=clone(g); g2.gu.st="rejected"; g2.gu.by=""; await setGame(g2); return; }
     if(g.mode==="coop") return this.coopTick();
     if(g.players.some(u=>S.progress[u]&&S.progress[u].done)) return this.finish();
-    const act=g.players.filter(u=>S.players[u]&&S.players[u].online);
-    if(act.length&&act.every(u=>S.progress[u]&&S.progress[u].gaveUp)) return this.finish();
+    if(g.players.some(u=>S.progress[u])&&!this.stillIn(g).length) return this.finish();
   },
-  async finish(){
+  /* ---- give up = a request to the other players ---- */
+  stillIn(g){ const t=now(); return arr(g.players).filter(u=>{ const p=S.players[u]; if(!p) return false; const pr=S.progress[u]||{};
+    if(g.mode!=="coop"&&(pr.done||pr.gaveUp)) return false; return p.online||(t-(p.seen||0)<120000); }); },
+  voters(g){ return this.stillIn(g).filter(u=>u!==g.gu.from&&S.players[u].online); },
+  async guAction(a){
     const g=clone(S.game); if(g.phase!=="play") return;
-    g.phase="over";
-    if(g.mode!=="coop"){ const solvers=g.players.filter(u=>S.progress[u]&&S.progress[u].done).sort((a,b)=>S.progress[a].t-S.progress[b].t); g.winner=solvers[0]||""; }
+    if(a.type==="gu_req"){
+      if(g.gu&&g.gu.st==="pending") return;
+      g.gu={from:a.u,ts:now(),st:"pending",votes:{}};
+      if(!this.voters(g).length){ if(g.mode==="coop"){ g.gu=null; await setGame(g); return this.finish({draw:true}); } g.gu.st="alone"; await setGame(g); return; }
+      await setGame(g); sys(`🏳️ ${pname(a.u)} asks to give up. Waiting for an answer…`); return;
+    }
+    if(a.type==="gu_vote"){
+      if(!g.gu||g.gu.st!=="pending"||a.u===g.gu.from) return;
+      g.gu.votes=g.gu.votes||{}; g.gu.votes[a.u]=a.v;
+      if(a.v==="n"){ g.gu.st="rejected"; g.gu.by=a.u; await setGame(g); sys(`💪 ${pname(a.u)} wants to keep playing`); return; }
+      if(this.voters(g).every(u=>g.gu.votes[u]==="y")){ g.gu.st="accepted"; await setGame(g); return this.finish({draw:true}); }
+      await setGame(g); return;
+    }
+    if(a.type==="gu_clear"&&g.gu&&g.gu.from===a.u){ g.gu=null; await setGame(g); }
+  },
+  async finish(o){
+    const g=clone(S.game); if(g.phase!=="play") return;
+    g.phase="over"; g.gu=null; if(o&&o.draw) g.draw=true;
+    if(g.mode!=="coop"&&!g.draw){ const solvers=g.players.filter(u=>S.progress[u]&&S.progress[u].done).sort((a,b)=>S.progress[a].t-S.progress[b].t); g.winner=solvers[0]||""; }
     await setGame(g);
-    const name=CC.PLAYERS[dec(g.sx)].name;
-    if(g.winner){
+    // the answer is shown on the result card only; never in chat
+    if(g.draw){ const ps=arr(g.players).filter(u=>S.players[u]); await award(ps,1,false); sys(`🤝 Draw! Everyone agreed to stop. The answer is on screen.`); }
+    else if(g.winner){
       await award([g.winner],3,true);
-      if(g.mode==="coop"){ await award(g.order.filter(u=>u!==g.winner),1,false); sys(`🤝 Team win! ${pname(g.winner)} named ${name} after ${arr(g.guesses).length} team guess${arr(g.guesses).length===1?"":"es"}`); }
-      else sys(`🏁 ${pname(g.winner)} found ${name} first and wins the race!`);
-    } else sys(`The secret player was ${name}`);
+      if(g.mode==="coop"){ await award(g.order.filter(u=>u!==g.winner),1,false); sys(`🤝 Team win! ${pname(g.winner)} found it after ${arr(g.guesses).length} team guess${arr(g.guesses).length===1?"":"es"}`); }
+      else sys(`🏁 ${pname(g.winner)} found the secret player first and wins the race!`);
+    } else sys(`Round over. The answer is on screen.`);
   },
   /* ---- team mode (host side) ---- */
   coopAdvance(g){
@@ -623,6 +646,7 @@ ENG.close={
     }
   },
   async hostAction(a){
+    if(a.type&&a.type.startsWith("gu_")) return this.guAction(a);
     const g0=S.game; if(g0.mode!=="coop"||g0.phase!=="play"||g0.order[g0.turn]!==a.u) return;
     const g=clone(g0); g.guesses=arr(g.guesses);
     const c=ccCtx(g), used=x=>g.guesses.some(y=>y.id===x.id); let id;
@@ -657,9 +681,54 @@ ENG.close={
     else { SFX.play(rank<=50?"ok":"draw"); if(r.best<=10&&(!r.prevBest||r.prevBest>10)) sys(`🔥 ${S.profile.name} is in the top 10!`); }
     this.fb(""); refresh();
   },
+  askGiveUp(){
+    const g=S.game, c=ccCtx(g); if(g.phase!=="play"||c.mine.gaveUp) return;
+    if(g.gu&&g.gu.st==="pending") return;
+    act("gu_req"); this.fb(g.mode==="coop"?"Asking the team…":"Asking the other players…");
+  },
+  giveUpAlone(){
+    const g=S.game, c=ccCtx(g); if(c.mine.gaveUp) return;
+    c.mine.gaveUp=true; this.save(g);
+    const others=this.stillIn(g).filter(u=>u!==S.uid);
+    sys(`🏳️ ${S.profile.name} gave up${others.length?` · ${others.map(pname).join(" & ")} keep${others.length===1?"s":""} playing`:""}`);
+    act("gu_clear"); refresh();
+  },
+  paintGU(){
+    const g=S.game, gu=g&&g.gu, me=S.uid;
+    const close=()=>{ const o=q("gu-dlg"); if(o) o.remove(); };
+    if(!gu||g.phase!=="play"){ close(); return; }
+    const show=(key,html,bind)=>{ let o=q("gu-dlg"); if(o&&o.dataset.k===key) return o; if(o) o.remove();
+      o=document.createElement("div"); o.className="overlay"; o.id="gu-dlg"; o.dataset.k=key;
+      o.innerHTML=`<div class="dialog gu" role="alertdialog" aria-modal="true" aria-labelledby="gu-t">${html}</div>`; document.body.appendChild(o); bind(o); return o; };
+    const secs=()=>Math.max(0,Math.ceil((gu.ts+GU_WAIT-now())/1000));
+    if(gu.st==="pending"&&gu.from!==me){
+      const can=this.voters(g).includes(me);
+      if(!can){ close(); return; }
+      if((gu.votes||{})[me]){ close(); return; }
+      const o=show("ask"+gu.ts,`<h3 id="gu-t">🏳️ ${E(pname(gu.from))} wants to give up</h3>
+        <p style="margin:0">${g.mode==="coop"?"End the game now? Nobody wins and the answer is revealed.":"Accept and the game ends in a <b>draw</b>. Refuse and you keep playing: if you find the player, you win."}</p>
+        <p class="note" style="margin:0" id="gu-left"></p>
+        <div class="actions"><button class="btn primary" data-v="y">🤝 ${g.mode==="coop"?"Yes, stop":"Accept draw"}</button><button class="btn" data-v="n">💪 Keep playing</button></div>`,
+        o=>{ o.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{ act("gu_vote",{v:b.dataset.v}); o.remove(); }); SFX.play("turn"); });
+      const l=o.querySelector("#gu-left"); if(l) l.textContent=`No answer in ${secs()}s counts as “keep playing”.`;
+      return;
+    }
+    if(gu.from===me&&(gu.st==="rejected"||gu.st==="alone")){
+      if(g.mode==="coop"){ show("rej"+gu.ts,`<h3 id="gu-t">💪 The team wants to keep going</h3><p style="margin:0">${gu.by?`${E(pname(gu.by))} said no.`:"Nobody answered in time."} Keep guessing together!</p><div class="actions"><button class="btn primary" data-ok>OK</button></div>`,
+        o=>{ o.querySelector("[data-ok]").onclick=()=>{ act("gu_clear"); o.remove(); }; }); return; }
+      if(gu.st==="alone"){ close(); this.giveUpAlone(); return; }
+      show("rej"+gu.ts,`<h3 id="gu-t">💪 ${gu.by?`${E(pname(gu.by))} wants to keep playing`:"No answer"}</h3>
+        <p style="margin:0">${gu.by?"They refused the draw.":"Nobody answered in time."} You can give up alone: they keep playing, and you'll see the answer when the round ends.</p>
+        <div class="actions"><button class="btn primary" data-a="alone">🏳️ Give up alone</button><button class="btn" data-a="stay">Keep playing</button></div>`,
+        o=>{ o.querySelector('[data-a="alone"]').onclick=()=>{ o.remove(); this.giveUpAlone(); }; o.querySelector('[data-a="stay"]').onclick=()=>{ o.remove(); act("gu_clear"); this.fb(""); }; SFX.play("bad"); });
+      return;
+    }
+    if(gu.from===me&&gu.st==="pending"){ this.fb(`⏳ Waiting for an answer to your give-up request… ${secs()}s`); close(); return; }
+    close();
+  },
   fb(t,err){ const f=q("cc-fb"); if(f){ f.textContent=t; f.className="feedback"+(err?" err":""); } },
   overHTML(g){
-    const head=g.winner?(g.mode==="coop"?`🤝 Team win · found by ${E(pname(g.winner))}`:`🏁 ${E(pname(g.winner))} wins the race`):"Nobody found it this time";
+    const head=g.draw?"🤝 Draw · everyone agreed to stop":g.winner?(g.mode==="coop"?`🤝 Team win · found by ${E(pname(g.winner))}`:`🏁 ${E(pname(g.winner))} wins the race`):"Nobody found it this time";
     return `<div class="prompt"><span class="who">Guess the Player · ${g.mode==="coop"?"team mode":"race"}</span><span class="cat">${head}</span></div>
       <div id="cc-reveal"></div><div class="section-label"><span>${g.mode==="coop"?"Team guesses":"Final standings"}</span></div><div class="${g.mode==="coop"?"list":"ol-board"}" id="cc-board"></div>
       <div class="section-label"><span>Closest players</span></div><div class="nearest" id="cc-near"></div><div id="cc-end"></div>`;
@@ -682,8 +751,8 @@ ENG.close={
     if(skel(st,"cc-play-"+g.at,`<div class="prompt"><span class="who">Guess the Player · race${themeTag(g)}</span><span class="cat">First to find the secret footballer wins</span></div>
       <div class="ol-board" id="cc-board"></div>
       ${inGame?`<div class="search"><input id="cc-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a player's name…" aria-label="Guess a player"><div class="suggest" id="cc-sug" role="listbox" hidden></div></div>
-      <div class="actions"><button class="btn" id="cc-hint">Closer player</button><button class="btn ghost" id="cc-give">Give up</button>${S.host?`<button class="btn ghost" id="cc-end">Reveal for everyone</button>`:""}</div>`
-      :`<div class="ol-note">You joined during this round. You'll play from the next one. Watch the race and chat meanwhile.</div>${S.host?`<div class="actions"><button class="btn ghost" id="cc-end">Reveal for everyone</button></div>`:""}`}
+      <div class="actions"><button class="btn" id="cc-hint">Closer player</button><button class="btn ghost" id="cc-give">Give up</button></div>`
+      :`<div class="ol-note">You joined during this round. You'll play from the next one. Watch the race and chat meanwhile.</div>`}
       <div class="feedback" id="cc-fb" aria-live="polite"></div>
       <div class="section-label"><span>Your guesses, closest first</span><span id="cc-best"></span></div>
       <div class="list" id="cc-list"></div>`)){
@@ -692,13 +761,15 @@ ENG.close={
         q("cc-hint").onclick=()=>{ const best=mine.ids.length?Math.min(...mine.ids.map(i=>c.ctx.ranks[i])):CC.N+1;
           if(best<=2){ this.fb("You're as close as a hint can get you.",true); return; }
           const p=closerPick(c.ctx,best,x=>mine.ids.includes(x.id)); if(!p) return; mine.hints++; this.guess(p); this.fb(`Hint: ${p.name} is #${c.ctx.ranks[p.id]}.`); };
-        q("cc-give").onclick=()=>{ if(mine.gaveUp) return; mine.gaveUp=true; this.save(g); sys(`🏳️ ${S.profile.name} gave up`); refresh(); };
+        q("cc-give").onclick=()=>this.askGiveUp();
       }
       if(q("cc-end")) q("cc-end").onclick=()=>Host.run(()=>this.finish());
       if(q("cc-in")) q("cc-in").focus();
     }
     const done=mine.ids.includes(secret.id)||mine.gaveUp;
-    if(q("cc-in")){ q("cc-in").disabled=done; q("cc-in").placeholder=done?"You gave up. Waiting for the others…":"Type a player's name…"; q("cc-hint").disabled=done; q("cc-give").disabled=done; }
+    const asking=g.gu&&g.gu.from===S.uid&&g.gu.st==="pending";
+    if(q("cc-in")){ q("cc-in").disabled=done; q("cc-in").placeholder=mine.gaveUp?"You gave up. The answer appears when the round ends.":"Type a player's name…"; q("cc-hint").disabled=done; q("cc-give").disabled=done||asking; q("cc-give").textContent=asking?"Waiting for answer…":"Give up"; }
+    this.paintGU();
     const ids=mine.ids, sorted=[...ids].sort((a,b)=>c.ctx.ranks[a]-c.ctx.ranks[b]);
     const lat=c.last!=null&&ids.length>1, order=lat?[c.last,...sorted]:sorted;
     q("cc-list").innerHTML=order.map((id,i)=>{ const p=CC.PLAYERS[id]; return ccRow(p,secret,c.ctx.ranks[id],(i===0&&lat?"Latest · ":"")+p.name,i===0&&lat); }).join("")||`<div class="empty">Each guess shows how close it is to the secret player: #${CC.fmt(CC.N)} means no link, #1 is the answer.</div>`;
@@ -711,17 +782,19 @@ ENG.close={
       <div class="seats" id="cq-seats"></div>
       <div id="cq-clock"></div>
       ${inGame?`<div class="search"><input id="cc-in" type="text" autocomplete="off" spellcheck="false" aria-label="Guess a player"><div class="suggest" id="cc-sug" role="listbox" hidden></div></div>
-      <div class="actions"><button class="btn" id="cq-hint">Closer player (uses your turn)</button>${S.host?`<button class="btn ghost" id="cc-end">Reveal answer</button>`:""}</div>`
-      :`<div class="ol-note">You joined during this round. You'll play from the next one.</div>${S.host?`<div class="actions"><button class="btn ghost" id="cc-end">Reveal answer</button></div>`:""}`}
+      <div class="actions"><button class="btn" id="cq-hint">Closer player (uses your turn)</button><button class="btn ghost" id="cc-give">Give up (ask the team)</button></div>`
+      :`<div class="ol-note">You joined during this round. You'll play from the next one.</div>`}
       <div class="feedback" id="cc-fb" aria-live="polite"></div>
       <div class="section-label"><span>Team guesses, closest first</span><span id="cq-best"></span></div>
       <div class="list" id="cc-board"></div>`)){
       if(inGame){
         ccSearch(q("cc-in"),q("cc-sug"),p=>this.guess(p),p=>arr(S.game.guesses).some(x=>x.id===p.id));
         q("cq-hint").onclick=()=>{ if(S.game.order[S.game.turn]!==S.uid||c.pending) return; c.pending=true; act("cchint"); };
+        q("cc-give").onclick=()=>this.askGiveUp();
       }
-      if(q("cc-end")) q("cc-end").onclick=()=>Host.run(()=>this.finish());
     }
+    if(q("cc-give")){ const asking=g.gu&&g.gu.st==="pending"; q("cc-give").disabled=!!asking; q("cc-give").textContent=asking&&g.gu.from===S.uid?"Waiting for the team…":"Give up (ask the team)"; }
+    this.paintGU();
     const cur=g.order[g.turn];
     q("cq-who").textContent=my?"Your turn: make a guess":`${pname(cur)} is guessing…`;
     q("cq-seats").innerHTML=g.order.map((u,i)=>`<span class="seat${i===g.turn?" on":""}">${E(pav(u))} ${E(pname(u))}${S.players[u]&&S.players[u].online?"":" 💤"}</span>`).join("");
@@ -741,12 +814,13 @@ ENG.close={
     const g=S.game, el=q("cc-board"); if(!el||g.mode==="coop") return;
     const rows=g.players.map(u=>({u,p:S.progress[u]||{}})).sort((a,b)=>{
       const A=a.p,B=b.p; if(!!A.done!==!!B.done) return A.done?-1:1; if(A.done) return A.t-B.t; if(!!A.gaveUp!==!!B.gaveUp) return A.gaveUp?1:-1; return (A.b||1e9)-(B.b||1e9); });
-    el.innerHTML=rows.map(({u,p})=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${p.done?`✓ found it · ${p.g} guesses${p.h?` · ${p.h} hints`:""}`:p.gaveUp?"gave up":p.g?`best #${CC.fmt(p.b)} · ${p.g} guesses`:"thinking…"}</span>${p.done&&u===g.winner?`<span class="medal">🏆</span>`:""}</div>`).join("");
+    el.innerHTML=rows.map(({u,p})=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${p.done?`✓ found it · ${p.g} guess${p.g===1?"":"es"}${p.h?` · ${p.h} hints`:""}`:p.gaveUp?"gave up":p.g?`best #${CC.fmt(p.b)} · ${p.g} guess${p.g===1?"":"es"}`:"thinking…"}</span>${p.done&&u===g.winner?`<span class="medal">🏆</span>`:""}</div>`).join("");
   },
+  clientTick(){ const g=S.game; if(g&&g.kind==="close"&&g.gu&&g.phase==="play") this.paintGU(); },
   onChange(old,g){
     const c=ccCtx(g);
     if(old&&old.phase==="play"&&g.phase==="over"){
-      if(g.mode==="coop"&&g.winner){ SFX.play("win"); confetti(); }
+      if(g.draw) SFX.play("ok"); else if(g.mode==="coop"&&g.winner){ SFX.play("win"); confetti(); }
       else if(g.winner===S.uid){ SFX.play("win"); confetti(); }
       else if(g.winner) SFX.play("bad");
       return;

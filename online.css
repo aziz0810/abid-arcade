@@ -172,3 +172,4 @@ button.ol-chip:hover{border-color:var(--pitch)}
 .ol-invbar .btn{background:var(--pitch-ink);color:var(--pitch);border-color:transparent}
 .ol-invbar .btn.ghost{background:transparent;color:var(--pitch-ink);border-color:currentColor}
 @media (prefers-reduced-motion:reduce){.ol-invbar{animation:none}}
+.dialog.gu{max-width:440px}
