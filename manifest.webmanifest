@@ -1,0 +1,16 @@
+{
+  "name": "Matchday Arcade",
+  "short_name": "Matchday",
+  "description": "Football naming games: Guess the Player, 30 Seconds, Letter Rush, Name Chain, Link Up and Who Am I. Play online with friends or on one device.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e9eee8",
+  "theme_color": "#14603c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -107,3 +107,47 @@
   .ol-chatform .btn{min-width:64px}
 }
 @media (prefers-reduced-motion:reduce){.ol-peek{animation:none}}
+
+/* ---- invite, typing, quick chat, cheers ---- */
+.inv-code{font-family:var(--display);font-weight:900;font-size:48px;letter-spacing:.18em;text-align:center;line-height:1}
+.inv-qr{align-self:center;width:min(240px,70vw);aspect-ratio:1;max-width:100%;background:#fff;border-radius:12px;padding:8px;display:grid;place-items:center}
+.inv-qr svg{width:100%;height:100%}
+.inv-link{width:100%;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 10px;font-size:14px;color:var(--muted)}
+.ol-typing{flex:1;font-family:var(--body);text-transform:none;letter-spacing:0;font-size:13px;color:var(--muted);margin-left:10px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ol-tt{font-size:13px;opacity:.85;margin-left:6px}
+.ol-tt:empty{display:none}
+.ol-quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.ol-quick::-webkit-scrollbar{display:none}
+.ol-quick button{flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 11px;font-size:13px;white-space:nowrap}
+.ol-quick button:active{transform:scale(.95)}
+.ol-cheer{gap:8px}
+.ol-cheerrow{display:flex;flex-direction:column;gap:6px}
+.ol-cheerp{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ol-cheerp .nm{font-weight:600}
+.ol-cheerp button{border:1px solid var(--line);background:var(--bg);border-radius:10px;width:40px;height:38px;font-size:19px;margin-left:4px}
+.ol-cheerp button:active{transform:scale(.9)}
+/* ---- who am i ---- */
+.clues{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;counter-reset:clue}
+.clues li{counter-increment:clue;display:flex;gap:10px;align-items:baseline;padding:9px 12px;border-radius:10px;background:var(--sunk);color:var(--muted);font-size:15px}
+.clues li::before{content:counter(clue);font-family:var(--display);font-weight:800;font-size:18px;min-width:1.4ch;color:var(--muted)}
+.clues li.on{background:var(--surface);border:1px solid var(--line);color:var(--ink);animation:olclue .35s ease-out}
+.clues li.on::before{color:var(--pitch)}
+.clues li.next{background:transparent;border:1px dashed var(--line);font-style:italic}
+.clues li.next::before{content:"…"}
+#ol-champ:empty{display:none}
+@keyframes olclue{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#wa-clock .note{white-space:nowrap}
+/* ---- tournament ---- */
+.ol-tourbox{display:flex;flex-direction:column;gap:8px}
+.ol-tourbox .section-label span:last-child{text-transform:none;letter-spacing:.02em}
+.ol-tourset select,#ws-theme{height:40px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 8px;font-size:15px;max-width:100%}
+.ol-champ{text-align:center;align-items:center}
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end;width:100%;max-width:420px}
+.pod{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.pod b{overflow-wrap:anywhere;font-size:14px}
+.pod .step{width:100%;display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:28px;color:var(--pitch-ink);background:var(--pitch);border-radius:10px 10px 0 0}
+.pod.p1 .step{height:96px;background:#c08400}
+.pod.p2 .step{height:70px}
+.pod.p3 .step{height:52px;opacity:.85}
+.pod small{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.clues li.on{animation:none}}

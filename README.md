@@ -12,7 +12,9 @@ Five free football games, built on 7,208 real players. Play **online with friend
 | **Name Chain** | Each name starts with the last letter of the previous one (Cristiano Ronaldo → Onana → …). Vs CPU, pass & play, or solo. |
 | **Link Up** | A card game: play a card by naming a player who links it to the one on the table (Man United → Real Madrid: Cristiano Ronaldo). Clubs, nations, leagues, coaches, Ballon d'Or, Champions League. |
 
-Plus **Guess the Player Duel**: 2–4 players on one device take turns hunting the same secret player.
+Plus **Guess the Player Duel** (2–4 players on one device) and **Who Am I?**: clues about a mystery footballer appear one by one, and naming them earlier scores more points (solo or online).
+
+**App & comfort:** install it as an app (Add to Home Screen; the same-device games then work offline). The ⚙ Settings menu has dark mode, a bigger-text option, and sound and vibration switches. When it's your turn and the app is in the background, the browser tab title flashes.
 
 ## Online play
 
@@ -26,6 +28,11 @@ Plus **Guess the Player Duel**: 2–4 players on one device take turns hunting t
   - **Link Up**: private hands, and CPUs can fill empty seats.
 - The host's browser runs the game. If the host leaves or their phone locks, another player takes over automatically.
 - Room points and wins are tracked on the player chips.
+- **Invite** opens your phone's share sheet and shows a **QR code** friends can scan. A **rejoin banner** takes you back to your last room after a reload.
+- **Chat extras:** live "typing…" indicator (also shown for the player whose turn it is), one-tap quick phrases, and cheers that late joiners can send while they watch.
+- **Themes** for Guess the Player, 30 Seconds, Letter Rush, Name Chain and Who Am I?: Premier League, LaLiga, Serie A, Bundesliga, Ligue 1, Saudi Pro League, Arab footballers, African players, South Americans, Legends, New generation.
+- **Tournament mode:** the host picks several games, and everyone plays them back to back for tournament points (5/3/2, then 1 for taking part). The tournament ends with a champion podium.
+- **Leaderboards:** this month's top online players (from points won in rooms) and today's fastest Daily Guess the Player solvers.
 
 Until Firebase is configured, **Play online** runs in *demo mode*: rooms only work between tabs of the same browser.
 
@@ -36,7 +43,7 @@ Online play uses Firebase Realtime Database (free Spark plan, no credit card).
 1. Go to https://console.firebase.google.com → **Add project** (Analytics can stay off).
 2. **Build → Authentication → Get started → Sign-in method**: enable **Anonymous**, and enable **Google** (pick a support email).
 3. **Authentication → Settings → Authorized domains → Add domain**: `aziz0810.github.io`.
-4. **Build → Realtime Database → Create database** (any location, start in **locked mode**). Open the **Rules** tab, paste the contents of [`database.rules.json`](database.rules.json), and click **Publish**.
+4. **Build → Realtime Database → Create database** (any location, start in **locked mode**). Open the **Rules** tab, paste the contents of [`database.rules.json`](database.rules.json), and click **Publish**. Do this again whenever `database.rules.json` changes (the leaderboards need the latest version).
 5. **Project settings** (gear icon) → **Your apps** → web icon `</>` → register an app → copy the `firebaseConfig` object.
 6. In [`firebase-config.js`](firebase-config.js), replace `null` with that object. Make sure it includes `databaseURL` (if not, copy it from the Realtime Database page). Commit, and the site updates in about a minute.
 
@@ -50,6 +57,7 @@ The web config values are not secret: access is controlled by the database rules
 | `online.js`, `online.css` | Online rooms, chat, and the online versions of the games. |
 | `firebase-config.js` | Your Firebase settings (empty = demo mode). |
 | `database.rules.json` | Security rules to paste into Firebase. |
+| `manifest.webmanifest`, `sw.js`, `icons/` | Make the site installable as an app and available offline. |
 | `tools/` | Scripts that build `index.html` from the player data. |
 
 ## Data
