@@ -964,7 +964,7 @@ function route(){
   stopAll();
   ["hub","online","close","timed","chain","linkup"].forEach(v=>$("v-"+v).hidden=true);
   if(h==="thirty"||h==="letters"){ $("v-timed").hidden=false; openTimed(h); }
-  else if(h==="online"||h==="duel"||h==="whoami"||h==="leaders"||/^join-[A-Z]{5}$/.test(h)){ $("v-online").hidden=false; if(window.ONLINE) window.ONLINE.open(h); else $("v-online").innerHTML='<p class="note">Online play needs the full site (online.js), so it isn\'t available in this preview.</p>'; }
+  else if(h==="online"||h==="duel"||h==="whoami"||h==="leaders"||h==="friends"||/^join-[A-Z]{5}$/.test(h)){ $("v-online").hidden=false; if(window.ONLINE) window.ONLINE.open(h); else $("v-online").innerHTML='<p class="note">Online play needs the full site (online.js), so it isn\'t available in this preview.</p>'; }
   else if(h==="close"){ $("v-close").hidden=false; window.openCloseControl&&window.openCloseControl(); }
   else if(h==="chain"){ $("v-chain").hidden=false; openChain(); }
   else if(h==="linkup"){ $("v-linkup").hidden=false; openLinkup(); }
