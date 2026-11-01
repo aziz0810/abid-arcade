@@ -32,18 +32,20 @@ Plus **Guess the Player Duel** (2–4 players on one device) and **Who Am I?**: 
 - **Chat extras:** live "typing…" indicator (also shown for the player whose turn it is), one-tap quick phrases, and cheers that late joiners can send while they watch.
 - **Themes** for Guess the Player, 30 Seconds, Letter Rush, Name Chain and Who Am I?: Premier League, LaLiga, Serie A, Bundesliga, Ligue 1, Saudi Pro League, Arab footballers, African players, South Americans, Legends, New generation.
 - **Tournament mode:** the host picks several games, and everyone plays them back to back for tournament points (5/3/2, then 1 for taking part). The tournament ends with a champion podium.
+- **Public or private rooms:** private rooms are joined by code only. Public rooms appear in a live list on the Play online screen (with ⚡ Quick join). The host sets the room size (2–20 players) and can change it later, give the host role to someone else, or remove a player.
+- **Friends:** every player gets a 6-character friend code. Add friends by code, or by tapping a name in a room. You can accept or decline requests, invite friends to your room (they get a banner anywhere on the site), join a friend's room, and see their status: online, in a room, or "last seen 12 min ago". In rooms, away players show how long they've been gone.
 - **Leaderboards:** this month's top online players (from points won in rooms) and today's fastest Daily Guess the Player solvers.
 
 Until Firebase is configured, **Play online** runs in *demo mode*: rooms only work between tabs of the same browser.
 
 ## Turn on online play (free, about 5 minutes)
 
-Online play uses Firebase Realtime Database (free Spark plan, no credit card).
+Online play uses Firebase Realtime Database (free Spark plan, no credit card). The free plan allows **100 people connected at the same time** across the whole site, 1 GB stored and 10 GB downloaded per month. That's why rooms are capped at 20 players. If you grow past that, upgrading to the pay-as-you-go Blaze plan removes the connection limit.
 
 1. Go to https://console.firebase.google.com → **Add project** (Analytics can stay off).
 2. **Build → Authentication → Get started → Sign-in method**: enable **Anonymous**, and enable **Google** (pick a support email).
 3. **Authentication → Settings → Authorized domains → Add domain**: `aziz0810.github.io`.
-4. **Build → Realtime Database → Create database** (any location, start in **locked mode**). Open the **Rules** tab, paste the contents of [`database.rules.json`](database.rules.json), and click **Publish**. Do this again whenever `database.rules.json` changes (the leaderboards need the latest version).
+4. **Build → Realtime Database → Create database** (any location, start in **locked mode**). Open the **Rules** tab, paste the contents of [`database.rules.json`](database.rules.json), and click **Publish**. Do this again whenever `database.rules.json` changes (leaderboards, friends and public rooms all need the latest version).
 5. **Project settings** (gear icon) → **Your apps** → web icon `</>` → register an app → copy the `firebaseConfig` object.
 6. In [`firebase-config.js`](firebase-config.js), replace `null` with that object. Make sure it includes `databaseURL` (if not, copy it from the Realtime Database page). Commit, and the site updates in about a minute.
 

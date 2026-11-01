@@ -48,6 +48,49 @@
           ".validate": "newData.hasChildren(['n', 'g']) && newData.child('g').isNumber()"
         }
       }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "fcodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && !data.exists() && newData.val() === auth.uid"
+      }
+    },
+    "freq": {
+      "$to": {
+        ".read": "auth != null && auth.uid === $to",
+        "$from": {
+          ".read": "auth != null && auth.uid === $from",
+          ".write": "auth != null && (auth.uid === $from || (auth.uid === $to && !newData.exists()))"
+        }
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$f": {
+          ".write": "auth != null && (auth.uid === $uid || (auth.uid === $f && (!newData.exists() || root.child('freq').child($f).child($uid).exists())))"
+        }
+      }
+    },
+    "invites": {
+      "$to": {
+        ".read": "auth != null && auth.uid === $to",
+        "$from": {
+          ".write": "auth != null && (auth.uid === $from || (auth.uid === $to && !newData.exists()))"
+        }
+      }
+    },
+    "lobby": {
+      ".read": "auth != null",
+      "$code": {
+        ".write": "auth != null && (root.child('rooms').child($code).child('meta/host').val() === auth.uid || !root.child('rooms').child($code).exists())"
+      }
     }
   }
 }
