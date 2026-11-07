@@ -562,7 +562,7 @@ function ccSearch(inputEl,sugEl,onPick,isUsed){
 }
 function ccRow(p,secret,rank,label,latest){
   const t=CC.tone(rank);
-  return `<div class="row${latest?" latest":""}"><span class="fill" style="width:${CC.fillPct(rank)}%;background:var(${t})"></span><div class="who"><span class="nm">${E(label)}</span>${p.id===secret.id?"":CC.chipHTML(CC.links(secret,p))}</div><span class="rk" style="color:var(${t})">${CC.fmt(rank)}</span></div>`;
+  return `<div class="row${latest?" latest":""}${rank<=50?" hot":""}" style="--t:var(${t})"><span class="fill" style="width:${CC.fillPct(rank)}%;background:var(${t})"></span><div class="who"><span class="nm">${E(label)}</span>${p.id===secret.id?"":CC.chipHTML(CC.links(secret,p))}</div><span class="rk" style="color:var(${t})">${CC.fmt(rank)}</span></div>`;
 }
 function closerPick(ctx,best,used){
   const target=Math.max(2,Math.floor(best/2));
