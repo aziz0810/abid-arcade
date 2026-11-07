@@ -90,6 +90,7 @@ This part needs the pay-as-you-go **Blaze** plan, because it runs small Cloud Fu
 | `index.html` | The whole arcade (all games + player data). Static, no server. |
 | `online.js`, `online.css` | Online rooms, chat, the online versions of the games, profiles, ratings, challenges and notifications. |
 | `i18n.js` | French and Arabic translations of the interface. |
+| `fx.js`, `fx.css` | Animations and polish: confetti, GOAL banners, card tilt, view transitions, phone bottom sheets, keyboard handling. |
 | `functions/`, `firebase.json`, `.firebaserc` | Optional Cloud Functions that send notifications when the site is closed. |
 | `.github/workflows/refresh-data.yml` | Rebuilds the player data on the 3rd of every month. |
 | `firebase-config.js` | Your Firebase settings (empty = demo mode). |

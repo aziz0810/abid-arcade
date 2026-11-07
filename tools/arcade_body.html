@@ -120,19 +120,35 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
 
   <!-- HUB -->
   <div id="rejoin" class="rejoin" hidden></div>
-  <section id="v-hub" class="hub">
-    <button class="game-card online-card" data-go="online"><span class="glyph" style="font-size:30px">⚡</span><span><h2>Play online</h2><p>Create a room, share the code, play from different phones and computers. Chat, reactions, all five games.</p></span></button>
+  <section id="v-hub" class="hub2">
+    <div class="hero">
+      <button class="hero-card" data-go="online">
+        <span class="hero-pitch" aria-hidden="true"><i></i><i></i><i></i><b class="ball">⚽</b></span>
+        <span class="hero-live"><i></i>Live rooms</span>
+        <span class="hero-txt"><h2>Play online</h2><p>Create a room, share the code, play from different phones and computers. Chat, reactions, all five games.</p></span>
+        <span class="hero-cta">Create or join a room <i>→</i></span>
+      </button>
+      <div class="hero-side">
+        <button class="mini-card" data-go="close"><span class="mini-ic">#1</span><span><small>Today's match</small><b>Guess the Player</b><em id="hub-daily-left"></em></span></button>
+        <button class="mini-card ch" data-go="challenges"><span class="mini-ic">🎯</span><span><small>Challenges</small><b id="hub-ch">3 new today</b><i class="mini-bar"><i id="hub-ch-bar"></i></i></span></button>
+      </div>
+    </div>
+    <div class="hub-label"><span>Play solo or pass the phone</span></div>
+    <div class="hub">
+        <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Guess the Player</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
     <button class="game-card" data-go="whoami"><span class="glyph" style="font-size:40px">?</span><span><h2>Who Am I?</h2><p>Clues appear one by one. Name the mystery footballer early for more points.</p></span></button>
     <button class="game-card" data-go="career"><span class="glyph" style="font-size:34px">⇢</span><span><h2>Career Path</h2><p>A career appears club by club. Name the player before the last club shows.</p></span></button>
     <button class="game-card" data-go="worldcup"><span class="glyph" style="font-size:38px">🏆</span><span><h2>World Cup Run</h2><p>Take your country to the final: score by naming the opponents' players before the whistle.</p></span></button>
-    <button class="game-card" data-go="challenges"><span class="glyph" style="font-size:36px">🎯</span><span><h2>Challenges</h2><p>Three new daily challenges and three weekly ones. Earn XP and build a streak.</p></span></button>
-    <button class="game-card" data-go="leaders"><span class="glyph" style="font-size:34px">🏆</span><span><h2>Leaderboards</h2><p>This month's top online players and today's fastest Guess the Player solvers.</p></span></button>
-    <button class="game-card" data-go="duel"><span class="glyph" style="font-size:24px">#1 vs</span><span><h2>Guess the Player Duel</h2><p>2–4 players on one device take turns hunting the same secret player.</p></span></button>
-    <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Guess the Player</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
     <button class="game-card" data-go="thirty"><span class="glyph">30</span><span><h2>30 Seconds</h2><p>One category, thirty seconds. Name as many players as you can. Up to 4 players.</p></span></button>
     <button class="game-card" data-go="letters"><span class="glyph">K</span><span><h2>Letter Rush</h2><p>Name players whose first name or surname starts with the letter. Beat the clock.</p></span></button>
     <button class="game-card" data-go="chain"><span class="glyph" style="font-size:26px">O→O</span><span><h2>Name Chain</h2><p>Ronaldo ends in O, so Onana is next. Keep the chain alive against the CPU or friends.</p></span></button>
     <button class="game-card" data-go="linkup"><span class="glyph"><span class="mini"><span style="background:var(--c-club)"></span><span style="background:var(--c-nation)"></span><span style="background:var(--c-legend)"></span></span></span><span><h2>Link Up</h2><p>A card game. Play Real Madrid on Man United by naming a player who played for both.</p></span></button>
+    <button class="game-card" data-go="duel"><span class="glyph" style="font-size:24px">#1 vs</span><span><h2>Guess the Player Duel</h2><p>2–4 players on one device take turns hunting the same secret player.</p></span></button>
+    </div>
+    <div class="hub-label"><span>More</span></div>
+    <div class="hub hub-more">
+        <button class="game-card" data-go="leaders"><span class="glyph" style="font-size:34px">🏆</span><span><h2>Leaderboards</h2><p>This month's top online players and today's fastest Guess the Player solvers.</p></span></button>
+    </div>
   </section>
 
   <!-- ONLINE (rendered by online.js) -->
@@ -499,7 +515,7 @@ function endTimedTurn(){
   $("t-again").onclick=()=>openTimed(T.kind);
   $("t-next").focus();
 }
-function finishTimed(){
+function finishTimed(){ if(window.FX) FX.whistle();
   const st=T.st, r=$("t-result");
   const key="arc-best-"+T.kind+"-"+T.cfg.secs+"-"+st.cats.length;
   let best=store.get(key,0); const top=Math.max(...st.scores); let rec=false;
@@ -815,7 +831,7 @@ function cpuLink(){
 function linkWin(i){
   const st=L.st; st.over=true; L.timer&&L.timer.stop(); clearTimeout(L.cpuT); renderLink();
   const r=$("l-result"); r.hidden=false;
-  const w=st.seats[i];
+  const w=st.seats[i]; if(window.FX&&!w.cpu) FX.win(st.humans>1?w.name+" wins":"You win");
   r.innerHTML=`<h3 class="view-title" style="font-size:34px">${esc(w.cpu?w.name+" wins":(st.humans>1?w.name+" wins":"You win"))}</h3>
     <p class="note" style="margin:0">${st.used.size} players named this game.</p>
     <div class="actions"><button class="btn primary" id="l-again">Deal again</button><button class="btn ghost" id="l-setupBtn">Change settings</button></div>`;
@@ -989,7 +1005,7 @@ function guess(p){
   save(); render();
 }
 function finish(won){
-  game.status=won?"won":"lost";
+  game.status=won?"won":"lost"; if(won&&window.FX) FX.win("Found it!");
   if(game.kind==="daily"){ try{ window.dispatchEvent(new CustomEvent("cc-daily-done",{detail:{date:game.date,guesses:game.guesses.length,hints:game.hints.length,won}})); }catch(e){} }
   const n=game.guesses.length, h=game.hints.length;
   if(game.kind==="daily"){
