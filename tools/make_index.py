@@ -23,6 +23,7 @@ i = s.index('<div class="wrap">')
 tail = '''
 <script src="firebase-config.js"></script>
 <script src="online.js"></script>
+<script src="fx.js"></script>
 '''
 assert s[:i].rstrip().endswith('</style>'), 'online.css link would land inside the page styles'
-open(sys.argv[2], 'w').write(head + s[:i] + '<link rel="stylesheet" href="online.css">\n</head>\n<body>\n' + s[i:] + tail + '</body>\n</html>\n')
+open(sys.argv[2], 'w').write(head + s[:i] + '<link rel="stylesheet" href="online.css">\n<link rel="stylesheet" href="fx.css">\n</head>\n<body>\n' + s[i:] + tail + '</body>\n</html>\n')

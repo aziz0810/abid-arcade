@@ -1,8 +1,8 @@
 /* Matchday Arcade service worker: makes the site installable and lets the
    same-device games open offline. Same-origin files are served from cache and
    refreshed in the background; online play (Firebase) always uses the network. */
-const CACHE = "matchday-v4";
-const SHELL = ["./", "index.html", "online.js", "online.css", "i18n.js", "firebase-config.js", "manifest.webmanifest",
+const CACHE = "matchday-v5";
+const SHELL = ["./", "index.html", "online.js", "online.css", "i18n.js", "fx.js", "fx.css", "firebase-config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

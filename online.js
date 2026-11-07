@@ -113,7 +113,7 @@ function getNet(){
 
 /* ================= Fun: sounds, confetti, floating reactions ================= */
 const SFX={ctx:null,muted:ls.get("arc-muted",false),
-  play(type){ haptic(type); if(type==="turn") flashTitle("🔔 Your turn!"); if(this.muted) return; try{
+  play(type){ haptic(type); try{ window.FX&&FX.on(type); }catch(e){} if(type==="turn") flashTitle("🔔 Your turn!"); if(this.muted) return; try{
     this.ctx=this.ctx||new (window.AudioContext||window.webkitAudioContext)(); const c=this.ctx; if(c.state==="suspended") c.resume();
     const N={ok:[[660,.07],[990,.12]],bad:[[196,.18]],tick:[[1200,.035]],win:[[523,.11],[659,.11],[784,.11],[1047,.3]],msg:[[880,.05],[1175,.07]],turn:[[587,.09],[880,.14]],go:[[440,.12],[880,.2]],draw:[[330,.08]]}[type]||[];
     let t=c.currentTime;
@@ -125,7 +125,7 @@ const SFX={ctx:null,muted:ls.get("arc-muted",false),
 };
 const reduceMotion=()=>window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 function confetti(){
-  if(reduceMotion()) return;
+  if(reduceMotion()) return; if(window.FX) return FX.confetti();
   const cv=document.createElement("canvas"); cv.className="ol-confetti"; document.body.appendChild(cv);
   const W=cv.width=innerWidth, H=cv.height=innerHeight, x=cv.getContext("2d");
   const cols=["#d2402a","#2463c7","#16884a","#c08400","#14603c","#ffffff"];
@@ -251,7 +251,8 @@ function renderHome(){
   const main=q("ol-main"); S.view="home";
   const u=S.net.auth.user();
   main.innerHTML=`${rejoinHTML()}<div class="ol-me"><span class="ol-av big">${E(S.profile.av)}</span><div><b>${E(S.profile.name)}</b><div class="note">${u&&!u.isAnonymous?"Signed in with Google":"Playing as a guest"}</div></div>
-      <button class="btn ghost" id="ol-edit">Edit</button><button class="btn ghost" id="ol-out">Sign out</button><a class="btn" href="#leaders" style="text-decoration:none">🏆 Leaderboards</a><a class="btn" href="#profile" style="text-decoration:none">👤 Profile</a><a class="btn" href="#challenges" style="text-decoration:none">🎯 Challenges</a></div>
+      <button class="btn ghost" id="ol-edit">Edit</button><button class="btn ghost" id="ol-out">Sign out</button></div>
+    <div class="ol-quick"><a class="ol-q" href="#profile" data-go="profile"><span>👤</span>Profile</a><a class="ol-q" href="#challenges" data-go="challenges"><span>🎯</span>Challenges</a><a class="ol-q" href="#leaders" data-go="leaders"><span>🏆</span>Leaderboards</a><a class="ol-q" href="#friends" data-go="friends"><span>👥</span>Friends</a></div>
     <div class="ol-two">
       <div class="panel"><h3 class="ol-h">Create a room</h3><p class="note" style="margin:0">Pick the first game. You can switch games in the room.</p>
         <div class="ol-games" id="ol-pick">${Object.entries(GAMES).map(([k,g],i)=>`<button type="button" class="ol-game" aria-pressed="${i===0}" data-g="${k}"><span class="glyph">${g.icon}</span><span><b>${g.name}</b><small>${g.blurb}</small></span></button>`).join("")}</div>
@@ -1313,7 +1314,7 @@ const standalone=()=>(window.matchMedia&&matchMedia("(display-mode: standalone)"
 const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 function headerButtons(){
   const h=q("hdr-icons"); if(!h||h.dataset.ready) return; h.dataset.ready="1";
-  h.innerHTML=`<a class="icon-btn" href="#friends" style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;position:relative">👥 Friends<b class="fr-badge" hidden></b></a><button class="icon-btn" id="hdr-set" aria-label="Settings">⚙ Settings</button>`;
+  h.innerHTML=`<a class="icon-btn" href="#friends" style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;position:relative" aria-label="Friends">👥<span class="lbl"> Friends</span><b class="fr-badge" hidden></b></a><button class="icon-btn" id="hdr-set" aria-label="Settings">⚙<span class="lbl"> Settings</span></button>`;
   q("hdr-set").onclick=openSettings;
 }
 function dialog(id,title,body){
@@ -2216,6 +2217,8 @@ function chState(){
 }
 const CH_DAILY_SEL=k=>seedPick(CH_DAILY,3,"d"+k);
 const CH_WEEKLY_SEL=k=>seedPick(CH_WEEKLY,3,"w"+k);
+/* for the home screen: today's challenge progress */
+window.ARC_CH=()=>{ const st=chState(), l=CH_DAILY_SEL(st.d.key); return {done:l.filter(c=>st.d.done[c.id]).length,total:l.length,streak:st.streak||0}; };
 function track(ev,data){
   const st=chState(); let gained=0;
   const bump=(slot,list,xp)=>list.forEach(c=>{ if(slot.done[c.id]) return; const hit=c.ev===ev||(c.ev==="play:linkup"&&ev==="play"&&data&&data.kind==="linkup");
@@ -2223,7 +2226,7 @@ function track(ev,data){
     if(slot.prog[c.id]>=c.need){ slot.done[c.id]=Date.now(); gained+=xp; toast(`✅ Challenge complete: ${c.t} (+${xp} XP)`); haptic("win"); } });
   bump(st.d,CH_DAILY_SEL(st.d.key),50); bump(st.w,CH_WEEKLY_SEL(st.w.key),150);
   if(CH_DAILY_SEL(st.d.key).every(c=>st.d.done[c.id])&&!st.d.all){ st.d.all=1; st.streak=(st.streak||0)+1; gained+=50; toast(`🔥 All daily challenges done! Streak: ${st.streak} day${st.streak>1?"s":""}`); }
-  ls.set("arc-ch",st);
+  ls.set("arc-ch",st); window.dispatchEvent(new Event("arc-ch"));
   if(gained) addStats({xp:gained,chStreak:st.streak||0});
   if(S.view==="challenges") renderChallenges();
 }
