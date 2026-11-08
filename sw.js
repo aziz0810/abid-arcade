@@ -1,7 +1,9 @@
 /* Matchday Arcade service worker: makes the site installable and lets the
-   same-device games open offline. Same-origin files are served from cache and
-   refreshed in the background; online play (Firebase) always uses the network. */
-const CACHE = "matchday-v7";
+   same-device games open offline. Same-origin files come from the network first,
+   so every update shows up straight away; the cached copy is only used offline
+   (or if the network takes longer than a few seconds). Online play (Firebase)
+   never goes through here. */
+const CACHE = "matchday-v8";
 const SHELL = ["./", "index.html", "online.js", "online.css", "i18n.js", "fx.js", "fx.css", "firebase-config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
@@ -10,9 +12,18 @@ self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
   e.respondWith(caches.open(CACHE).then(async c => {
-    const hit = await c.match(req, { ignoreSearch: true });
-    const net = fetch(req).then(r => { if (r.ok) c.put(req, r.clone()); return r; }).catch(() => hit);
-    return hit || net;
+    const net = fetch(req, { cache: "no-cache" }).then(r => { if (r.ok) c.put(req, r.clone()); return r; });
+    const slow = new Promise(res => setTimeout(res, 4000));
+    try {
+      const first = await Promise.race([net, slow.then(() => null)]);
+      if (first) return first;
+      const hit = await c.match(req, { ignoreSearch: true });
+      return hit || await net;
+    } catch (err) {
+      const hit = await c.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      throw err;
+    }
   }));
 });
 
