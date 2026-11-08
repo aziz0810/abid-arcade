@@ -89,6 +89,8 @@ def season(ts):
     return ts.year if (ts.month >= 7 or (ts.month == 6 and ts.day >= 20)) else ts.year - 1
 
 sel_ids = set(sel.player_id)
+CUR = season(TODAY)  # the season being played now (2026 = 2026/27)
+cur_of = {pid: (int(c) if c == c else None) for pid, c in sel.set_index('player_id').current_club_id.items()}
 last_season = sel.set_index('player_id').last_season.to_dict()
 T['d'] = pd.to_datetime(T.transfer_date, errors='coerce')
 TT = T[T.player_id.isin(sel_ids) & T.d.notna() & (T.d <= TODAY)].sort_values(['player_id', 'd'])
@@ -109,6 +111,7 @@ for pid, g in TT.groupby('player_id'):
             if s1 < s0: continue  # loan return / paperwork move inside one window
         else:
             s1 = max(s0, ls)
+            if ls >= CUR - 1 and cid == cur_of.get(pid): s1 = max(s1, CUR)  # still there this season
         stints[pid][cid].append((s0, s1))
 A = A[A.player_id.isin(sel_ids)]
 A['y'] = pd.to_datetime(A.date)
@@ -195,14 +198,81 @@ for line in hraw:
 print('legends added:', added, '| hand players matched in TM:', len(famous_tm))
 print('UNMATCHED modern hand players (possible duplicates):', unmatched_modern)
 
+# ---------- Wikidata: dated careers before 2012, more retired players ----------
+WDJSON = os.environ.get('WIKIDATA_JSON') or os.path.join(os.path.dirname(CJSON), 'wikidata.json')
+wd_added = 0
+if os.path.exists(WDJSON):
+    WD = json.load(open(WDJSON))
+    wteam = {q: int(t) for q, t in WD['teams'].items() if str(t).isdigit()}
+    wcountry = {q: cname(n) for q, n in WD['countries'].items()}
+    def wpos(qs):
+        labs = ' '.join(WD['positions'].get(q, '') for q in qs).lower()
+        for keys, code in ((('goalkeeper',), 'GK'), (('full-back', 'fullback', 'wing-back', 'wing half', 'left-back', 'right-back'), 'FB'),
+                           (('centre-back', 'center back', 'central defender', 'sweeper', 'libero', 'defender'), 'CB'),
+                           (('defensive midfielder',), 'DM'), (('attacking midfielder', 'playmaker'), 'AM'), (('winger', 'wide midfielder'), 'W'),
+                           (('midfielder',), 'CM'), (('forward', 'striker', 'centre-forward', 'inside forward'), 'ST')):
+            if any(k in labs for k in keys): return code
+        return None
+    def wseason(d, end):
+        if not d: return None
+        y, m = int(d[:4]), int(d[5:7] or 0)
+        if m == 0: return y - 1 if end else y      # year precision: joined in the summer, left in the summer
+        return season(pd.Timestamp(year=y, month=m, day=1)) - (1 if end and m in (6, 7, 8) else 0)
+    def wcareer(st, born):
+        out = defaultdict(list)
+        for team, a, b, loan in st:
+            cid = wteam.get(team)
+            if cid is None or cid not in best_name or is_junk(cid): continue
+            s0 = wseason(a, False)
+            if s0 is None or s0 < born + 15: continue
+            s1 = wseason(b, True) if b else s0
+            out[cid].append((s0, max(s0, s1)))
+        return out
+    by_tm = {str(p['tm']): i for i, p in enumerate(players) if p['src'] == 'tm'}
+    by_name = defaultdict(list)
+    for i, p in enumerate(players): by_name[nz(p['name'])].append(i)
+    filled = 0
+    for q, w in WD['players'].items():
+        tm, name, born, nats, poss, st, sl = w
+        if not born or not st: continue
+        car = wcareer(st, born)
+        if not car: continue
+        i = by_tm.get(str(tm)) if tm else None
+        if i is None:
+            hits = [j for j in by_name.get(nz(name or ''), []) if abs(players[j]['born'] - born) <= 1]
+            i = hits[0] if hits else None
+        if i is not None:   # known player: add the clubs and years we were missing
+            p = players[i]; have = {cid: ivs for cid, ivs in p['career']}; changed = False
+            for cid, ivs in car.items():
+                early = [iv for iv in ivs if iv[0] < 2012]
+                if not early: continue
+                if cid not in have or have[cid] == [[0, 0]]:
+                    have[cid] = merge(early); changed = True
+                elif all(a >= 2012 for a, b in have[cid] if a):
+                    have[cid] = merge([tuple(x) for x in have[cid]] + early); changed = True
+            if changed:
+                p['career'] = sorted(have.items(), key=lambda x: (x[1][0][0] or 9999)); filled += 1
+            p['sl'] = max(p.get('sl', 0), sl)
+            continue
+        if born >= 1990 or born < 1940 or sl < 26: continue      # new players: notable pre-2012 generations only
+        country = next((wcountry[n] for n in nats if wcountry.get(n) in COUNTRY), None)
+        pos = wpos(poss)
+        if not country or not pos or len(car) < 2 or not name: continue
+        career = sorted(((cid, merge(ivs)) for cid, ivs in car.items()), key=lambda x: x[1][0][0])
+        players.append(dict(name=name, country=country, pos=pos, born=born, career=career, hmv=0, caps=0, src='wd', tm=-1, sl=sl))
+        wd_added += 1
+    print('wikidata: careers filled', filled, '| retired players added', wd_added)
+
 # ---------- fame tiers ----------
 for i, p in enumerate(players):
     f = p['hmv'] / 1e6 + p['caps'] * 0.6
     if p['src'] == 'hand' or i in famous_tm: f = max(f, 1000)
+    if p['src'] == 'wd': f = p['sl'] * 2.4               # Wikipedia languages as a fame signal for retired players
+    elif p.get('sl', 0) >= 60: f = max(f, p['sl'] * 2.4)
     p['fame'] = f
 order = sorted(range(len(players)), key=lambda i: -players[i]['fame'])
 for rank, i in enumerate(order):
-    players[i]['tier'] = 0 if rank < 900 else 1 if rank < 2800 else 2
+    players[i]['tier'] = 0 if rank < 1100 else 1 if rank < 3400 else 2
 
 # ---------- disambiguate duplicate names ----------
 cnt = Counter(p['name'] for p in players)
