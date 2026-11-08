@@ -658,7 +658,7 @@ ENG.close={
     const g=clone(g0); g.guesses=arr(g.guesses);
     const c=ccCtx(g), used=x=>g.guesses.some(y=>y.id===x.id); let id;
     if(a.type==="ccguess") id=a.id;
-    else if(a.type==="cchint"){ const best=g.guesses.length?Math.min(...g.guesses.map(x=>c.ctx.ranks[x.id])):CC.N+1; if(best<=2) return; const p=closerPick(c.ctx,best,used); if(!p) return; id=p.id; }
+    else if(a.type==="cchint"){ if(g.guesses.some(x=>x.h)) return; const best=g.guesses.length?Math.min(...g.guesses.map(x=>c.ctx.ranks[x.id])):CC.N+1; if(best<=2) return; const p=closerPick(c.ctx,best,used); if(!p) return; id=p.id; }
     else return;
     if(!CC.PLAYERS[id]||g.guesses.some(x=>x.id===id)) return;
     g.guesses.push({id,u:a.u,h:a.type==="cchint"?1:0});
@@ -765,7 +765,7 @@ ENG.close={
       <div class="list" id="cc-list"></div>`)){
       if(inGame){
         ccSearch(q("cc-in"),q("cc-sug"),p=>this.guess(p),p=>mine.ids.includes(p.id));
-        q("cc-hint").onclick=()=>{ const best=mine.ids.length?Math.min(...mine.ids.map(i=>c.ctx.ranks[i])):CC.N+1;
+        q("cc-hint").onclick=()=>{ if(mine.hints>=1) return; const best=mine.ids.length?Math.min(...mine.ids.map(i=>c.ctx.ranks[i])):CC.N+1;
           if(best<=2){ this.fb("You're as close as a hint can get you.",true); return; }
           const p=closerPick(c.ctx,best,x=>mine.ids.includes(x.id)); if(!p) return; mine.hints++; this.guess(p); this.fb(`Hint: ${p.name} is #${c.ctx.ranks[p.id]}.`); };
         q("cc-give").onclick=()=>this.askGiveUp();
@@ -775,7 +775,7 @@ ENG.close={
     }
     const done=mine.ids.includes(secret.id)||mine.gaveUp;
     const asking=g.gu&&g.gu.from===S.uid&&g.gu.st==="pending";
-    if(q("cc-in")){ q("cc-in").disabled=done; q("cc-in").placeholder=mine.gaveUp?"You gave up. The answer appears when the round ends.":"Type a player's name…"; q("cc-hint").disabled=done; q("cc-give").disabled=done||asking; q("cc-give").textContent=asking?"Waiting for answer…":"Give up"; }
+    if(q("cc-in")){ q("cc-in").disabled=done; q("cc-in").placeholder=mine.gaveUp?"You gave up. The answer appears when the round ends.":"Type a player's name…"; q("cc-hint").disabled=done||mine.hints>=1; q("cc-hint").textContent=mine.hints>=1?"Hint used (1 per game)":"Closer player"; q("cc-give").disabled=done||asking; q("cc-give").textContent=asking?"Waiting for answer…":"Give up"; }
     this.paintGU();
     const ids=mine.ids, sorted=[...ids].sort((a,b)=>c.ctx.ranks[a]-c.ctx.ranks[b]);
     const lat=c.last!=null&&ids.length>1, order=lat?[c.last,...sorted]:sorted;
@@ -796,7 +796,7 @@ ENG.close={
       <div class="list" id="cc-board"></div>`)){
       if(inGame){
         ccSearch(q("cc-in"),q("cc-sug"),p=>this.guess(p),p=>arr(S.game.guesses).some(x=>x.id===p.id));
-        q("cq-hint").onclick=()=>{ if(S.game.order[S.game.turn]!==S.uid||c.pending) return; c.pending=true; act("cchint"); };
+        q("cq-hint").onclick=()=>{ if(S.game.order[S.game.turn]!==S.uid||c.pending||arr(S.game.guesses).some(x=>x.h)) return; c.pending=true; act("cchint"); };
         q("cc-give").onclick=()=>this.askGiveUp();
       }
     }
@@ -806,7 +806,7 @@ ENG.close={
     q("cq-who").textContent=my?"Your turn: make a guess":`${pname(cur)} is guessing…`;
     q("cq-seats").innerHTML=g.order.map((u,i)=>`<span class="seat${i===g.turn?" on":""}">${E(pav(u))} ${E(pname(u))}${S.players[u]&&S.players[u].online?"":" 💤"}</span>`).join("");
     const ck=q("cq-clock"); if(ck.dataset.d!==String(g.deadline)){ ck.dataset.d=String(g.deadline); ck.innerHTML=clockHTML("cq-c",g.deadline,g.secs,my); }
-    if(q("cc-in")){ const was=q("cc-in").disabled, dis=!my||c.pending; q("cc-in").disabled=dis; q("cq-hint").disabled=dis;
+    if(q("cc-in")){ const was=q("cc-in").disabled, dis=!my||c.pending; q("cc-in").disabled=dis; { const used=arr(g.guesses).some(x=>x.h); q("cq-hint").disabled=dis||used; q("cq-hint").textContent=used?"Team hint used (1 per game)":"Closer player (uses your turn)"; }
       q("cc-in").placeholder=my?"Your guess…":`Wait: ${pname(cur)} is guessing`; if(was&&!dis) q("cc-in").focus(); }
     this.teamList(g);
   },
@@ -1272,7 +1272,7 @@ const Duel={st:null,
       <div id="du-over"></div>
       <div class="section-label"><span>All guesses, closest first</span></div><div class="list" id="du-list"></div>`;
     ccSearch(q("du-in"),q("du-sug"),p=>this.guess(p),p=>this.st.guesses.some(x=>x.id===p.id));
-    q("du-hint").onclick=()=>{ const st=this.st; if(st.over) return; const best=st.guesses.length?Math.min(...st.guesses.map(x=>st.ctx.ranks[x.id])):CC.N+1;
+    q("du-hint").onclick=()=>{ const st=this.st; if(st.over||st.guesses.some(x=>x.hint&&x.by===st.turn)) return; const best=st.guesses.length?Math.min(...st.guesses.map(x=>st.ctx.ranks[x.id])):CC.N+1;
       const p=closerPick(st.ctx,best,x=>st.guesses.some(y=>y.id===x.id)); if(!p) return; this.guess(p,true); };
     q("du-reveal").onclick=()=>{ this.st.over=true; this.paint(); };
     this.paint(); q("du-in").focus();
@@ -1290,7 +1290,7 @@ const Duel={st:null,
     const st=this.st, best=i=>{ const r=st.guesses.filter(x=>x.by===i).map(x=>st.ctx.ranks[x.id]); return r.length?Math.min(...r):null; };
     q("du-seats").innerHTML=st.names.map((n,i)=>`<span class="seat${i===st.turn&&!st.over?" on":""}">${E(n)}${best(i)?` · #${CC.fmt(best(i))}`:""}</span>`).join("");
     q("du-who").textContent=st.over?(st.winner!=null?`${st.names[st.winner]} wins!`:"Answer revealed"):`${st.names[st.turn]}, your guess`;
-    q("du-in").disabled=st.over; q("du-hint").disabled=st.over;
+    q("du-in").disabled=st.over; { const used=st.guesses.some(x=>x.hint&&x.by===st.turn); q("du-hint").disabled=st.over||used; q("du-hint").textContent=used?"Hint used (1 per game)":"Closer player (uses your turn)"; }
     const sorted=[...st.guesses].sort((a,b)=>st.ctx.ranks[a.id]-st.ctx.ranks[b.id]);
     q("du-list").innerHTML=sorted.map(x=>{ const p=CC.PLAYERS[x.id]; return ccRow(p,st.secret,st.ctx.ranks[x.id],`${p.name} · ${st.names[x.by]}${x.hint?" (hint)":""}`); }).join("");
     if(st.over&&!q("du-over").innerHTML){ q("du-over").innerHTML=revealCard(st.secret)+`<div class="actions" style="margin-top:12px"><button class="btn primary" id="du-again">Play again</button><button class="btn ghost" id="du-new">Change players</button></div>`;
