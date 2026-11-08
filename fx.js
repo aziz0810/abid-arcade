@@ -86,6 +86,25 @@ function onFeedback(el){
   else if(/\berr\b/.test(el.className)) bad();
 }
 
+
+/* ---------- in-game: replay animations when the content changes ---------- */
+const lastTxt=new WeakMap();
+function changed(el){ const t=el.textContent; if(lastTxt.get(el)===t) return false; const had=lastTxt.has(el); lastTxt.set(el,t); return had||!!t; }
+const WATCH=[[".prompt .cat","fx-swap"],["#c-letter","fx-flip"],[".wc-score b","fx-bump"],["#heat-txt","fx-swap"]];
+function ingame(t){
+  if(!t||!t.closest) return;
+  for(const [sel,cls] of WATCH){ const el=t.closest(sel); if(el&&changed(el)) replay(el,cls); }
+}
+function countUp(row){
+  const rk=row.querySelector(".rk"); if(!rk||RM()) return;
+  const final=rk.textContent, n=parseInt(final.replace(/[^0-9]/g,""),10); if(!n||n<3) return;
+  const from=Math.min(9999,n*3+40), t0=performance.now(), d=650;
+  const step=now=>{ const k=Math.min(1,(now-t0)/d), e=1-Math.pow(1-k,3), v=Math.round(from+(n-from)*e);
+    if(!rk.isConnected) return; if(k<1){ rk.textContent=v.toLocaleString("en-US"); requestAnimationFrame(step); } else rk.textContent=final; };
+  requestAnimationFrame(step);
+}
+function danger(){ const on=[...document.querySelectorAll(".clock.low")].some(c=>c.offsetParent&&!c.hidden); document.body.classList.toggle("fx-danger",on&&!RM()); }
+
 /* ---------- which view is showing ---------- */
 const VIEWS=["hub","online","close","timed","chain","linkup"];
 function currentView(){ for(const v of VIEWS){ const s=$("v-"+v); if(s&&!s.hidden) return v; } return "hub"; }
@@ -147,14 +166,20 @@ function start(){
   window.addEventListener("arc-ch",hubRefresh);
   window.addEventListener("hashchange",()=>setTimeout(viewChanged,0));
   new MutationObserver(list=>{
-    let v=false;
+    let v=false, dz=false;
     for(const m of list){
-      if(m.type==="attributes"&&m.attributeName==="hidden"&&m.target.tagName==="SECTION") v=true;
+      if(m.type==="attributes"&&m.attributeName==="hidden"){ if(m.target.tagName==="SECTION") v=true; dz=true; }
       const t=m.target.nodeType===1?m.target:m.target.parentElement;
       const fb=t&&t.closest&&t.closest(".feedback"); if(fb) onFeedback(fb);
-      if(m.type==="childList") m.addedNodes.forEach(n=>{ if(n.nodeType===1){ if(n.matches(".feedback")) onFeedback(n); } });
+      ingame(t);
+      if(m.type==="attributes"&&m.attributeName==="class"&&t&&t.classList&&t.classList.contains("clock")) danger();
+      if(m.type==="childList"){
+        if(t&&t.id==="l-top"&&m.addedNodes.length&&t.firstElementChild) replay(t.firstElementChild,"fx-land");
+        m.addedNodes.forEach(n=>{ if(n.nodeType===1){ if(n.matches(".feedback")) onFeedback(n); if(n.matches(".row.latest")) countUp(n); else { const r=n.querySelector&&n.querySelector(".row.latest"); if(r) countUp(r); } ingame(n.querySelector&&n.querySelector(".prompt .cat,#c-letter,.wc-score b")||n); } });
+      }
     }
-    if(v) viewChanged();
+    if(v){ viewChanged(); dz=true; }
+    if(dz) danger();
   }).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["hidden","class"]});
   document.addEventListener("pointermove",tilt,{passive:true});
   document.addEventListener("pointerout",untilt,{passive:true});

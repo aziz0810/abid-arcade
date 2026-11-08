@@ -331,6 +331,7 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
 
   <div id="resultSlot"></div>
 
+  <div class="heat" id="heat" hidden><div class="heat-top"><span id="heat-txt"></span><b id="heat-best"></b></div><div class="heat-bar"><i id="heat-mark"></i></div><div class="heat-ends"><span>🥶 Cold</span><span>🔥 Hot</span></div></div>
   <div class="section-label"><span id="listLabel">Your guesses</span><span id="bestLabel"></span></div>
   <div class="list" id="list"><div class="loading">Loading players…</div></div>
   <div class="legend">
@@ -703,7 +704,7 @@ function chainTurn(fresh){
   const seat=st.seats[st.turn], L=st.letter;
   $("c-letter").textContent=L.toUpperCase();
   $("c-cat").textContent=`Starts with ${L.toUpperCase()}`;
-  $("c-who").textContent=st.seats.length>1?seat.name+"'s turn":"Chain length "+(st.chain.length-1);
+  $("c-who").textContent=st.seats.length>1?(seat.cpu||st.seats.filter(x=>!x.cpu).length>1?seat.name+"'s turn":"Your turn"):"Chain length "+(st.chain.length-1);
   $("c-fb").textContent="";
   $("c-input").value=""; $("c-input").disabled=seat.cpu;
   const go=()=>{
@@ -1286,6 +1287,10 @@ function render(){
   const list=$("list"); list.innerHTML="";
   const ids=G(), best=bestRank();
   $("bestLabel").textContent=ids.length?"Best #"+fmt(best):"";
+  { const h=$("heat"); h.hidden=!ids.length; if(ids.length){ const pos=best<=1?100:Math.max(2,100*(1-Math.log(best)/Math.log(N)));
+      $("heat-mark").style.left=pos+"%"; h.style.setProperty("--t",`var(${tone(best)})`);
+      $("heat-txt").textContent=best===1?"⚽ Found it":best<=10?"🔥 On fire":best<=50?"♨️ Hot":best<=250?"☀️ Warm":best<=1000?"🌤 Cool":"🥶 Cold";
+      $("heat-best").textContent="#"+fmt(best); } }
   $("listLabel").textContent=playing?"Your guesses, closest first":"Closest players to "+secret.name;
   if(!ids.length){
     list.innerHTML=`<div class="empty"><span>Start with any player. Each guess shows how close it is to the secret player, from #${fmt(N)} (no link at all) to #1 (the answer). For example, if the answer were Ronaldinho:</span>
@@ -1316,7 +1321,7 @@ function render(){
 }
 function rowEl(p,secret,latest){
   const r=ctx.ranks[p.id], row=document.createElement("div");
-  row.className="row"+(latest?" latest":"");
+  row.className="row"+(latest?" latest":"")+(r<=50?" hot":""); row.style.setProperty("--t",`var(${tone(r)})`);
   const showChips=settings.chips&&p.id!==secret.id;
   row.innerHTML=`<span class="fill" style="width:${fillPct(r)}%;background:var(${tone(r)})"></span>
     <div class="who"><span class="nm"></span>${showChips?chipHTML(links(secret,p)):""}</div>
