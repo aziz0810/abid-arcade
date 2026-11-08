@@ -114,7 +114,7 @@ function viewChanged(){
   document.body.dataset.view=v;
   if(v===lastView&&h===lastHash) return;
   lastView=v; lastHash=h;
-  const s=$("v-"+v); if(s&&!RM()){ s.classList.remove("fx-enter"); void s.offsetWidth; s.classList.add("fx-enter"); }
+  const s=$("v-"+v); if(s&&!RM()){ s.classList.remove("fx-enter"); void s.offsetWidth; s.classList.add("fx-enter"); s.addEventListener("animationend",function done(e){ if(e.target===s){ s.classList.remove("fx-enter"); s.removeEventListener("animationend",done); } }); }
   if(v==="hub") hubRefresh();
 }
 

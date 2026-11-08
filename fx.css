@@ -114,8 +114,9 @@ select:focus{border-color:var(--pitch);box-shadow:0 0 0 4px color-mix(in srgb,va
 .ch-row.done{box-shadow:0 0 0 1px var(--pitch),0 8px 20px -12px var(--glow)}
 
 /* ---------- views & dialogs ---------- */
-.fx-enter{animation:fx-view .45s var(--ease-out) both}
-@keyframes fx-view{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+/* sections only fade: a transform here would trap the fixed chat sheet and buttons inside the section */
+.fx-enter{animation:fx-view .35s var(--ease-out)}
+@keyframes fx-view{from{opacity:0}to{opacity:1}}
 @keyframes fx-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .overlay:not([hidden]){animation:fx-fade .22s ease both;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .overlay:not([hidden]) .dialog{animation:fx-dialog .4s var(--ease-spring) both;border-radius:20px}
@@ -366,3 +367,7 @@ html[dir=rtl] .row::before{left:auto;right:0;border-radius:4px 0 0 4px}
   .prompt{padding:16px}
   .heat-top span{font-size:19px}.heat-top b{font-size:24px}
 }
+
+/* Guess the Player: one hint per game */
+.hint-limit{font-family:var(--label);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:-8px}
+#actions .btn:disabled:not(#giveUp){opacity:.4}

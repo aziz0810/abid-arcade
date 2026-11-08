@@ -175,6 +175,7 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
     <div class="suggest" id="suggest" role="listbox" hidden></div>
   </div>
 
+  <div class="hint-limit" id="hintBar"></div>
   <div class="actions" id="actions">
     <button class="btn" id="hCloser">Closer player<span class="ct" id="hCloserCt"></span></button>
     <button class="btn" id="hPos">Position</button>
@@ -282,7 +283,7 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
       <li>Similarity comes from <b>nationality</b>, <b>clubs played for</b>, <b>leagues</b>, <b>position</b> and <b>age</b>. Players who were at the same club in the same seasons count as <b>teammates</b> and get a big bonus.</li>
       <li>A low number means you're close. If Rivaldo ranks in the top 10, the answer is probably Brazilian and played for Barcelona or Milan.</li>
       <li>The <b>clue chips</b> under each guess show which kind of link matched. Solid means an exact match, outlined means near (same continent, same area of the pitch, a few years apart in age). A red <b>Teammate</b> chip means they shared a dressing room. Switch chips off below for a harder game.</li>
-      <li>Stuck? <b>Closer player</b> gives you a name ranked about halfway between your best guess and the answer. The other hints reveal one fact each. Hints are counted in your result.</li>
+      <li>Stuck? You get <b>one hint per game</b>. <b>Closer player</b> gives you a name ranked about halfway between your best guess and the answer, or pick one fact: position, decade, region or a club. Your hint is counted in your result.</li>
       <li><b>Daily match</b> is the same star player for everyone each day. <b>Unlimited</b> deals a new player whenever you want, at the difficulty you choose.</li>
     </ul>
     <label class="toggle"><input type="checkbox" id="chipToggle" checked> Show clue chips on guesses</label>
@@ -1022,8 +1023,10 @@ function flash(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err
 
 /* ---------- Hints ---------- */
 function bestRank(){ return G().reduce((m,id)=>Math.min(m,ctx.ranks[id]),N+1); }
+const HINT_LIMIT=1;  // one hint per game, any kind
+const hintsLeft=()=>HINT_LIMIT-game.hints.length;
 function hintCloser(){
-  if(game.status!=="playing") return;
+  if(game.status!=="playing"||hintsLeft()<=0) return;
   const best=bestRank();
   if(best<=2){ flash("You're already as close as a hint can get you.",true); return; }
   const target=Math.max(2,Math.floor(best/2));
@@ -1044,7 +1047,7 @@ function hintCloser(){
   flash("Hint: "+pick.name+" is #"+fmt(ctx.ranks[pick.id])+".");
 }
 function hintFact(kind){
-  if(game.status!=="playing"||game.hints.includes(kind)) return;
+  if(game.status!=="playing"||game.hints.includes(kind)||hintsLeft()<=0) return;
   game.hints.push(kind); save(); render();
 }
 function hintClubName(){
@@ -1111,11 +1114,10 @@ function render(){
   }
   $("metaRight").innerHTML=`<b>${game.guesses.length}</b> guesses · <b>${game.hints.length}</b> hints`;
   $("guess").disabled=!playing;
-  $("hPos").disabled=game.hints.includes("pos");
-  $("hEra").disabled=game.hints.includes("era");
-  $("hRegion").disabled=game.hints.includes("region");
-  $("hClub").disabled=game.hints.includes("club");
-  const cc=game.hints.filter(h=>h==="closer").length; $("hCloserCt").textContent=cc?"×"+cc:"";
+  const noHints=hintsLeft()<=0;
+  ["hCloser","hPos","hEra","hRegion","hClub"].forEach(id=>$(id).disabled=noHints);
+  $("hCloserCt").textContent="";
+  $("hintBar").textContent=noHints?"💡 Hint used · 1 per game":"💡 1 hint per game: pick wisely";
   $("actions").hidden=!playing;
 
   const notes=[];
