@@ -1,6 +1,6 @@
 # Matchday Arcade
 
-Free football games, built on 7,208 real players, in English, French and Arabic. Play **online with friends** (rooms, chat, reactions) or **on one device** (pass the phone).
+Free football games, built on 10,294 real players, in English, French and Arabic. Play **online with friends** (rooms, chat, reactions) or **on one device** (pass the phone).
 
 **Play:** https://aziz0810.github.io/abid-arcade/
 
@@ -100,9 +100,17 @@ This part needs the pay-as-you-go **Blaze** plan, because it runs small Cloud Fu
 
 ## Data
 
-Player data comes from [transfermarkt-datasets](https://github.com/dcaribou/transfermarkt-datasets) (CC0), snapshot of July 2026,
-plus hand-entered careers for legends who retired before 2012. Coach links use match lineups from 2013 onward and coaching
-tenures before that. Progress and stats are stored in each player's browser.
+- [transfermarkt-datasets](https://github.com/dcaribou/transfermarkt-datasets) (CC0): players, transfers and matches. Last updated by its author on 5 September 2026, so it includes this summer's transfer window. Its match data runs from 2012 to the end of the 2025/26 season. Players who are still at their club are counted as there in the current 2026/27 season.
+- [Wikidata](https://www.wikidata.org) (CC0), cached in `tools/wikidata.json`: dated club careers before 2012, which the Transfermarkt data mostly lacks, and about 3,000 retired players born from 1940 on.
+- Hand-entered careers for a few legends that neither source covers well.
+- Coach links use match lineups from 2013 onward and coaching tenures before that.
+- Progress and stats are stored in each player's browser.
+
+To refresh the Wikidata part (takes about 30 minutes; the query service is rate limited):
+
+```bash
+python3 tools/wikidata_fetch.py /tmp/wikidata-raw tools/wikidata.json
+```
 
 ## Rebuilding with fresh data
 
