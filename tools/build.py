@@ -231,7 +231,7 @@ if os.path.exists(WDJSON):
     by_tm = {str(p['tm']): i for i, p in enumerate(players) if p['src'] == 'tm'}
     by_name = defaultdict(list)
     for i, p in enumerate(players): by_name[nz(p['name'])].append(i)
-    filled = 0
+    filled = 0; moved = []
     for q, w in WD['players'].items():
         tm, name, born, nats, poss, st, sl = w
         if not born or not st: continue
@@ -243,6 +243,19 @@ if os.path.exists(WDJSON):
             i = hits[0] if hits else None
         if i is not None:   # known player: add the clubs and years we were missing
             p = players[i]; have = {cid: ivs for cid, ivs in p['career']}; changed = False
+            # this season: a move Wikidata knows about but the Transfermarkt snapshot missed
+            today = str(TODAY.date()); moves = []
+            for team, d0, d1, loan in st:
+                cid = wteam.get(team)
+                if cid is None or cid not in best_name or is_junk(cid) or not d0: continue
+                if f"{CUR}-06-01" <= d0 <= today and (not d1 or d1 > today): moves.append((d0, cid))
+            if moves:
+                new = max(moves)[1]
+                if not any(b >= CUR for a, b in have.get(new, [])):
+                    for cid in list(have):   # the old club's spell ends last season
+                        if cid != new: have[cid] = [[a, CUR - 1] if (b >= CUR and a < CUR) else [a, b] for a, b in have[cid]]
+                    have[new] = merge([tuple(x) for x in have.get(new, [])] + [(CUR, CUR)])
+                    changed = True; moved.append(p['name'])
             for cid, ivs in car.items():
                 early = [iv for iv in ivs if iv[0] < 2012]
                 if not early: continue
@@ -262,6 +275,7 @@ if os.path.exists(WDJSON):
         players.append(dict(name=name, country=country, pos=pos, born=born, career=career, hmv=0, caps=0, src='wd', tm=-1, sl=sl))
         wd_added += 1
     print('wikidata: careers filled', filled, '| retired players added', wd_added)
+    print('wikidata: moves this season not in the Transfermarkt snapshot:', len(moved), moved[:25])
 
 # ---------- fame tiers ----------
 for i, p in enumerate(players):
