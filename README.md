@@ -12,6 +12,7 @@ Free football games, built on 10,294 real players, in English, French and Arabic
 | **Name Chain** | Each name starts with the last letter of the previous one (Cristiano Ronaldo → Onana → …). Vs CPU, pass & play, or solo. |
 | **Link Up** | A card game: play a card by naming a player who links it to the one on the table (Man United → Real Madrid: Cristiano Ronaldo). Clubs, nations, leagues, coaches, Ballon d'Or, Champions League. |
 
+| **Team Combo** (online) | Players pick clubs; the combo has 1 club per player, or 1–4 clubs set by the host. Then everyone names one player. You score 1 point per combo club he played for, and double if he played for all of them. The results show who would have scored full marks. |
 | **Who Am I?** | Clues about a mystery footballer appear one by one. Name them earlier for more points. Solo or online. |
 | **Career Path** | A career appears club by club, oldest first ("2009–13 · Real Madrid"). Name the player before the last club shows. Solo or online. |
 | **World Cup Run** | Pick a country and play seven matches, from the group stage to the final. In each match you score by naming players from the opposing nation before the whistle. Solo or online. |

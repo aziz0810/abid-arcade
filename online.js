@@ -190,6 +190,8 @@ const GAMES={
     set:{secs:[[30,"30s matches"],[45,"45s"],[60,"60s"]]},def:{secs:45}},
   whoami:{name:"Who Am I?",icon:"?",blurb:"Clues appear one by one for everyone. Name the mystery player early for more points.",
     set:{rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[5,"Clue every 5s"],[7,"Every 7s"],[10,"Every 10s"]],level:[["0","Stars"],["1","Well known"]],theme:THEME_OPTS},def:{rounds:5,secs:7,level:"0",theme:"all"}},
+  combo:{name:"Team Combo",icon:"＋",blurb:"Each player picks a club. Then name one player who played for all of them, or at least one.",
+    set:{size:[["all","1 club per player"],[1,"1 club"],[2,"2 clubs"],[3,"3 clubs"],[4,"4 clubs"]],rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[30,"30s to answer"],[45,"45s"],[60,"60s"]]},def:{size:"all",rounds:5,secs:45}},
   linkup:{name:"Link Up",icon:"▮▮▮",blurb:"The football card game. Private hands, CPUs can fill seats.",
     set:{hand:[[5,"5 cards"],[7,"7 cards"],[9,"9 cards"]],secs:[[30,"30s turns"],[45,"45s turns"],[0,"No timer"]],cpus:[[0,"No CPU"],[1,"+1 CPU"],[2,"+2 CPU"]],level:[["easy","Easy CPU"],["normal","Normal CPU"],["hard","Hard CPU"]]},def:{hand:7,secs:45,cpus:0,level:"normal"}},
 };
@@ -466,7 +468,7 @@ function renderStage(){
 function skel(st,key,html){ if(st.dataset.key!==key){ st.dataset.key=key; st.innerHTML=html; return true; } return false; }
 
 const LBL={mode:"Mode",secs:"Time",cpus:"Computer players",level:"Difficulty",era:"Era",hand:"Cards each",rounds:"Rounds",scoring:"Scoring",theme:"Theme"};
-const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"}};
+const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"},combo:{size:"Clubs in the combo",secs:"Answer time"}};
 const setLabel=(game,k)=>(LBL_GAME[game]&&LBL_GAME[game][k])||LBL[k]||k;
 function renderLobby(st){
   const m=S.meta, g=GAMES[m.game], host=S.host;
@@ -1447,6 +1449,7 @@ function ranking(g){
   const sc=o=>Object.keys(o||{}).filter(u=>o[u]>0).sort((a,b)=>o[b]-o[a]);
   switch(g.kind){
     case "thirty": case "letters": case "whoami": case "career": return sc(g.scores);
+    case "combo": return sc(g.scores);
     case "worldcup": return ENG.worldcup.order(g).filter(u=>((g.goals||{})[u]||0)>0||((g.reach||{})[u]||0)>0);
     case "chain": return [g.winner,...arr(g.outOrder).slice().reverse()].filter(Boolean).filter((u,i,a)=>a.indexOf(u)===i);
     case "linkup": { const c=g.counts||{}; return g.seats.filter(s=>!s.cpu).map(s=>s.id).sort((a,b)=>a===g.winner?-1:b===g.winner?1:(c[a]||0)-(c[b]||0)); }
@@ -2377,6 +2380,167 @@ function paintPushSetting(){
   if(q("set-pushon")) q("set-pushon").onclick=enablePush;
   if(q("set-pushoff")) q("set-pushoff").onclick=disablePush;
 }
+
+
+/* ================= Team Combo =================
+   Each round some players (in turn) pick clubs; then everyone names ONE player.
+   A player scores 1 point per combo club he played for, and double if he played for all of them. */
+function clubSearch(inputEl,sugEl,onPick,isTaken){
+  let idx=0,list=[];
+  const find=v=>{ const t=norm(v.trim()); if(!t) return [];
+    const out=[]; CLUBS.forEach((c,i)=>{ const n=norm(c.name); const at=n.indexOf(t); if(at<0) return; out.push([i,(at===0?0:1),-clubFame[i]]); });
+    return out.sort((a,b)=>a[1]-b[1]||a[2]-b[2]).slice(0,8).map(x=>x[0]); };
+  const pick=c=>{ inputEl.value=""; sugEl.hidden=true; idx=0; onPick(c); };
+  const paint=()=>{ const v=inputEl.value; list=find(v); if(!v.trim()){ sugEl.hidden=true; return; }
+    sugEl.innerHTML=list.length?list.map((c,i)=>`<button type="button" class="sug" aria-selected="${i===idx}" data-i="${i}"><span class="n">${E(CLUBS[c].name)}</span><span class="d">${isTaken(c)?"Taken":E(CLUBS[c].k>=0?COUNTRIES[CLUBS[c].k].flag+" "+COUNTRIES[CLUBS[c].k].name:"")}</span></button>`).join(""):`<div class="sug none">No club called “${E(v)}”</div>`;
+    sugEl.hidden=false; sugEl.querySelectorAll("[data-i]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); pick(list[+b.dataset.i]); }); };
+  inputEl.oninput=()=>{ idx=0; paint(); };
+  inputEl.onkeydown=e=>{ if(e.key==="ArrowDown"){ e.preventDefault(); idx=Math.min(idx+1,list.length-1); paint(); } else if(e.key==="ArrowUp"){ e.preventDefault(); idx=Math.max(0,idx-1); paint(); }
+    else if(e.key==="Enter"){ e.preventDefault(); if(list[idx]!=null) pick(list[idx]); } else if(e.key==="Escape") sugEl.hidden=true; };
+  inputEl.onblur=()=>setTimeout(()=>{ sugEl.hidden=true; },150);
+}
+const comboCover=(id,combo)=>combo.filter(c=>PLAYERS[id].clubs.has(c)).length;
+const comboPts=(m,k)=>m===0?0:(m===k&&k>=2?2*k:m);
+const clubChip=c=>`<span class="combo-club"><i>${CLUBS[c].k>=0?COUNTRIES[CLUBS[c].k].flag:"⚽"}</i>${E(CLUBS[c].name)}</span>`;
+/* clubs with plenty of shared players, used when a picker runs out of time */
+function comboFill(combo){
+  const pool=BIG_CLUBS.filter(c=>!combo.includes(c));
+  if(!combo.length) return pickOne(pool.slice(0,30));
+  const shared=c=>PLAYERS.reduce((n,p)=>n+(p.clubs.has(c)&&combo.some(x=>p.clubs.has(x))?1:0),0);
+  const top=pool.slice(0,45).map(c=>[c,shared(c)]).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);
+  return pickOne(top.length?top:pool);
+}
+ENG.combo={
+  slots(g){ const pl=arr(g.players), n=pl.length||1, k=g.size==="all"?n:Math.max(1,+g.size||2);
+    return Array.from({length:k},(_,i)=>pl[(g.round+i)%n]); },
+  async start(set){
+    const players=onlineUids(), t=now();
+    return {kind:"combo",at:t,round:0,total:+set.rounds||5,size:set.size||"all",secs:+set.secs||45,pickSecs:20,players,
+      phase:"pick",pickEndsAt:t+21000,scores:{}};
+  },
+  async hostTick(){
+    const g=S.game;
+    if(g.phase==="pick"){ const picks=S.answers["p"+g.round]||{}, slots=this.slots(g), mine={};
+      slots.forEach(u=>mine[u]=(mine[u]||0)+1);
+      const done=Object.keys(mine).every(u=>arr(picks[u]).length>=mine[u]);
+      if(done||now()>g.pickEndsAt) await this.lock(); }
+    else if(g.phase==="play"){ const ans=S.answers[g.round]||{}; const all=arr(g.players).every(u=>ans[u]!=null);
+      if(now()>g.endsAt+1500||(all&&now()>g.startsAt)) await this.score(); }
+    else if(g.phase==="results"&&now()>g.nextAt) await this.next();
+  },
+  async lock(){
+    const g=clone(S.game); if(g.phase!=="pick") return;
+    const picks=S.answers["p"+g.round]||{}, slots=this.slots(g), used={}, combo=[], by=[];
+    slots.forEach(u=>{ const list=arr(picks[u]); used[u]=used[u]||0; let c=list[used[u]++];
+      if(c==null||combo.includes(+c)||!CLUBS[+c]){ c=comboFill(combo); by.push(null); } else by.push(u); combo.push(+c); });
+    g.combo=combo; g.by=by; g.phase="play"; g.startsAt=now()+3500; g.endsAt=g.startsAt+g.secs*1000;
+    await setGame(g);
+    sys(`➕ Combo: ${combo.map(c=>CLUBS[c].name).join(" + ")}`);
+  },
+  async score(){
+    const g=clone(S.game); if(g.phase!=="play") return;
+    const ans=S.answers[g.round]||{}, k=g.combo.length, res={};
+    arr(g.players).forEach(u=>{ const id=ans[u]; const m=id!=null&&PLAYERS[id]?comboCover(id,g.combo):0; const pts=comboPts(m,k);
+      res[u]={id:id==null?null:+id,m,pts}; if(pts) g.scores[u]=(g.scores[u]||0)+pts; });
+    g.res=g.res||{}; g.res["r"+g.round]=res; g.phase="results"; g.nextAt=now()+12000;
+    await setGame(g);
+    const full=Object.keys(res).filter(u=>res[u].m===k&&k>=2);
+    if(full.length) sys(`🎯 Full combo: ${full.map(pname).join(" & ")}`);
+  },
+  async next(){
+    const g=clone(S.game); if(g.phase!=="results") return;
+    if(g.round+1>=g.total){ g.phase="over"; await setGame(g);
+      const sc=g.scores||{}, best=Math.max(0,...Object.values(sc)); const win=Object.keys(sc).filter(u=>sc[u]===best&&best>0);
+      if(win.length){ await award(win,3,true); sys(`🏆 ${win.map(pname).join(" & ")} won Team Combo with ${best} points`); } return; }
+    g.round++; g.phase="pick"; g.pickEndsAt=now()+21000; delete g.combo; delete g.by; delete g.nextAt; await setGame(g);
+  },
+  myPicks(g){ return arr((S.answers["p"+g.round]||{})[S.uid]).map(Number); },
+  best(combo){ // the most famous players covering the most clubs of the combo
+    let top=0; const scored=[]; PLAYERS.forEach(p=>{ const m=combo.filter(c=>p.clubs.has(c)).length; if(!m) return; if(m>top) top=m; scored.push([p,m]); });
+    return {top,list:scored.filter(x=>x[1]===top).sort((a,b)=>a[0].tier-b[0].tier).slice(0,4).map(x=>x[0])}; },
+  render(st){
+    const g=S.game, r=g.round, k=this.slots(g).length, inGame=arr(g.players).includes(S.uid);
+    const head=(sub,cat)=>`<div class="prompt"><span class="who">Team Combo · round ${r+1} of ${g.total}${sub?" · "+sub:""}</span><span class="cat">${cat}</span></div>`;
+    if(g.phase==="over"){
+      if(skel(st,`cb-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="cb-stand"></div><div id="cb-end"></div>`)){
+        const sc=g.scores||{}; const ord=arr(g.players).slice().sort((a,b)=>(sc[b]||0)-(sc[a]||0));
+        q("cb-stand").innerHTML=`<div class="standings">${ord.map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${sc[u]||0} pts</b></div>`).join("")}</div>`;
+        q("cb-end").innerHTML=endButtons(); bindEnd(st);
+        if(ord[0]===S.uid&&(sc[S.uid]||0)>0){ SFX.play("win"); confetti(); }
+      }
+      return;
+    }
+    if(g.phase==="pick"){
+      const slots=this.slots(g), mineN=slots.filter(u=>u===S.uid).length;
+      if(skel(st,`cb-pick-${g.at}-${r}`,`${head("pick the clubs",`${k} club${k>1?"s":""} in this combo`)}
+          ${clockHTML("cb-clock",g.pickEndsAt,20,true)}
+          ${mineN?`<div class="search"><input id="cb-club" type="text" autocomplete="off" spellcheck="false" placeholder="Type a club…" aria-label="Pick a club"><div class="suggest" id="cb-sug" role="listbox" hidden></div></div>`:""}
+          <div class="feedback" id="cb-fb" aria-live="polite"></div>
+          <div class="section-label"><span>Who's picking</span><span>A club is drawn for anyone who runs out of time</span></div><div class="ol-board" id="cb-pickers"></div>`)){
+        if(mineN) clubSearch(q("cb-club"),q("cb-sug"),c=>this.pick(c),c=>this.myPicks(S.game).includes(c));
+      }
+      const picks=S.answers["p"+r]||{}, need={}; slots.forEach(u=>need[u]=(need[u]||0)+1);
+      const mine=this.myPicks(g);
+      if(q("cb-club")){ const left=(need[S.uid]||0)-mine.length; q("cb-club").disabled=left<=0; q("cb-club").placeholder=left>0?(mine.length?`Pick ${left} more club${left>1?"s":""}…`:`Pick ${need[S.uid]>1?need[S.uid]+" clubs":"a club"}…`):"Done. The combo is revealed when everyone has picked.";
+        q("cb-fb").innerHTML=mine.length?`Your pick${mine.length>1?"s":""}: ${mine.map(clubChip).join(" ")}`:""; }
+      q("cb-pickers").innerHTML=Object.keys(need).map(u=>{ const n=arr(picks[u]).length; return `<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${n>=need[u]?"✓ picked":"choosing…"}</span><b class="pts">${Math.min(n,need[u])}/${need[u]}</b></div>`; }).join("");
+      return;
+    }
+    const combo=g.combo||[];
+    if(g.phase==="results"){
+      if(skel(st,`cb-res-${g.at}-${r}`,`${head("results",combo.map(c=>E(CLUBS[c].name)).join(" + "))}<div class="combo-clubs">${combo.map(clubChip).join("")}</div><div id="cb-res"></div><div id="cb-could"></div>
+          <div class="actions">${S.host?`<button class="btn primary" id="cb-next">${r+1>=g.total?"Final whistle":"Next round"}</button>`:""}<span class="note" id="cb-auto"></span></div>`)){
+        const res=(g.res||{})["r"+r]||{};
+        q("cb-res").innerHTML=Object.keys(res).sort((a,b)=>res[b].pts-res[a].pts).map(u=>{ const x=res[u], p=x.id!=null?PLAYERS[x.id]:null;
+          return `<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}${p?` · <b>${E(p.base)}</b>`:""}</span><span class="st">${p?`${x.m}/${k} club${k>1?"s":""}${x.m===k&&k>=2?" 🎯":""}`:"no answer"}</span><b class="pts">+${x.pts}</b></div>`; }).join("");
+        const b=this.best(combo);
+        q("cb-could").innerHTML=b.list.length?`<p class="note">${b.top===k&&k>=2?"Played for all of them":"Best possible: "+b.top+"/"+k}: ${b.list.map(p=>E(p.base)).join(", ")}</p>`:"";
+        if(q("cb-next")) q("cb-next").onclick=()=>Host.run(()=>this.next());
+        if(res[S.uid]&&res[S.uid].m===k&&k>=2&&window.FX) FX.win("Full combo!");
+      }
+      return;
+    }
+    // play
+    const mine=(S.answers[r]||{})[S.uid];
+    if(skel(st,`cb-play-${g.at}-${r}`,`${head(k>1?"name a player who played for all of them":"name a player who played for it",combo.map(c=>E(CLUBS[c].name)).join(" + "))}
+        <div class="combo-clubs">${combo.map((c,i)=>clubChip(c)+(g.by&&g.by[i]?`<small class="combo-by">${E(pname(g.by[i]))}</small>`:"")).join("")}</div>
+        <div class="ol-count" id="cb-count"></div>
+        ${clockHTML("cb-clock",g.endsAt,g.secs,true)}
+        ${inGame?`<form class="answer" id="cb-form"><input id="cb-in" autocomplete="off" spellcheck="false" placeholder="Name one player…" aria-label="Player name"><button class="btn primary">Lock in</button></form>`:`<div class="ol-note">You'll play from the next game.</div>`}
+        <div class="feedback" id="cb-fb" aria-live="polite"></div>
+        <div class="section-label"><span>Answers</span><span>1 point per club · all ${k} = ${k>=2?2*k:1} points</span></div><div class="ol-board" id="cb-live"></div>`)){
+      if(q("cb-form")) q("cb-form").onsubmit=e=>{ e.preventDefault(); const v=q("cb-in").value; if(v.trim()) this.answer(v); };
+      this.clientTick();
+    }
+    if(q("cb-in")&&mine!=null){ const p=PLAYERS[mine], m=comboCover(mine,combo); q("cb-in").disabled=true; q("cb-in").value=""; q("cb-in").placeholder=`Locked in: ${p.base}`;
+      q("cb-fb").className="feedback ok"; q("cb-fb").textContent=`🔒 ${p.base} · ${m}/${k} club${k>1?"s":""} → +${comboPts(m,k)}`; }
+    const ans=S.answers[r]||{};
+    q("cb-live").innerHTML=arr(g.players).map(u=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${ans[u]!=null?"🔒 locked in":"thinking…"}</span><b class="pts">${(g.scores||{})[u]||0}</b></div>`).join("");
+  },
+  pick(c){
+    const g=S.game; if(g.phase!=="pick") return; const mine=this.myPicks(g), need=this.slots(g).filter(u=>u===S.uid).length;
+    if(mine.length>=need) return;
+    if(mine.includes(c)){ const fb=q("cb-fb"); fb.className="feedback err"; fb.textContent=`${CLUBS[c].name} is already in your picks.`; return; }
+    S.net.set(R(`answers/p${g.round}/${S.uid}`),mine.concat([c])); SFX.play("ok");
+  },
+  answer(v){
+    const g=S.game, fb=q("cb-fb"), combo=g.combo||[];
+    if(g.phase!=="play"||now()<g.startsAt||now()>g.endsAt) return;
+    if((S.answers[g.round]||{})[S.uid]!=null) return;
+    const r=resolve(v,p=>combo.some(c=>p.clubs.has(c)));
+    if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+    if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} never played for any of these clubs.`; SFX.play("bad"); return; }
+    S.net.set(R(`answers/${g.round}/${S.uid}`),r.p.id); track("names"); SFX.play(comboCover(r.p.id,combo)===combo.length?"win":"ok");
+  },
+  clientTick(){
+    const g=S.game; if(!g||g.kind!=="combo") return;
+    if(g.phase==="results"){ const a=q("cb-auto"); if(a) a.textContent=`Next round in ${Math.max(0,Math.ceil((g.nextAt-now())/1000))}s`; return; }
+    if(g.phase!=="play") return;
+    const inp=q("cb-in"), cnt=q("cb-count"); if(!cnt) return; const t=now();
+    if(t<g.startsAt){ const s=Math.ceil((g.startsAt-t)/1000); if(cnt.textContent!==String(s)){ cnt.textContent=String(s); SFX.play("tick"); } if(inp) inp.disabled=true; }
+    else if(t<=g.endsAt){ if(cnt.textContent){ cnt.textContent=""; SFX.play("go"); } if(inp&&inp.disabled&&(S.answers[g.round]||{})[S.uid]==null){ inp.disabled=false; inp.focus(); } }
+  }
+};
 
 /* ================= Entry points ================= */
 async function open(h){

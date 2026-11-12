@@ -386,3 +386,14 @@ html[data-eco="1"] .game-card,html[data-eco="1"] .mini-card,html[data-eco="1"] .
 html[data-eco="1"] .fx-canvas,html[data-eco="1"] .fx-banner,html[data-eco="1"] .fx-plus,html[data-eco="1"] .fx-ripple,html[data-eco="1"] .ol-confetti{display:none!important}
 html[data-eco="1"] .clock .bar i{transition:none!important}
 .eco-note{font-size:13px;color:var(--muted);margin:2px 0 0}
+
+/* Team Combo */
+[data-g="combo"]{--acc:#0f766e}
+.combo-clubs{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.combo-clubs>.combo-club{animation:fx-chip .5s var(--ease-spring) both}
+.combo-clubs>.combo-club:nth-child(2){animation-delay:.12s}.combo-clubs>.combo-club:nth-child(3){animation-delay:.24s}.combo-clubs>.combo-club:nth-child(4){animation-delay:.36s}
+.combo-club{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 10px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--card-shadow);font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;line-height:1}
+.combo-club i{font-style:normal;font-size:20px}
+.combo-by{display:block;width:100%;margin:-4px 0 0 4px;font-size:11px;color:var(--muted);font-family:var(--label);letter-spacing:.05em;text-transform:uppercase}
+.combo-clubs .combo-by{width:auto;margin:0 6px 0 -4px;align-self:center}
+.feedback .combo-club{font-size:15px;padding:4px 10px 4px 6px;box-shadow:none}
