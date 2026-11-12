@@ -2398,6 +2398,11 @@ applyUI(); headerButtons(); paintRejoin();
 if(ls.get("arc-online",false)&&S.profile.name&&!/^#(online|friends|leaders|join-)/.test(location.hash)) getNet().then(n=>{ S.net=S.net||n; if(S.net.auth.signedIn()){ S.uid=S.net.uid(); socialStart(); } }).catch(()=>{});
 window.addEventListener("hashchange",()=>setTimeout(paintRejoin,0));
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+/* a new version took over: reload once, but only when nobody is in the middle of a game */
+if("serviceWorker" in navigator){ let had=!!navigator.serviceWorker.controller, pending=false;
+  const reloadIfIdle=()=>{ if(pending&&(!location.hash||location.hash==="#")&&!S.code){ pending=false; location.reload(); } };
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!had){ had=true; return; } pending=true; reloadIfIdle(); });
+  window.addEventListener("hashchange",()=>setTimeout(reloadIfIdle,50)); }
 window.addEventListener("beforeunload",()=>{});
 if(/^#(online|duel|whoami|career|worldcup|challenges|leaders|friends|profile|u-[A-Za-z0-9_-]+|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
 })();
