@@ -3,7 +3,41 @@
    Games call FX.win(text), FX.goal(), FX.whistle(); the sound system calls FX.on(type). */
 (function(){
 "use strict";
-const RM=()=>window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* ---------- eco mode: fewer animations and redraws to save battery and keep phones cool ----------
+   "auto" (default) turns on with a low battery that isn't charging, the phone's data/battery saver,
+   or a phone with little memory or few cores. "on" and "off" force it. */
+const ECO=(()=>{
+  let mode="auto", why="", battery=null;
+  try{ const m=localStorage.getItem("arc-eco"); if(m==="on"||m==="off"||m==="auto") mode=m; }catch(e){}
+  const weak=()=>(navigator.deviceMemory&&navigator.deviceMemory<=2)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=2);
+  const saver=()=>!!(navigator.connection&&navigator.connection.saveData)||(window.matchMedia&&matchMedia("(prefers-reduced-data: reduce)").matches);
+  const low=()=>!!battery&&!battery.charging&&battery.level<=0.25;
+  function decide(){
+    if(mode==="on") return [true,"on"];
+    if(mode==="off") return [false,"off"];
+    if(low()) return [true,"battery"];
+    if(saver()) return [true,"saver"];
+    if(weak()) return [true,"device"];
+    return [false,""];
+  }
+  const api={
+    get mode(){ return mode; }, get active(){ return document.documentElement.dataset.eco==="1"; }, get why(){ return why; },
+    apply(){ const [on,w]=decide(); why=w; const was=api.active; document.documentElement.dataset.eco=on?"1":"0";
+      if(was!==on) window.dispatchEvent(new CustomEvent("arc-eco",{detail:{on,why}})); },
+    set(m){ mode=m; try{ localStorage.setItem("arc-eco",m); }catch(e){} api.apply(); }
+  };
+  api.apply();
+  if(navigator.getBattery) navigator.getBattery().then(b=>{ battery=b; api.apply(); ["levelchange","chargingchange"].forEach(ev=>b.addEventListener(ev,()=>api.apply())); }).catch(()=>{});
+  return api;
+})();
+window.ECO=ECO;
+/* tell the player once when Auto switches eco mode on for them */
+window.addEventListener("arc-eco",e=>{ if(!e.detail.on||ECO.mode!=="auto") return;
+  const txt={battery:"🍃 Low battery: eco mode is on",saver:"🍃 Battery saver: eco mode is on",device:"🍃 Eco mode is on to save power"}[e.detail.why]; if(!txt) return;
+  const t=document.createElement("div"); t.className="ol-toast"; t.textContent=window.I18N?I18N.t(txt):txt;
+  const show=()=>{ document.body.appendChild(t); setTimeout(()=>t.remove(),3200); };
+  if(document.body) show(); else document.addEventListener("DOMContentLoaded",show); });
+const RM=()=>ECO.active||(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);
 const fine=()=>window.matchMedia&&matchMedia("(hover:hover) and (pointer:fine)").matches;
 const $=id=>document.getElementById(id);
 
@@ -125,7 +159,7 @@ function hubRefresh(){
   if(left){ const n=new Date(), m=new Date(n); m.setHours(24,0,0,0); const s=Math.max(0,Math.floor((m-n)/1000));
     const done=(()=>{ try{ const g=JSON.parse(localStorage.getItem("cc-daily2-"+todayKey())||"null"); return !!g&&g.status!=="playing"; }catch(e){ return false; } })();
     const hh=String(Math.floor(s/3600)), mm=String(Math.floor(s%3600/60)).padStart(2,"0"), ss=String(s%60).padStart(2,"0");
-    const txt=(done?"✓ Solved · next in ":"New player in ")+`${hh}:${mm}:${ss}`;
+    const txt=(done?"✓ Solved · next in ":"New player in ")+(ECO.active?`${hh}:${mm}`:`${hh}:${mm}:${ss}`);
     left.textContent=window.I18N?I18N.t(txt):txt; }
   const ch=$("hub-ch"), bar=$("hub-ch-bar");
   if(ch&&window.ARC_CH){ try{ const c=ARC_CH(); const txt=c.done>=c.total?`All done${c.streak?" · 🔥 "+c.streak:""}`:`${c.done}/${c.total} today${c.streak?" · 🔥 "+c.streak:""}`;
@@ -162,7 +196,7 @@ function keepInView(){
 function start(){
   const hub=$("v-hub"); if(hub) stagger(hub);
   const h1=document.querySelector(".brand h1"); if(h1) h1.addEventListener("click",()=>{ if(document.body.dataset.view!=="hub") location.hash=""; });
-  viewChanged(); hubRefresh(); setInterval(()=>{ if(document.body.dataset.view==="hub"&&!document.hidden) hubRefresh(); },1000);
+  viewChanged(); hubRefresh(); let tick=0; setInterval(()=>{ tick++; if(document.body.dataset.view==="hub"&&!document.hidden&&(!ECO.active||tick%30===0)) hubRefresh(); },1000);
   window.addEventListener("arc-ch",hubRefresh);
   window.addEventListener("hashchange",()=>setTimeout(viewChanged,0));
   new MutationObserver(list=>{

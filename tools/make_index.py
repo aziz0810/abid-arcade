@@ -15,6 +15,7 @@ head = '''<!doctype html>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Matchday">
 <meta name="description" content="Five free football games: guess the secret player, 30-second challenges, letter rush, name chain and a football card game. 10,000+ real players, from today's stars to the legends.">
+<script>try{if(localStorage.getItem("arc-eco")==="on")document.documentElement.dataset.eco="1"}catch(e){}</script>
 <script src="i18n.js"></script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}</style>
 '''

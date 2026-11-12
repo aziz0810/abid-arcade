@@ -371,3 +371,18 @@ html[dir=rtl] .row::before{left:auto;right:0;border-radius:4px 0 0 4px}
 /* Guess the Player: one hint per game */
 .hint-limit{font-family:var(--label);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:-8px}
 #actions .btn:disabled:not(#giveUp){opacity:.4}
+
+/* =====================================================================
+   ECO MODE (Settings → Eco mode): no endless animations, no blur, no particles.
+   Everything still works and looks the same, just still.
+   ===================================================================== */
+html[data-eco="1"] *,html[data-eco="1"] *::before,html[data-eco="1"] *::after{animation:none!important;transition-duration:0s!important;transition-delay:0s!important}
+html[data-eco="1"] body::before{display:none}
+html[data-eco="1"] header,html[data-eco="1"] .overlay,html[data-eco="1"] .hero-live,html[data-eco="1"] .ol-chat{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html[data-eco="1"] body:not([data-view="hub"]) header{background:var(--bg)}
+html[data-eco="1"] .overlay:not([hidden]){background:rgba(5,15,10,.6)}
+html[data-eco="1"] .hero-card::after,html[data-eco="1"] .prompt::after,html[data-eco="1"] .clock .bar i::after{display:none}
+html[data-eco="1"] .game-card,html[data-eco="1"] .mini-card,html[data-eco="1"] .hero-card{will-change:auto;transform:none!important}
+html[data-eco="1"] .fx-canvas,html[data-eco="1"] .fx-banner,html[data-eco="1"] .fx-plus,html[data-eco="1"] .fx-ripple,html[data-eco="1"] .ol-confetti{display:none!important}
+html[data-eco="1"] .clock .bar i{transition:none!important}
+.eco-note{font-size:13px;color:var(--muted);margin:2px 0 0}

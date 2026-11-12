@@ -18,6 +18,10 @@ Free football games, built on 10,294 real players, in English, French and Arabic
 
 Plus **Guess the Player Duel** (2–4 players on one device).
 
+**Eco mode:** ⚙ Settings → Eco mode stops the background animations, blur effects and confetti, and makes timers redraw less often, so the battery lasts longer and phones stay cool. In tests it cut CPU use on the home screen from about 3% to 0.1%, and during a timed round from 5.5% to under 1%.
+- *Auto* (the default) switches it on by itself when the battery is at 25% or less and not charging, when the phone's battery or data saver is on, or on a very weak phone.
+- *On* and *Off* force it.
+
 **Languages:** ⚙ Settings → Language switches between English, Français and العربية (right-to-left, with an Arabic font). The first visit follows the phone's language. Player and club names stay as they are.
 
 **Progress:** every signed-in player has a **profile** (👤, or tap a name in a room) with a rating, level, win rate per game and 12 badges.
