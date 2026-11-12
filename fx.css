@@ -397,3 +397,62 @@ html[data-eco="1"] .clock .bar i{transition:none!important}
 .combo-by{display:block;width:100%;margin:-4px 0 0 4px;font-size:11px;color:var(--muted);font-family:var(--label);letter-spacing:.05em;text-transform:uppercase}
 .combo-clubs .combo-by{width:auto;margin:0 6px 0 -4px;align-self:center}
 .feedback .combo-club{font-size:15px;padding:4px 10px 4px 6px;box-shadow:none}
+
+/* =====================================================================
+   ROOM LOBBY & CREATE-A-ROOM: compact game tiles, folded extras, sticky start bar
+   ===================================================================== */
+.ol-tiles{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))!important;gap:8px!important}
+.ol-tiles .ol-game{display:flex!important;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;text-align:center;padding:12px 6px 10px!important;border-radius:16px;min-height:96px;transform:none}
+.ol-tiles .ol-game:not(:disabled):hover{transform:translateY(-2px)}
+.ol-tiles .ol-game .glyph{width:44px;height:44px;border-radius:13px;font-size:18px}
+.ol-tiles .ol-game b{font-size:14px;line-height:1.1;letter-spacing:.02em}
+.ol-tiles .ol-game small{display:none!important}
+.ol-tiles .ol-game[aria-pressed="true"]{border:2px solid var(--acc);background:color-mix(in srgb,var(--acc) 10%,var(--surface));box-shadow:0 10px 22px -12px var(--acc)}
+.ol-tiles .ol-game[aria-pressed="true"]::after{content:"✓";position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:var(--acc);color:#fff;font:700 12px/20px var(--body)}
+html[dir=rtl] .ol-tiles .ol-game[aria-pressed="true"]::after{right:auto;left:8px}
+.ol-tiles .ol-game{position:relative}
+.ol-tiles .ol-game:disabled:not([aria-pressed="true"]){opacity:.55}
+.ol-chosen{margin:0;padding:10px 12px;border-radius:12px;background:var(--sunk);font-size:14px;color:var(--muted);line-height:1.4}
+.ol-chosen b{color:var(--ink)}
+
+/* folded room settings and tournament */
+.ol-more{padding:0!important;gap:0!important;overflow:hidden}
+.ol-more>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:14px 44px 14px 16px;position:relative;font-family:var(--label);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;min-height:52px}
+html[dir=rtl] .ol-more>summary{padding:14px 16px 14px 44px}
+.ol-more>summary::-webkit-details-marker{display:none}
+.ol-more>summary small{font-family:var(--body);font-weight:400;font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--muted)}
+.ol-more>summary::after{content:"";position:absolute;right:18px;top:50%;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);transition:transform .25s}
+html[dir=rtl] .ol-more>summary::after{right:auto;left:18px}
+.ol-more[open]>summary::after{transform:translateY(-30%) rotate(225deg)}
+.ol-more>div{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.ol-roomsetbody,.ol-tourset{display:flex;flex-direction:column;gap:12px}
+
+/* the start bar stays in reach at the bottom of the screen */
+.ol-startbar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:25;display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:10px;border-radius:20px;
+  background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--line);box-shadow:0 -6px 30px -12px rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.ol-startbar .btn.go{width:100%;min-height:58px;font-size:19px;letter-spacing:.06em;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:10px}
+.ol-goicon{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);font-size:13px}
+.ol-startbar .note{text-align:center;margin:0}
+.ol-startbar.guest{padding:10px}
+.ol-startbar.guest .ol-barchat{width:48px;min-height:48px;font-size:20px}
+.ol-wait{display:inline-flex;align-items:center;gap:10px;font-family:var(--label);font-weight:600;letter-spacing:.04em;color:var(--ink)}
+.ol-wait i{width:10px;height:10px;border-radius:50%;background:var(--pitch);animation:fx-ping 1.6s ease-out infinite}
+html[data-eco="1"] .ol-startbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--surface)}
+/* keep the chat button clear of the start bar */
+/* in the lobby the chat button lives in the start bar */
+@media (max-width:959px){body:has(.ol-startbar) .ol-fab{display:none}}
+.ol-barrow{display:flex;align-items:center;gap:8px}
+.ol-barrow .go{flex:1}
+.ol-barrow .ol-wait{flex:1;justify-content:center}
+.ol-barchat{position:relative;flex:none;width:58px;min-height:58px;border-radius:15px;font-size:24px;padding:0}
+.ol-barchat b{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;border-radius:10px;background:var(--hot);color:#fff;font:700 11px/20px var(--body);padding:0 5px}
+@media (min-width:960px){.ol-barchat{display:none}}
+@media (min-width:960px){.ol-startbar{position:static;box-shadow:none;background:var(--surface)}}
+
+/* room header: one tidy card */
+.ol-roombar{display:grid!important;grid-template-columns:1fr auto auto;align-items:center;gap:8px;padding:12px 14px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--card-shadow)}
+.ol-roombar .ol-code{margin:0;min-width:0}
+.ol-roombar .ol-code .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+.ol-roombar .ol-code b{font-size:32px}
+.ol-roombar #ol-leave{padding:9px 12px;min-height:42px}
+.ol-roster{gap:6px 6px}
