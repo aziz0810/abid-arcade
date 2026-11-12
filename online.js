@@ -1332,6 +1332,7 @@ function openSettings(){
     <div class="field"><span>Text size</span>${seg("size",[["1","Normal"],["1.12","Large"],["1.25","Extra large"]],UI.size)}</div>
     <div class="field"><span>Sound effects</span>${seg("sound",[["on","On"],["off","Off"]],SFX.muted?"off":"on")}</div>
     <div class="field"><span>Vibration</span>${seg("vibrate",[["true","On"],["false","Off"]],String(UI.vibrate))}</div>
+    ${window.ECO?`<div class="field"><span>Eco mode</span>${seg("eco",[["auto","Auto"],["on","On"],["off","Off"]],ECO.mode)}<p class="eco-note" id="set-eco-note"></p></div>`:""}
     ${window.I18N?`<div class="field"><span>Language</span><div class="seg notranslate" data-set="lang">${Object.entries(I18N.LANGS).map(([v,l])=>`<button type="button" data-v="${v}" lang="${v}" aria-pressed="${I18N.lang===v}">${l}</button>`).join("")}</div></div>`:""}
     <div class="field" id="set-push"></div>
     <div class="field" id="set-install"></div>`);
@@ -1339,11 +1340,19 @@ function openSettings(){
     g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true");
     const k=g.dataset.set, v=b.dataset.v;
     if(k==="lang"){ I18N.set(v); return; }
+    if(k==="eco"){ ECO.set(v); paintEco(); return; }
     if(k==="sound"){ if((v==="off")!==SFX.muted) SFX.toggle(); paintMute(); SFX.play("ok"); return; }
     UI[k]=k==="vibrate"?v==="true":v; ls.set("arc-ui",UI); applyUI(); if(k==="vibrate") haptic("ok");
   }));
-  paintInstall(); paintPushSetting();
+  paintInstall(); paintPushSetting(); paintEco();
 }
+function paintEco(){
+  const n=q("set-eco-note"); if(!n||!window.ECO) return;
+  const why={battery:"Low battery",saver:"Battery or data saver is on",device:"Saving power on this phone",on:"Always on",off:""}[ECO.why]||"";
+  n.textContent=ECO.active?`🍃 Eco mode is on${why?" · "+why:""}. No background animations, blur or confetti, so the battery lasts longer and the phone stays cool.`
+    :"Turns on by itself when the battery is low. Choose On to always save battery and keep the phone cool.";
+}
+window.addEventListener("arc-eco",paintEco);
 function paintInstall(){
   const w=q("set-install"); if(!w) return;
   if(standalone()){ w.innerHTML=`<span>App</span><p class="note" style="margin:0">Installed. You're using the app ✓</p>`; return; }
@@ -2157,7 +2166,7 @@ const WCSolo={
       q("wcs-in").disabled=false; q("wcs-in").focus();
       const end=Date.now()+st.secs*1000; this.iv=setInterval(()=>{ const left=Math.max(0,(end-Date.now())/1000); if(!q("wcs-secs")){ clearInterval(this.iv); return; }
         q("wcs-secs").textContent=Math.ceil(left); q("wcs-bar").style.width=(100*left/st.secs)+"%"; q("wcs-clock").classList.toggle("low",left<=5);
-        if(left<=0){ clearInterval(this.iv); this.fullTime(); } },100); },1000);
+        if(left<=0){ clearInterval(this.iv); this.fullTime(); } },window.ECO&&ECO.active?250:100); },1000);
   },
   fullTime(){
     const st=this.st, r=st.r, k=st.opps[r], need=WC_STAGES[r][1], n=st.list.length, won=n>=need;

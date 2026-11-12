@@ -429,7 +429,7 @@ function Timer(secs,clockEl,secsEl,barEl,onEnd){
   let end=0, iv=null, left=secs;
   const draw=()=>{ secsEl.textContent=Math.ceil(left); barEl.style.width=(100*left/secs)+"%"; clockEl.classList.toggle("low",left<=5); };
   return {
-    start(){ end=performance.now()+secs*1000; left=secs; draw(); clearInterval(iv); iv=setInterval(()=>{ left=Math.max(0,(end-performance.now())/1000); draw(); if(left<=0){ clearInterval(iv); onEnd(); } },100); },
+    start(){ end=performance.now()+secs*1000; left=secs; draw(); clearInterval(iv); iv=setInterval(()=>{ left=Math.max(0,(end-performance.now())/1000); draw(); if(left<=0){ clearInterval(iv); onEnd(); } },window.ECO&&ECO.active?250:100); },
     stop(){ clearInterval(iv); },
     get left(){ return left; }
   };
