@@ -61,7 +61,10 @@ function LocalNet(){
   const parts=p=>p.split("/").filter(Boolean);
   const getAt=(t,p)=>{ let n=t; for(const k of parts(p)){ if(n==null||typeof n!=="object") return null; n=n[k]; } return n===undefined?null:n; };
   const prune=(t,ks)=>{ for(let i=ks.length-1;i>0;i--){ const par=getAt(t,ks.slice(0,i).join("/")); if(par&&typeof par==="object"&&!Object.keys(par[ks[i]]||{}).length&&typeof par[ks[i]]==="object") delete par[ks[i]]; } };
-  const setAt=(t,p,v)=>{ const ks=parts(p); let n=t; for(let i=0;i<ks.length-1;i++){ if(n[ks[i]]==null||typeof n[ks[i]]!=="object") n[ks[i]]={}; n=n[ks[i]]; } const last=ks[ks.length-1]; if(v==null){ delete n[last]; prune(t,ks); } else n[last]=clone(v); };
+  /* behave like Firebase: empty objects and arrays are not stored */
+  const fbClean=v=>{ if(Array.isArray(v)){ const a=v.map(fbClean); return a.length?a:null; }
+    if(v&&typeof v==="object"){ const o={}; for(const k in v){ const c=fbClean(v[k]); if(c!=null) o[k]=c; } return Object.keys(o).length?o:null; } return v===undefined?null:v; };
+  const setAt=(t,p,v)=>{ v=fbClean(v); const ks=parts(p); let n=t; for(let i=0;i<ks.length-1;i++){ if(n[ks[i]]==null||typeof n[ks[i]]!=="object") n[ks[i]]={}; n=n[ks[i]]; } const last=ks[ks.length-1]; if(v==null){ delete n[last]; prune(t,ks); } else n[last]=clone(v); };
   const L=[];
   const notify=()=>{ const t=load(); for(const l of L.slice()){
     if(l.child){ const v=getAt(t,l.p)||{}; for(const k of Object.keys(v).sort()){ if(!l.seen.has(k)){ l.seen.add(k); l.cb(k,clone(v[k])); } } }
@@ -249,6 +252,12 @@ function authError(e){
 function afterSignIn(){ S.uid=S.net.uid(); socialStart(); const pend=ls.get("arc-daily-pending",null); if(pend) postDaily(pend);
   const h=location.hash.replace("#",""); const m=h.match(/^join-([A-Z]{5})$/); if(m) enterRoom(m[1]); else if(h==="leaders") renderLeaders(); else if(h==="friends") renderFriends(); else if(h==="profile") renderProfile(S.uid); else if(/^u-/.test(h)) renderProfile(h.slice(2)); else renderHome(); }
 
+/* compact game picker: icon tiles plus a line describing the chosen game */
+function gameTiles(id,sel,enabled){
+  return `<div class="ol-games ol-tiles" id="${id}">${Object.entries(GAMES).map(([k,x])=>`<button type="button" class="ol-game" data-g="${k}" aria-pressed="${k===sel}" ${enabled?"":"disabled"}><span class="glyph">${x.icon}</span><span><b>${x.name}</b><small>${x.blurb}</small></span></button>`).join("")}</div>
+    <p class="ol-chosen" id="${id}-about"><b>${E(GAMES[sel].name)}</b> · ${E(GAMES[sel].blurb)}</p>`;
+}
+function paintChosen(id,k){ const a=q(id+"-about"); if(a) a.innerHTML=`<b>${E(GAMES[k].name)}</b> · ${E(GAMES[k].blurb)}`; }
 function renderHome(){
   const main=q("ol-main"); S.view="home";
   const u=S.net.auth.user();
@@ -257,7 +266,7 @@ function renderHome(){
     <div class="ol-quick"><a class="ol-q" href="#profile" data-go="profile"><span>👤</span>Profile</a><a class="ol-q" href="#challenges" data-go="challenges"><span>🎯</span>Challenges</a><a class="ol-q" href="#leaders" data-go="leaders"><span>🏆</span>Leaderboards</a><a class="ol-q" href="#friends" data-go="friends"><span>👥</span>Friends</a></div>
     <div class="ol-two">
       <div class="panel"><h3 class="ol-h">Create a room</h3><p class="note" style="margin:0">Pick the first game. You can switch games in the room.</p>
-        <div class="ol-games" id="ol-pick">${Object.entries(GAMES).map(([k,g],i)=>`<button type="button" class="ol-game" aria-pressed="${i===0}" data-g="${k}"><span class="glyph">${g.icon}</span><span><b>${g.name}</b><small>${g.blurb}</small></span></button>`).join("")}</div>
+        ${gameTiles("ol-pick","close",true)}
         <div class="field"><span>Who can join</span><div class="seg" id="ol-vis"><button type="button" data-v="private" aria-pressed="true">🔒 Private · code only</button><button type="button" data-v="public" aria-pressed="false">🌍 Public · anyone can find it</button></div></div>
         <div class="field"><span>Max players</span><div class="seg" id="ol-max">${MAX_OPTS.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===8}">${v}</button>`).join("")}</div></div>
         <div class="field" id="ol-titlef" hidden><span>Room name in the public list</span><input id="ol-title" class="ol-text" maxlength="28" placeholder="${E(S.profile.name)}'s room"></div>
@@ -270,7 +279,7 @@ function renderHome(){
         <button class="btn" id="ol-quick">⚡ Quick join</button></div>
     </div>`;
   let pick="close";
-  q("ol-pick").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-pick").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); pick=b.dataset.g; });
+  q("ol-pick").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-pick").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); pick=b.dataset.g; paintChosen("ol-pick",pick); });
   let vis="private", max=8;
   q("ol-vis").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-vis").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); vis=b.dataset.v; q("ol-titlef").hidden=vis!=="public"; });
   q("ol-max").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("ol-max").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); max=+b.dataset.v; });
@@ -411,7 +420,7 @@ function paintChat(){
     prev=m; return h;
   }).join("")||`<div class="msg-s">Say hi 👋</div>`;
   if(atBottom||S.chat.length<3) list.scrollTop=list.scrollHeight;
-  const b=q("ol-chatbadge"); if(b){ b.textContent=S.unread>9?"9+":(S.unread||""); b.hidden=!S.unread; }
+  ["ol-chatbadge","ol-barbadge"].forEach(id=>{ const b=q(id); if(b){ b.textContent=S.unread>9?"9+":(S.unread||""); b.hidden=!S.unread; } });
 }
 
 /* ================= Room screen ================= */
@@ -472,20 +481,33 @@ const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player fro
 const setLabel=(game,k)=>(LBL_GAME[game]&&LBL_GAME[game][k])||LBL[k]||k;
 function renderLobby(st){
   const m=S.meta, g=GAMES[m.game], host=S.host;
-  const fresh=skel(st,"lobby-"+m.game+"-"+host,`<div id="ol-champ"></div><div class="panel">
-    <div class="section-label"><span>${host?"Choose the game":"Next game"}</span><span id="ol-hostlbl"></span></div>
-    <div class="ol-games" id="ol-lg">${Object.entries(GAMES).map(([k,x])=>`<button type="button" class="ol-game" data-g="${k}" ${host?"":"disabled"}><span class="glyph">${x.icon}</span><span><b>${x.name}</b><small>${x.blurb}</small></span></button>`).join("")}</div>
-    <div id="ol-sets"></div>
-    <div class="actions" id="ol-start"></div></div><div id="ol-roomset"></div><div id="ol-tour"></div>`);
+  const fresh=skel(st,"lobby-"+host,`<div id="ol-champ"></div><div class="panel ol-lobby">
+    <div class="section-label"><span>${host?"1 · Choose the game":"Next game"}</span><span id="ol-hostlbl"></span></div>
+    ${gameTiles("ol-lg",m.game,host)}
+    <div class="section-label" id="ol-setlbl"><span>${host?"2 · Settings":"Settings"}</span></div>
+    <div id="ol-sets"></div></div>
+    ${host?`<details class="panel ol-more" id="ol-roommore"><summary><span>⚙️ Room settings</span><small id="ol-roomsum"></small></summary><div id="ol-roomset"></div></details>
+    <details class="panel ol-more" id="ol-tourmore"><summary><span>🏆 Tournament mode</span><small>Several games in a row, one champion</small></summary><div id="ol-tour"></div></details>`
+    :`<div id="ol-roomset"></div><div id="ol-tour"></div>`}
+    <div class="ol-startbar${host?"":" guest"}" id="ol-start"></div>`);
   q("ol-hostlbl").textContent=host?"You're the host":"Host: "+pname(m.host);
   st.querySelectorAll("#ol-lg button").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.g===m.game)); if(fresh&&host) b.onclick=()=>S.net.update(R("meta"),{game:b.dataset.g,settings:clone(GAMES[b.dataset.g].def)}); });
+  paintChosen("ol-lg",m.game); if(q("ol-roomsum")) q("ol-roomsum").textContent=visTag();
   const sets=q("ol-sets"); const cur=m.settings||g.def;
-  sets.innerHTML=Object.entries(g.set).map(([k,opts])=>`<div class="field"><span>${setLabel(m.game,k)}</span><div class="seg">${opts.map(([v,l])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${String(cur[k])===String(v)}" ${host?"":"disabled"}>${l}</button>`).join("")}</div></div>`).join("");
-  if(host) sets.querySelectorAll("button").forEach(b=>b.onclick=()=>{ const o=GAMES[m.game].set[b.dataset.k].find(x=>String(x[0])===b.dataset.v); S.net.set(R("meta/settings/"+b.dataset.k),o[0]); });
+  const setsKey=JSON.stringify([m.game,cur,host]);
+  if(sets.dataset.k!==setsKey){ sets.dataset.k=setsKey;   // long option lists become a dropdown
+    sets.innerHTML=Object.entries(g.set).map(([k,opts])=>opts.length>6
+      ?`<div class="field"><span>${setLabel(m.game,k)}</span><select data-k="${k}" ${host?"":"disabled"} aria-label="${E(setLabel(m.game,k))}">${opts.map(([v,l])=>`<option value="${E(String(v))}" ${String(cur[k])===String(v)?"selected":""}>${l}</option>`).join("")}</select></div>`
+      :`<div class="field"><span>${setLabel(m.game,k)}</span><div class="seg">${opts.map(([v,l])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${String(cur[k])===String(v)}" ${host?"":"disabled"}>${l}</button>`).join("")}</div></div>`).join("");
+    if(host){ const setv=(k,v)=>{ const o=GAMES[m.game].set[k].find(x=>String(x[0])===v); if(o) S.net.set(R("meta/settings/"+k),o[0]); };
+      sets.querySelectorAll("button").forEach(b=>b.onclick=()=>setv(b.dataset.k,b.dataset.v));
+      sets.querySelectorAll("select").forEach(x=>x.onchange=()=>setv(x.dataset.k,x.value)); } }
   const n=onlineUids().length, need=m.game==="linkup"?Math.max(0,2-n-Number(cur.cpus||0)):0, over=m.game==="linkup"&&n+Number(cur.cpus||0)>LINKUP_MAX;
+  const chatBtn=`<button type="button" class="btn ol-barchat" id="ol-barchat" aria-label="Open chat">💬<b id="ol-barbadge" ${S.unread?"":"hidden"}>${S.unread>9?"9+":(S.unread||"")}</b></button>`;
   q("ol-start").innerHTML=host
-    ?`<button class="btn primary go" id="ol-go" ${need||over?"disabled":""}>Start ${E(g.name)}</button><span class="note">${need?"Link Up needs 2 seats: invite a friend or add a CPU.":over?`Link Up supports up to ${LINKUP_MAX} players (the deck runs out). Remove CPUs or pick another game.`:`${n} player${n>1?"s":""} in the room`}</span>`
-    :`<span class="note">Waiting for ${E(pname(m.host))} to start the game…</span>`;
+    ?`<div class="ol-barrow">${chatBtn}<button class="btn primary go" id="ol-go" ${need||over?"disabled":""}><span class="ol-goicon">▶</span>Start ${E(g.name)}</button></div><span class="note">${need?"Link Up needs 2 seats: invite a friend or add a CPU.":over?`Link Up supports up to ${LINKUP_MAX} players (the deck runs out). Remove CPUs or pick another game.`:`${n} player${n>1?"s":""} in the room`}</span>`
+    :`<div class="ol-barrow">${chatBtn}<span class="ol-wait"><i></i>Waiting for ${E(pname(m.host))} to start the game…</span></div>`;
+  if(q("ol-barchat")) q("ol-barchat").onclick=openChat;
   if(host&&q("ol-go")) q("ol-go").onclick=()=>startGame();
   const rs=q("ol-roomset"), rk=JSON.stringify([m.vis,m.max,m.title,m.ranked,host,n]); if(rs.dataset.k!==rk){ rs.dataset.k=rk; rs.innerHTML=roomSettingsHTML(); bindRoomSettings(); }
   const tw=q("ol-tour"), tk=JSON.stringify([S.meta.tour||null,host,Object.keys(S.players).length]);
@@ -1506,7 +1528,7 @@ function championHTML(){
 function tourPanel(){
   if(!S.host) return S.meta.tour&&!S.meta.tour.done?tourTable():"";
   const sel=S.tourPick||(S.tourPick=["close","thirty","whoami","chain"]);
-  return `<div class="panel ol-tourset"><div class="section-label"><span>🏆 Tournament mode</span><span>Several games in a row, one champion</span></div>
+  return `<div class="ol-tourset">
     <div class="seg" id="ol-tpick">${Object.entries(GAMES).map(([k,g])=>`<button type="button" data-t="${k}" aria-pressed="${sel.includes(k)}">${g.name}</button>`).join("")}</div>
     <div class="field"><span>Theme for every game</span><select id="ol-ttheme" aria-label="Tournament theme">${THEME_OPTS.map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select></div>
     <div class="actions"><button class="btn" id="ol-tgo">Start tournament (${sel.length} games)</button><span class="note">Points per game: 1st ${TOUR_PTS[0]}, 2nd ${TOUR_PTS[1]}, 3rd ${TOUR_PTS[2]}, everyone else 1.</span></div></div>`;
@@ -1799,7 +1821,7 @@ function visTag(){
 function roomSettingsHTML(){
   const m=S.meta, mx=m.max||8;
   if(!S.host) return `<div class="ol-note">${E(visTag())}${m.vis==="public"?` · listed as “${E(m.title||pname(m.host)+"'s room")}”`:" · join with the code only"}</div>`;
-  return `<div class="panel"><div class="section-label"><span>Room settings</span><span>${E(visTag())}</span></div>
+  return `<div class="ol-roomsetbody">
     <div class="field"><span>Who can join</span><div class="seg" id="rs-vis"><button type="button" data-v="private" aria-pressed="${m.vis!=="public"}">🔒 Private · code only</button><button type="button" data-v="public" aria-pressed="${m.vis==="public"}">🌍 Public · anyone can find it</button></div></div>
     <div class="field"><span>Ranked (rating changes after each game)</span><div class="seg" id="rs-rank"><button type="button" data-v="1" aria-pressed="${m.ranked!==false}">🏆 Ranked</button><button type="button" data-v="0" aria-pressed="${m.ranked===false}">Just for fun</button></div></div>
     <div class="field"><span>Max players</span><div class="seg" id="rs-max">${MAX_OPTS.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===mx}">${v}</button>`).join("")}</div></div>
@@ -2440,6 +2462,7 @@ ENG.combo={
   async score(){
     const g=clone(S.game); if(g.phase!=="play") return;
     const ans=S.answers[g.round]||{}, k=g.combo.length, res={};
+    g.scores=g.scores||{};   // Firebase drops empty objects, so this may be missing
     arr(g.players).forEach(u=>{ const id=ans[u]; const m=id!=null&&PLAYERS[id]?comboCover(id,g.combo):0; const pts=comboPts(m,k);
       res[u]={id:id==null?null:+id,m,pts}; if(pts) g.scores[u]=(g.scores[u]||0)+pts; });
     g.res=g.res||{}; g.res["r"+g.round]=res; g.phase="results"; g.nextAt=now()+12000;
@@ -2449,7 +2472,7 @@ ENG.combo={
   },
   async next(){
     const g=clone(S.game); if(g.phase!=="results") return;
-    if(g.round+1>=g.total){ g.phase="over"; await setGame(g);
+    if(g.round+1>=g.total){ g.phase="over"; g.scores=g.scores||{}; await setGame(g);
       const sc=g.scores||{}, best=Math.max(0,...Object.values(sc)); const win=Object.keys(sc).filter(u=>sc[u]===best&&best>0);
       if(win.length){ await award(win,3,true); sys(`🏆 ${win.map(pname).join(" & ")} won Team Combo with ${best} points`); } return; }
     g.round++; g.phase="pick"; g.pickEndsAt=now()+21000; delete g.combo; delete g.by; delete g.nextAt; await setGame(g);
