@@ -393,11 +393,14 @@ function closeChat(){
   const box=q("ol-chatbox"); S.chatOpen=false; if(box) box.classList.remove("open");
   if(q("ol-backdrop")) q("ol-backdrop").hidden=true; document.body.style.overflow="";
   if(document.activeElement&&document.activeElement.id==="ol-chatin") document.activeElement.blur();
+  fitChat();
 }
 /* keep the chat sheet above the phone keyboard */
 function fitChat(){
   const box=q("ol-chatbox"), vv=window.visualViewport; if(!box||!vv) return;
-  const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+  // Only follow the keyboard while the chat is open. When scrolling, the address bar
+  // changes the viewport too, and lifting the closed sheet made it slide into view.
+  let kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop); if(!S.chatOpen||kb<120) kb=0;
   box.style.setProperty("--kb",kb+"px"); box.style.setProperty("--vvh",Math.max(240,vv.height-24)+"px");
   if(S.chatOpen){ const l=q("ol-msgs"); if(l) l.scrollTop=l.scrollHeight; }
 }

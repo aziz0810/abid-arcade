@@ -456,3 +456,9 @@ html[data-eco="1"] .ol-startbar{backdrop-filter:none;-webkit-backdrop-filter:non
 .ol-roombar .ol-code b{font-size:32px}
 .ol-roombar #ol-leave{padding:9px 12px;min-height:42px}
 .ol-roster{gap:6px 6px}
+
+/* the closed chat sheet is fully hidden, so nothing can make it peek up while scrolling */
+@media (max-width:959px){
+  .ol-chat:not(.open){visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s}
+  .ol-chat.open{visibility:visible;transition:transform .22s ease,visibility 0s}
+}
