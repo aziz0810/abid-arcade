@@ -198,7 +198,7 @@ const GAMES={
   xi:{name:"Starting XI",icon:"XI",blurb:"A famous line-up appears as 11 shirts on a pitch. Fill it together: first to name a player gets the point.",
     set:{rounds:[[1,"1 match"],[3,"3 matches"],[5,"5 matches"]],secs:[[90,"90s"],[150,"2½ min"],[240,"4 min"]],pool:[["top","Biggest nights"],["all","All matches"]]},def:{rounds:3,secs:150,pool:"top"}},
   degrees:{name:"Six Degrees",icon:"🔗",blurb:"Link two players through teammates. Shortest chain first wins.",
-    set:{links:[[2,"Easy · 2 links"],[3,"Medium · 3"],[4,"Hard · 4"]],rounds:[[3,"3 rounds"],[5,"5 rounds"]],secs:[[90,"90s"],[150,"2½ min"],[240,"4 min"]]},def:{links:3,rounds:3,secs:150}},
+    set:{level:[["stars","⭐ Stars only"],["known","Well known"],["any","Any player"]],links:[[2,"Easy · 2 links"],[3,"Medium · 3"],[4,"Hard · 4"]],rounds:[[3,"3 rounds"],[5,"5 rounds"]],secs:[[90,"90s"],[150,"2½ min"],[240,"4 min"]]},def:{level:"stars",links:3,rounds:3,secs:150}},
   linkup:{name:"Link Up",icon:"▮▮▮",blurb:"The football card game. Private hands, CPUs can fill seats.",
     set:{hand:[[5,"5 cards"],[7,"7 cards"],[9,"9 cards"]],secs:[[30,"30s turns"],[45,"45s turns"],[0,"No timer"]],cpus:[[0,"No CPU"],[1,"+1 CPU"],[2,"+2 CPU"]],level:[["easy","Easy CPU"],["normal","Normal CPU"],["hard","Hard CPU"]]},def:{hand:7,secs:45,cpus:0,level:"normal"}},
 };
@@ -484,7 +484,7 @@ function renderStage(){
 function skel(st,key,html){ if(st.dataset.key!==key){ st.dataset.key=key; st.innerHTML=html; return true; } return false; }
 
 const LBL={mode:"Mode",secs:"Time",cpus:"Computer players",level:"Difficulty",era:"Era",hand:"Cards each",rounds:"Rounds",scoring:"Scoring",theme:"Theme"};
-const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"},combo:{size:"Clubs in the combo",secs:"Answer time"},xi:{rounds:"Matches",pool:"Line-ups from"},degrees:{links:"Distance"}};
+const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"},combo:{size:"Clubs in the combo",secs:"Answer time"},xi:{rounds:"Matches",pool:"Line-ups from"},degrees:{links:"Distance",level:"Players"}};
 const setLabel=(game,k)=>(LBL_GAME[game]&&LBL_GAME[game][k])||LBL[k]||k;
 function renderLobby(st){
   const m=S.meta, g=GAMES[m.game], host=S.host;
@@ -2736,40 +2736,63 @@ const DEG=(()=>{
     for(const [c,x0,x1] of stints(a)) for(const [c2,y0,y1] of sb) if(c===c2&&x0<=y1&&y0<=x1){ const f=Math.max(x0,y0), t=Math.min(x1,y1); return {c,f,t}; }
     return null; }
   const linkText=l=>l?`${CLUBS[l.c].name} · ${l.f===l.t?`${l.f}/${String(l.f+1).slice(2)}`:`${l.f}–${String(l.t+1).slice(2)}`}`:"";
-  function path(a,b,max=7){ if(a===b) return [a]; const prev=new Map([[a,-1]]); let front=[a];
-    for(let d=0;d<max&&front.length;d++){ const nx=[]; for(const u of front){ for(const v of mates(u)){ if(prev.has(v)) continue; prev.set(v,u); if(v===b){ const p=[b]; let x=u; while(x!==-1){ p.unshift(x); x=prev.get(x); } return p; } nx.push(v); } } front=nx; }
+  /* players are stored most famous first, so the index is a fame rank.
+     A level sets how famous the two ends are and which players the intended chain may use. */
+  const LEVEL={stars:{ends:350,mid:2500,big:60},known:{ends:1200,mid:5000,big:150},any:{ends:3400,mid:Infinity,big:0}};
+  const lv=k=>LEVEL[k]||LEVEL.known;
+  /* easier levels also require players who played for one of the best-known clubs, so the ends are names people know */
+  const bigSets={};
+  function bigOk(level){ const L=lv(level); if(!L.big) return ()=>true; if(!bigSets[level]){ const top=new Set(CLUBS.map((c,i)=>i).sort((a,b)=>clubFame[b]-clubFame[a]).slice(0,L.big));
+      bigSets[level]=new Set(PLAYERS.filter(p=>[...p.clubs].some(c=>top.has(c))).map(p=>p.id)); } const S2=bigSets[level]; return id=>S2.has(id); }
+  function path(a,b,max=7,cap=Infinity,ok=()=>true){ if(a===b) return [a]; const prev=new Map([[a,-1]]); let front=[a];
+    for(let d=0;d<max&&front.length;d++){ const nx=[]; for(const u of front){ for(const v of mates(u)){ if(prev.has(v)) continue; if(v===b){ const p=[b]; let x=u; while(x!==-1){ p.unshift(x); x=prev.get(x); } return p; } if(v>=cap||!ok(v)) continue; prev.set(v,u); nx.push(v); } } front=nx; }
     return null; }
-  function puzzle(links){ build();
-    const pool=PLAYERS.filter(p=>p.tier===0&&stints(p.id).length>=2);
-    for(let tries=0;tries<40;tries++){
-      const A=pickOne(pool); const dist=new Map([[A.id,0]]); let front=[A.id];
-      for(let d=0;d<links&&front.length;d++){ const nx=[]; for(const u of front) for(const v of mates(u)) if(!dist.has(v)){ dist.set(v,d+1); nx.push(v); } front=nx; }
-      const far=pool.filter(p=>dist.get(p.id)===links&&Math.abs(p.born-A.born)>=6);
-      if(far.length){ const B=pickOne(far); return {a:A.id,b:B.id,best:links}; }
-    }
-    return null; }
-  return {mates,link,linkText,path,puzzle,isMate:(a,b)=>mates(a).has(b)};
+  // the friendliest chain: through famous players if possible, otherwise anyone
+  const bestPath=(a,b,level)=>path(a,b,7,lv(level).mid,bigOk(level))||path(a,b,7,lv(level).mid)||path(a,b,7);
+  function puzzle(links,level){ build(); const L=lv(level), ok=bigOk(level);
+    const within=(a,n)=>{ const seen=new Set([a]); let front=[a]; for(let d=0;d<n&&front.length;d++){ const nx=[]; for(const u of front) for(const v of mates(u)) if(!seen.has(v)){ seen.add(v); nx.push(v); } front=nx; } return seen; };
+    const tryWith=(ends,n)=>{ const pool=PLAYERS.filter(p=>p.id<ends&&ok(p.id)&&stints(p.id).length>=2);
+      for(let tries=0;tries<45;tries++){
+        const A=pickOne(pool); const dist=new Map([[A.id,0]]); let front=[A.id];
+        for(let d=0;d<n&&front.length;d++){ const nx=[]; for(const u of front) for(const v of mates(u)) if(!dist.has(v)){ dist.set(v,d+1); if(v<L.mid&&ok(v)) nx.push(v); } front=nx; }
+        let far=pool.filter(p=>dist.get(p.id)===n&&Math.abs(p.born-A.born)>=6); if(!far.length) continue;
+        const near=within(A.id,n-1); far=far.filter(p=>!near.has(p.id));   // no shorter chain through anyone
+        if(far.length){ const B=pickOne(far); return {a:A.id,b:B.id,best:n}; } }
+      return null; };
+    // stars rarely sit 4 links apart: widen the pool a little, then shorten the distance
+    return tryWith(L.ends,links)||tryWith(L.ends*2,links)||(links>2?tryWith(L.ends*2,links-1):null); }
+  /* hints for the next step: 1 = club and season, 2 = initials, 3 = the name */
+  function hint(last,b,level,n){
+    const p=bestPath(last,b,level); if(!p||p.length<3) return "You're one link away: name a teammate of the target.";
+    const nx=PLAYERS[p[1]], l=link(p[0],p[1]);
+    if(n<=1) return `💡 Try someone from ${CLUBS[l.c].name} around ${l.f}.`;
+    if(n===2) return `💡 Initials: ${nx.base.split(/\s+/).map(w=>w[0]+".").join(" ")} (${CLUBS[l.c].name})`;
+    return `💡 ${nx.base}`;
+  }
+  return {mates,link,linkText,path,bestPath,puzzle,hint,isMate:(a,b)=>mates(a).has(b)};
 })();
 function degChain(chain,b,opts={}){
   const node=(id,cls)=>`<div class="deg-node ${cls||""}"><span class="ol-av">${COUNTRIES[PLAYERS[id].k].flag}</span><b>${E(PLAYERS[id].base)}</b></div>`;
-  let h=""; chain.forEach((id,i)=>{ if(i) h+=`<div class="deg-link"><i></i><span>${E(DEG.linkText(DEG.link(chain[i-1],id)))}</span></div>`; h+=node(id,i===0?"start":""); });
-  if(opts.done) h+=`<div class="deg-link done"><i></i><span>${E(DEG.linkText(DEG.link(chain[chain.length-1],b)))}</span></div>`+node(b,"end");
+  let h=""; chain.forEach((id,i)=>{ const add=opts.from!=null&&i>=opts.from; if(i) h+=`<div class="deg-link${add?" added":""}"><i></i><span>${E(DEG.linkText(DEG.link(chain[i-1],id)))}</span></div>`; h+=node(id,(i===0?"start ":"")+(add?"added":"")); });
+  if(opts.done) h+=`<div class="deg-link done${opts.from!=null&&opts.from<=chain.length?" added":""}"><i></i><span>${E(DEG.linkText(DEG.link(chain[chain.length-1],b)))}</span></div>`+node(b,"end");
   else h+=`<div class="deg-gap"><i></i><span>${opts.gap||"?"}</span></div>`+node(b,"end dim");
   return `<div class="deg-chain">${h}</div>`;
 }
 const DegSolo={
   open(){
-    const main=q("ol-main"); S.view="degrees"; const cfg=ls.get("arc-deg",{links:3});
+    const main=q("ol-main"); S.view="degrees"; const cfg=Object.assign({links:3,level:"stars"},ls.get("arc-deg",{}));
     main.innerHTML=`<h2 class="view-title">Six Degrees</h2>
       <p class="lede">Connect two players through teammates. Each player you name must have played with the one before (same club, same season). Reach the target in as few links as you can.</p>
       <div class="panel"><div class="field"><span>Distance</span><div class="seg" id="degs-l">${[[2,"Easy · 2 links"],[3,"Medium · 3"],[4,"Hard · 4"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v===cfg.links}">${l}</button>`).join("")}</div></div>
+        <div class="field"><span>Players</span><div class="seg" id="degs-v">${[["stars","⭐ Stars only"],["known","Well known"],["any","Any player"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v===cfg.level}">${l}</button>`).join("")}</div></div>
         <button class="btn primary go" id="degs-go">Start</button></div>
       <p class="note">Playing with friends? Choose <b>Six Degrees</b> in an online room and race to connect.</p>`;
     q("degs-l").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("degs-l").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); cfg.links=+b.dataset.v; });
+    q("degs-v").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("degs-v").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); cfg.level=b.dataset.v; });
     q("degs-go").onclick=()=>{ ls.set("arc-deg",cfg); this.start(cfg); };
   },
-  start(cfg){ const z=DEG.puzzle(cfg.links); if(!z){ toast("Couldn't find a puzzle, try again."); return; }
-    this.st={a:z.a,b:z.b,best:z.best,chain:[z.a],hints:0,cfg,t0:now()}; this.paint(true); },
+  start(cfg){ const z=DEG.puzzle(cfg.links,cfg.level); if(!z){ toast("Couldn't find a puzzle, try again."); return; }
+    this.st={a:z.a,b:z.b,best:z.best,chain:[z.a],hints:0,hstep:0,cfg,t0:now()}; this.paint(true); },
   paint(fresh){
     const st=this.st, main=q("ol-main"), last=st.chain[st.chain.length-1];
     if(fresh) main.innerHTML=`<h2 class="view-title">Six Degrees</h2>
@@ -2782,9 +2805,9 @@ const DegSolo={
     if(q("degs-in")){ q("degs-in").placeholder=`A teammate of ${PLAYERS[last].base}…`; q("degs-in").disabled=!!st.over; }
     q("degs-undo").disabled=st.chain.length<2||st.over; q("degs-hint").disabled=st.over; q("degs-give").disabled=st.over;
     if(fresh){ q("degs-form").onsubmit=e=>{ e.preventDefault(); const v=q("degs-in").value; q("degs-in").value=""; if(v.trim()) this.step(v); };
-      q("degs-undo").onclick=()=>{ if(st.chain.length>1){ st.chain.pop(); this.paint(); } };
-      q("degs-hint").onclick=()=>{ const p=DEG.path(st.chain[st.chain.length-1],st.b); const fb=q("degs-fb"); if(!p||p.length<3){ fb.className="feedback"; fb.textContent="You're one link away: name a teammate of the target."; return; }
-        st.hints++; const l=DEG.link(p[0],p[1]); fb.className="feedback"; fb.textContent=`💡 Try someone from ${CLUBS[l.c].name} around ${l.f}.`; };
+      q("degs-undo").onclick=()=>{ if(st.chain.length>1){ st.chain.pop(); st.hstep=0; q("degs-hint").textContent="💡 Hint"; this.paint(); } };
+      q("degs-hint").onclick=()=>{ const fb=q("degs-fb"), last=st.chain[st.chain.length-1]; st.hstep=(st.hstep||0)+1; st.hints++;
+        fb.className="feedback"; fb.textContent=DEG.hint(last,st.b,st.cfg.level,st.hstep); q("degs-hint").textContent=st.hstep>=3?"💡 Hint":`💡 More help (${3-st.hstep})`; };
       q("degs-give").onclick=()=>this.finish(false); q("degs-in").focus(); }
   },
   step(v){
@@ -2794,15 +2817,17 @@ const DegSolo={
     if(r.p.id===st.b){ if(DEG.isMate(last,st.b)){ st.done=true; return this.finish(true); } }
     if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} never played with ${PLAYERS[last].base}.`; SFX.play("bad"); return; }
     if(st.chain.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already in your chain.`; return; }
-    st.chain.push(r.p.id); fb.className="feedback ok"; fb.textContent=`✓ ${DEG.linkText(DEG.link(last,r.p.id))}`; SFX.play("ok");
+    st.chain.push(r.p.id); st.hstep=0; q("degs-hint").textContent="💡 Hint"; fb.className="feedback ok"; fb.textContent=`✓ ${DEG.linkText(DEG.link(last,r.p.id))}`; SFX.play("ok");
     if(DEG.isMate(r.p.id,st.b)){ st.done=true; return this.finish(true); }
     this.paint();
   },
   finish(won){
     const st=this.st; st.over=true; const links=st.chain.length; this.paint();
-    const best=DEG.path(st.a,st.b)||[];
+    const best=DEG.bestPath(st.a,st.b,st.cfg.level)||[];
+    const last=st.chain[st.chain.length-1], cont=!won&&st.chain.length>1?DEG.bestPath(last,st.b,st.cfg.level):null;
     q("degs-end").innerHTML=`<div class="panel"><h3 class="view-title" style="font-size:30px">${won?(links<=st.best?"Perfect link-up! 🔗":"Connected!"):"Here's a way through"}</h3>
       ${won?`<p class="note" style="margin:0">Your chain: ${links} link${links>1?"s":""} · shortest possible: ${best.length-1}${st.hints?` · ${st.hints} hint${st.hints>1?"s":""}`:""}</p>`:""}
+      ${cont?`<div class="section-label"><span>Your chain, finished</span><span>${cont.length-1} more link${cont.length-1===1?"":"s"} from ${E(PLAYERS[last].base)}</span></div>${degChain(st.chain.concat(cont.slice(1,-1)),st.b,{done:true,from:st.chain.length})}`:""}
       <div class="section-label"><span>Shortest chain</span></div>${degChain(best.slice(0,-1),st.b,{done:true})}
       <div class="actions"><button class="btn primary" id="degs-next">New puzzle</button><button class="btn ghost" id="degs-set">Change distance</button></div></div>`;
     q("degs-next").onclick=()=>this.start(st.cfg); q("degs-set").onclick=()=>this.open();
@@ -2811,21 +2836,21 @@ const DegSolo={
 };
 ENG.degrees={
   async start(set){ const links=+set.links||3, t=now()+4000, puzzles=[];
-    for(let i=0;i<(+set.rounds||3);i++){ const z=DEG.puzzle(links); if(z) puzzles.push([z.a,z.b]); }
-    return {kind:"degrees",at:now(),round:0,total:puzzles.length,puzzles,links,secs:+set.secs||150,startsAt:t,endsAt:t+(+set.secs||150)*1000,phase:"play",players:onlineUids()}; },
+    for(let i=0;i<(+set.rounds||3);i++){ const z=DEG.puzzle(links,set.level); if(z) puzzles.push([z.a,z.b]); }
+    return {kind:"degrees",at:now(),round:0,total:puzzles.length,puzzles,links,level:set.level||"stars",secs:+set.secs||150,startsAt:t,endsAt:t+(+set.secs||150)*1000,phase:"play",players:onlineUids()}; },
   async hostTick(){ const g=S.game;
     if(g.phase==="play"){ const ans=S.answers[g.round]||{}; const all=arr(g.players).every(u=>ans[u]&&ans[u].done); if(now()>g.endsAt+1000||(all&&now()>g.startsAt)) await this.score(); }
     else if(g.phase==="results"&&now()>g.nextAt) await this.next(); },
   async score(){ const g=clone(S.game); if(g.phase!=="play") return; const ans=S.answers[g.round]||{}; g.scores=g.scores||{};
     const fin=Object.keys(ans).filter(u=>ans[u].done).sort((a,b)=>arr(ans[a].c).length-arr(ans[b].c).length||ans[a].t-ans[b].t), res={};
-    fin.forEach((u,i)=>{ const p=[5,3,2][i]||1; res[u]=p; g.scores[u]=(g.scores[u]||0)+p; });
+    fin.forEach((u,i)=>{ const p=Math.max(1,([5,3,2][i]||1)-(+ans[u].h||0)); res[u]=p; g.scores[u]=(g.scores[u]||0)+p; });
     g.res=g.res||{}; g.res["r"+g.round]=res; g.phase="results"; g.nextAt=now()+14000; await setGame(g);
     if(fin.length) sys(`🔗 ${pname(fin[0])} linked them first with ${arr(ans[fin[0]].c).length} link${arr(ans[fin[0]].c).length>1?"s":""}`); },
   async next(){ const g=clone(S.game); if(g.phase!=="results") return;
     if(g.round+1>=g.total){ g.phase="over"; g.scores=g.scores||{}; await setGame(g); const sc=g.scores, best=Math.max(0,...Object.values(sc)), win=Object.keys(sc).filter(u=>sc[u]===best&&best>0);
       if(win.length){ await award(win,3,true); sys(`🏆 ${win.map(pname).join(" & ")} won Six Degrees with ${best} points`); } return; }
     g.round++; g.phase="play"; g.startsAt=now()+4000; g.endsAt=g.startsAt+g.secs*1000; delete g.nextAt; delete this.mine; await setGame(g); },
-  my(g){ const k=`${g.at}-${g.round}`; if(!this.mine||this.mine.k!==k) this.mine={k,chain:[g.puzzles[g.round][0]]}; return this.mine; },
+  my(g){ const k=`${g.at}-${g.round}`; if(!this.mine||this.mine.k!==k) this.mine={k,chain:[g.puzzles[g.round][0]],h:0,hstep:0}; return this.mine; },
   render(st){
     const g=S.game, inGame=arr(g.players).includes(S.uid);
     if(g.phase==="over"){ if(skel(st,`dg-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="dgo-stand"></div><div id="dgo-end"></div>`)){
@@ -2836,29 +2861,33 @@ ENG.degrees={
     if(skel(st,key,`<div class="prompt"><span class="who">Six Degrees · round ${g.round+1} of ${g.total} · fewest links wins</span><span class="cat">${E(PLAYERS[a].base)} → ${E(PLAYERS[b].base)}</span></div>
         ${g.phase==="play"?`<div class="ol-count" id="dgo-count"></div>${clockHTML("dgo-clock",g.endsAt,g.secs,true)}`:`<div class="actions">${S.host?`<button class="btn primary" id="dgo-next">${g.round+1>=g.total?"Final whistle":"Next round"}</button>`:""}<span class="note" id="dgo-auto"></span></div>`}
         <div id="dgo-chain"></div>
-        ${g.phase==="play"&&inGame?`<form class="answer" id="dgo-form"><input id="dgo-in" autocomplete="off" spellcheck="false" aria-label="Player name"><button class="btn primary">Link</button></form><div class="feedback" id="dgo-fb" aria-live="polite"></div><div class="actions"><button class="btn" id="dgo-undo">↩ Undo</button></div>`:""}
+        ${g.phase==="play"&&inGame?`<form class="answer" id="dgo-form"><input id="dgo-in" autocomplete="off" spellcheck="false" aria-label="Player name"><button class="btn primary">Link</button></form><div class="feedback" id="dgo-fb" aria-live="polite"></div><div class="actions"><button class="btn" id="dgo-undo">↩ Undo</button><button class="btn" id="dgo-hint">💡 Hint (−1 pt)</button></div>`:""}
         <div class="ol-board" id="dgo-board"></div><div id="dgo-best"></div>`)){
       if(q("dgo-form")) q("dgo-form").onsubmit=e=>{ e.preventDefault(); const v=q("dgo-in").value; q("dgo-in").value=""; if(v.trim()) this.step(v); };
-      if(q("dgo-undo")) q("dgo-undo").onclick=()=>{ const m=this.my(S.game); if(m.chain.length>1&&!(ans[S.uid]&&ans[S.uid].done)){ m.chain.pop(); this.render(st); } };
+      if(q("dgo-undo")) q("dgo-undo").onclick=()=>{ const m=this.my(S.game); if(m.chain.length>1&&!(ans[S.uid]&&ans[S.uid].done)){ m.chain.pop(); m.hstep=0; this.render(st); } };
+      if(q("dgo-hint")) q("dgo-hint").onclick=()=>{ const G=S.game, m=this.my(G); if(G.phase!=="play"||now()<G.startsAt) return; const A=S.answers[G.round]||{}; if(A[S.uid]&&A[S.uid].done) return;
+        m.hstep++; m.h++; const fb=q("dgo-fb"); fb.className="feedback"; fb.textContent=DEG.hint(m.chain[m.chain.length-1],G.puzzles[G.round][1],G.level,m.hstep); };
       if(q("dgo-next")) q("dgo-next").onclick=()=>Host.run(()=>this.next());
-      if(g.phase==="results"){ const p=DEG.path(a,b)||[]; q("dgo-best").innerHTML=`<div class="section-label"><span>Shortest chain</span></div>${degChain(p.slice(0,-1),b,{done:true})}`; }
+      if(g.phase==="results"){ const p=DEG.bestPath(a,b,g.level)||[]; const m=this.my(g), mine=(S.answers[g.round]||{})[S.uid];
+        const cont=!(mine&&mine.done)&&m.chain.length>1?DEG.bestPath(m.chain[m.chain.length-1],b,g.level):null;
+        if(cont) q("dgo-best").insertAdjacentHTML("beforebegin",`<div class="section-label"><span>Your chain, finished</span><span>${cont.length-1} more link${cont.length-1===1?"":"s"}</span></div>${degChain(m.chain.concat(cont.slice(1,-1)),b,{done:true,from:m.chain.length})}`); q("dgo-best").innerHTML=`<div class="section-label"><span>Shortest chain</span></div>${degChain(p.slice(0,-1),b,{done:true})}`; }
       this.clientTick();
     }
     const done=me&&me.done;
     q("dgo-chain").innerHTML=degChain(done?arr(me.c):mine.chain,b,{done});
     if(q("dgo-in")){ const last=mine.chain[mine.chain.length-1]; q("dgo-in").placeholder=done?"Linked! Waiting for the others…":`A teammate of ${PLAYERS[last].base}…`; if(done) q("dgo-in").disabled=true; }
     const res=g.phase==="results"?(g.res||{})["r"+g.round]||{}:{};
-    q("dgo-board").innerHTML=arr(g.players).map(u=>{ const x=ans[u]; return `<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${x&&x.done?`🔗 ${arr(x.c).length} link${arr(x.c).length>1?"s":""}`:"searching…"}</span><b class="pts">${g.phase==="results"?"+"+(res[u]||0):(g.scores||{})[u]||0}</b></div>`; }).join("");
+    q("dgo-board").innerHTML=arr(g.players).map(u=>{ const x=ans[u]; return `<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${x&&x.done?`🔗 ${arr(x.c).length} link${arr(x.c).length>1?"s":""}${x.h?` · 💡${x.h}`:""}`:"searching…"}</span><b class="pts">${g.phase==="results"?"+"+(res[u]||0):(g.scores||{})[u]||0}</b></div>`; }).join("");
   },
   step(v){ const g=S.game, fb=q("dgo-fb"); if(g.phase!=="play"||now()<g.startsAt||now()>g.endsAt) return;
     const [a,b]=g.puzzles[g.round], m=this.my(g), last=m.chain[m.chain.length-1];
     const r=resolve(v,p=>DEG.isMate(last,p.id));
     if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
-    const finish=()=>{ S.net.set(R(`answers/${g.round}/${S.uid}`),{done:true,c:m.chain,t:now()-g.startsAt}); SFX.play("win"); fb.className="feedback ok"; fb.textContent=`🔗 Linked in ${m.chain.length} link${m.chain.length>1?"s":""}!`; track("names"); };
+    const finish=()=>{ S.net.set(R(`answers/${g.round}/${S.uid}`),{done:true,c:m.chain,t:now()-g.startsAt,h:m.h}); SFX.play("win"); fb.className="feedback ok"; fb.textContent=`🔗 Linked in ${m.chain.length} link${m.chain.length>1?"s":""}!`; track("names"); };
     if(r.p.id===b&&DEG.isMate(last,b)) return finish();
     if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} never played with ${PLAYERS[last].base}.`; SFX.play("bad"); return; }
     if(m.chain.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already in your chain.`; return; }
-    m.chain.push(r.p.id); SFX.play("ok"); fb.className="feedback ok"; fb.textContent=`✓ ${DEG.linkText(DEG.link(last,r.p.id))}`;
+    m.chain.push(r.p.id); m.hstep=0; SFX.play("ok"); fb.className="feedback ok"; fb.textContent=`✓ ${DEG.linkText(DEG.link(last,r.p.id))}`;
     if(DEG.isMate(r.p.id,b)) return finish();
     this.render(q("ol-stage")); },
   clientTick(){ const g=S.game; if(!g||g.kind!=="degrees") return;
