@@ -138,6 +138,8 @@ button.card.dim{filter:saturate(.35) brightness(.9)}
         <button class="game-card" data-go="close"><span class="glyph" style="font-size:34px">#1</span><span><h2>Guess the Player</h2><p>Find the secret footballer. Every guess is ranked by how close it is. Daily match and unlimited.</p></span></button>
     <button class="game-card" data-go="whoami"><span class="glyph" style="font-size:40px">?</span><span><h2>Who Am I?</h2><p>Clues appear one by one. Name the mystery footballer early for more points.</p></span></button>
     <button class="game-card" data-go="career"><span class="glyph" style="font-size:34px">⇢</span><span><h2>Career Path</h2><p>A career appears club by club. Name the player before the last club shows.</p></span></button>
+    <button class="game-card" data-go="xi"><span class="glyph" style="font-size:30px">XI</span><span><h2>Starting XI</h2><p>A famous line-up on the pitch: 11 shirts, numbers and positions. Name them all.</p></span></button>
+    <button class="game-card" data-go="degrees"><span class="glyph" style="font-size:30px">🔗</span><span><h2>Six Degrees</h2><p>Link two players through teammates. Zidane to Yamal in three moves?</p></span></button>
     <button class="game-card" data-go="worldcup"><span class="glyph" style="font-size:38px">🏆</span><span><h2>World Cup Run</h2><p>Take your country to the final: score by naming the opponents' players before the whistle.</p></span></button>
     <button class="game-card" data-go="thirty"><span class="glyph">30</span><span><h2>30 Seconds</h2><p>One category, thirty seconds. Name as many players as you can. Up to 4 players.</p></span></button>
     <button class="game-card" data-go="letters"><span class="glyph">K</span><span><h2>Letter Rush</h2><p>Name players whose first name or surname starts with the letter. Beat the clock.</p></span></button>
@@ -849,7 +851,7 @@ function route(){
   stopAll();
   ["hub","online","close","timed","chain","linkup"].forEach(v=>$("v-"+v).hidden=true);
   if(h==="thirty"||h==="letters"){ $("v-timed").hidden=false; openTimed(h); }
-  else if(["online","duel","whoami","career","worldcup","challenges","leaders","friends","profile"].includes(h)||/^join-[A-Z]{5}$/.test(h)||/^u-[A-Za-z0-9_-]+$/.test(h)){ $("v-online").hidden=false; if(window.ONLINE) window.ONLINE.open(h); else $("v-online").innerHTML='<p class="note">Online play needs the full site (online.js), so it isn\'t available in this preview.</p>'; }
+  else if(["online","duel","whoami","career","worldcup","xi","degrees","challenges","leaders","friends","profile"].includes(h)||/^join-[A-Z]{5}$/.test(h)||/^u-[A-Za-z0-9_-]+$/.test(h)){ $("v-online").hidden=false; if(window.ONLINE) window.ONLINE.open(h); else $("v-online").innerHTML='<p class="note">Online play needs the full site (online.js), so it isn\'t available in this preview.</p>'; }
   else if(h==="close"){ $("v-close").hidden=false; window.openCloseControl&&window.openCloseControl(); }
   else if(h==="chain"){ $("v-chain").hidden=false; openChain(); }
   else if(h==="linkup"){ $("v-linkup").hidden=false; openLinkup(); }

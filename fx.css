@@ -462,3 +462,48 @@ html[data-eco="1"] .ol-startbar{backdrop-filter:none;-webkit-backdrop-filter:non
   .ol-chat:not(.open){visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s}
   .ol-chat.open{visibility:visible;transition:transform .22s ease,visibility 0s}
 }
+
+/* =====================================================================
+   STARTING XI: the pitch
+   ===================================================================== */
+[data-go="xi"],[data-g="xi"]{--acc:#15803d}
+[data-go="degrees"],[data-g="degrees"]{--acc:#4f46e5}
+.xi-team{font-family:var(--label);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.xi-pitch{position:relative;width:100%;aspect-ratio:3/4;max-height:78vh;border-radius:18px;overflow:hidden;isolation:isolate;
+  background:repeating-linear-gradient(0deg,#1d8a4f 0 8.33%,#197a45 8.33% 16.66%);box-shadow:0 18px 40px -18px rgba(8,45,27,.8),inset 0 0 0 3px rgba(255,255,255,.18)}
+@media (min-width:700px){.xi-pitch{aspect-ratio:4/3.4}}
+.xi-line{position:absolute;border:2px solid rgba(255,255,255,.35);pointer-events:none}
+.xi-half{left:4%;right:4%;top:0;height:0;border-width:2px 0 0}
+.xi-circle{left:50%;top:0;width:28%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%)}
+.xi-box{left:22%;right:22%;bottom:0;height:17%;border-bottom:0}
+.xi-box6{left:36%;right:36%;bottom:0;height:7%;border-bottom:0}
+.xi-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;width:23%;text-align:center}
+.xi-shirt{position:relative;width:46px;height:44px;display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:19px;color:#0f3d24;
+  background:#f3f8f2;clip-path:polygon(28% 0,72% 0,100% 18%,88% 42%,78% 36%,78% 100%,22% 100%,22% 36%,12% 42%,0 18%);transition:transform .5s var(--ease-spring),background-color .4s}
+.xi-shirt b{margin-top:6px}
+.xi-shirt i{position:absolute;bottom:2px;font-style:normal;font-size:13px}
+.xi-name{min-height:1.1em;font-family:var(--label);font-weight:700;font-size:12px;line-height:1.05;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.02em}
+.xi-name small{display:block;font-weight:500;font-size:10px;opacity:.85}
+.xi-slot.on .xi-shirt{background:var(--gold);color:#3a2a00;animation:xi-flip .6s var(--ease-spring)}
+.xi-slot.miss .xi-shirt{background:rgba(255,255,255,.35);color:rgba(15,61,36,.8)}
+.xi-slot.miss .xi-name{opacity:.75}
+@keyframes xi-flip{0%{transform:perspective(300px) rotateY(0) scale(1)}50%{transform:perspective(300px) rotateY(90deg) scale(1.15)}100%{transform:none}}
+@media (max-width:420px){.xi-shirt{width:38px;height:36px;font-size:16px}.xi-name{font-size:10.5px}}
+
+/* =====================================================================
+   SIX DEGREES: the chain
+   ===================================================================== */
+.deg-chain{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.deg-node{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--card-shadow);animation:fx-in .4s var(--ease-out) both}
+.deg-node b{font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;line-height:1}
+.deg-node.start{border-color:var(--acc,#4f46e5);background:color-mix(in srgb,#4f46e5 10%,var(--surface))}
+.deg-node.end{border:2px solid #4f46e5;background:linear-gradient(135deg,color-mix(in srgb,#4f46e5 16%,var(--surface)),var(--surface))}
+.deg-node.end.dim{border-style:dashed;opacity:.8}
+.deg-link,.deg-gap{position:relative;display:flex;align-items:center;gap:10px;min-height:38px;padding-left:28px}
+html[dir=rtl] .deg-link,html[dir=rtl] .deg-gap{padding-left:0;padding-right:28px}
+.deg-link i,.deg-gap i{position:absolute;left:26px;top:0;bottom:0;width:3px;border-radius:3px;background:linear-gradient(#4f46e5,#22c55e)}
+html[dir=rtl] .deg-link i,html[dir=rtl] .deg-gap i{left:auto;right:26px}
+.deg-gap i{background:repeating-linear-gradient(#94a3b8 0 5px,transparent 5px 10px)}
+.deg-link span,.deg-gap span{margin-left:22px;font-family:var(--label);font-size:12.5px;letter-spacing:.04em;color:var(--muted);background:var(--sunk);border-radius:999px;padding:3px 10px}
+html[dir=rtl] .deg-link span,html[dir=rtl] .deg-gap span{margin-left:0;margin-right:22px}
+.deg-link{animation:fx-in .4s var(--ease-out) both}

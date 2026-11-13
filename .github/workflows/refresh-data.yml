@@ -44,6 +44,7 @@ jobs:
           cp tools/arcade_body.html tools/style.css "$B/"
           python3 tools/build.py "$RUNNER_TEMP/tm" tools/legends-source.html tools/countries.json "$B/data.json"
           python3 tools/build_extra.py "$RUNNER_TEMP/tm" "$B"
+          python3 tools/build_lineups.py "$RUNNER_TEMP/tm" "$B"
           python3 tools/assemble_arcade.py "$B" "$B/arcade.html"
           python3 tools/make_index.py "$B/arcade.html" index.html
 
