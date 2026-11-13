@@ -12,6 +12,8 @@ Free football games, built on 10,294 real players, in English, French and Arabic
 | **Name Chain** | Each name starts with the last letter of the previous one (Cristiano Ronaldo → Onana → …). Vs CPU, pass & play, or solo. |
 | **Link Up** | A card game: play a card by naming a player who links it to the one on the table (Man United → Real Madrid: Cristiano Ronaldo). Clubs, nations, leagues, coaches, Ballon d'Or, Champions League. |
 
+| **Starting XI** | A real line-up from a famous match (360 of them: Champions League knockouts, cup finals, World Cups) appears as 11 shirts on a pitch. Name the players to turn the shirts over. Solo against the clock, or online where the room fills one pitch together. |
+| **Six Degrees** | Link two players through teammates (same club, same season), e.g. Lewandowski → Kaladze in two moves. Undo and hints in solo; the shortest possible chain is shown at the end. Online it's a race on the same puzzle. |
 | **Team Combo** (online) | Players pick clubs; the combo has 1 club per player, or 1–4 clubs set by the host. Then everyone names one player. You score 1 point per combo club he played for, and double if he played for all of them. The results show who would have scored full marks. |
 | **Who Am I?** | Clues about a mystery footballer appear one by one. Name them earlier for more points. Solo or online. |
 | **Career Path** | A career appears club by club, oldest first ("2009–13 · Real Madrid"). Name the player before the last club shows. Solo or online. |
@@ -135,6 +137,7 @@ cd ..
 cp tools/arcade_body.html tools/style.css build/
 python3 tools/build.py data tools/legends-source.html tools/countries.json build/data.json
 python3 tools/build_extra.py data build
+python3 tools/build_lineups.py data build   # famous line-ups for Starting XI
 python3 tools/assemble_arcade.py build build/arcade.html
 python3 tools/make_index.py build/arcade.html index.html   # adds the online.js / online.css hooks
 ```

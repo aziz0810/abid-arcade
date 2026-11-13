@@ -195,6 +195,10 @@ const GAMES={
     set:{rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[5,"Clue every 5s"],[7,"Every 7s"],[10,"Every 10s"]],level:[["0","Stars"],["1","Well known"]],theme:THEME_OPTS},def:{rounds:5,secs:7,level:"0",theme:"all"}},
   combo:{name:"Team Combo",icon:"＋",blurb:"Each player picks a club. Then name one player who played for all of them, or at least one.",
     set:{size:[["all","1 club per player"],[1,"1 club"],[2,"2 clubs"],[3,"3 clubs"],[4,"4 clubs"]],rounds:[[3,"3 rounds"],[5,"5 rounds"],[8,"8 rounds"]],secs:[[30,"30s to answer"],[45,"45s"],[60,"60s"]]},def:{size:"all",rounds:5,secs:45}},
+  xi:{name:"Starting XI",icon:"XI",blurb:"A famous line-up appears as 11 shirts on a pitch. Fill it together: first to name a player gets the point.",
+    set:{rounds:[[1,"1 match"],[3,"3 matches"],[5,"5 matches"]],secs:[[90,"90s"],[150,"2½ min"],[240,"4 min"]],pool:[["top","Biggest nights"],["all","All matches"]]},def:{rounds:3,secs:150,pool:"top"}},
+  degrees:{name:"Six Degrees",icon:"🔗",blurb:"Link two players through teammates. Shortest chain first wins.",
+    set:{links:[[2,"Easy · 2 links"],[3,"Medium · 3"],[4,"Hard · 4"]],rounds:[[3,"3 rounds"],[5,"5 rounds"]],secs:[[90,"90s"],[150,"2½ min"],[240,"4 min"]]},def:{links:3,rounds:3,secs:150}},
   linkup:{name:"Link Up",icon:"▮▮▮",blurb:"The football card game. Private hands, CPUs can fill seats.",
     set:{hand:[[5,"5 cards"],[7,"7 cards"],[9,"9 cards"]],secs:[[30,"30s turns"],[45,"45s turns"],[0,"No timer"]],cpus:[[0,"No CPU"],[1,"+1 CPU"],[2,"+2 CPU"]],level:[["easy","Easy CPU"],["normal","Normal CPU"],["hard","Hard CPU"]]},def:{hand:7,secs:45,cpus:0,level:"normal"}},
 };
@@ -480,7 +484,7 @@ function renderStage(){
 function skel(st,key,html){ if(st.dataset.key!==key){ st.dataset.key=key; st.innerHTML=html; return true; } return false; }
 
 const LBL={mode:"Mode",secs:"Time",cpus:"Computer players",level:"Difficulty",era:"Era",hand:"Cards each",rounds:"Rounds",scoring:"Scoring",theme:"Theme"};
-const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"},combo:{size:"Clubs in the combo",secs:"Answer time"}};
+const LBL_GAME={close:{secs:"Time per turn (team mode)",level:"Secret player from"},linkup:{level:"CPU strength"},whoami:{secs:"Clue speed",level:"Mystery player from"},career:{secs:"Club speed",level:"Mystery player from"},worldcup:{secs:"Match length"},combo:{size:"Clubs in the combo",secs:"Answer time"},xi:{rounds:"Matches",pool:"Line-ups from"},degrees:{links:"Distance"}};
 const setLabel=(game,k)=>(LBL_GAME[game]&&LBL_GAME[game][k])||LBL[k]||k;
 function renderLobby(st){
   const m=S.meta, g=GAMES[m.game], host=S.host;
@@ -1474,7 +1478,7 @@ function ranking(g){
   const sc=o=>Object.keys(o||{}).filter(u=>o[u]>0).sort((a,b)=>o[b]-o[a]);
   switch(g.kind){
     case "thirty": case "letters": case "whoami": case "career": return sc(g.scores);
-    case "combo": return sc(g.scores);
+    case "combo": case "xi": case "degrees": return sc(g.scores);
     case "worldcup": return ENG.worldcup.order(g).filter(u=>((g.goals||{})[u]||0)>0||((g.reach||{})[u]||0)>0);
     case "chain": return [g.winner,...arr(g.outOrder).slice().reverse()].filter(Boolean).filter((u,i,a)=>a.indexOf(u)===i);
     case "linkup": { const c=g.counts||{}; return g.seats.filter(s=>!s.cpu).map(s=>s.id).sort((a,b)=>a===g.winner?-1:b===g.winner?1:(c[a]||0)-(c[b]||0)); }
@@ -2568,6 +2572,303 @@ ENG.combo={
   }
 };
 
+
+/* ================= Starting XI =================
+   A real line-up from a famous match appears as 11 shirts on a pitch. Name the players to turn the shirts over. */
+const XI=(()=>{
+  const list=()=>(EX.xi||[]);
+  // lines from the goal up; each line is spread left to right
+  const ROW={"Goalkeeper":[90,"C"],"Sweeper":[76,"C"],"Centre-Back":[74,"C"],"Left-Back":[74,"L"],"Right-Back":[74,"R"],"Defender":[74,"C"],
+    "Defensive Midfield":[59,"C"],"Central Midfield":[45,"C"],"Left Midfield":[45,"L"],"Right Midfield":[45,"R"],"Midfield":[45,"C"],
+    "Attacking Midfield":[31,"C"],"Left Winger":[15,"L"],"Right Winger":[15,"R"],"Second Striker":[15,"C"],"Centre-Forward":[15,"C"],"Attack":[15,"C"]};
+  function layout(st){
+    const rows={}; st.forEach((s,i)=>{ const r=ROW[s[2]]||[48,"C"]; (rows[r[0]]=rows[r[0]]||[]).push([i,r[1]]); });
+    const out=new Array(st.length);
+    Object.entries(rows).forEach(([y,items])=>{ const ord=items.sort((a,b)=>({L:0,C:1,R:2}[a[1]]-{L:0,C:1,R:2}[b[1]]));
+      const n=ord.length; ord.forEach(([i,side],j)=>{ let x=n===1?50:(n===2?32+36*j:12+76*j/(n-1)); if(n===1&&side==="L") x=18; if(n===1&&side==="R") x=82;
+        out[i]={x,y:+y+(n>=5&&j%2?4:0)}; }); });
+    // full-backs and wingers alone on a side line sit wide
+    return out;
+  }
+  const surname=n=>{ const t=norm(n).trim().split(/\s+/); return t[t.length-1]; };
+  function match(v,xi,taken){
+    const st=xi[7], t=norm(v.trim()); if(!t) return {err:"empty"};
+    const ids=new Set(st.map(s=>s[0]).filter(i=>i>=0));
+    const r=resolve(v,p=>ids.has(p.id));
+    let slot=-1;
+    if(r&&r.ok) slot=st.findIndex(s=>s[0]===r.p.id);
+    if(slot<0) slot=st.findIndex((s,i)=>s[0]<0&&(norm(s[1])===t||surname(s[1])===t));
+    if(slot<0) return {err:r?"not":"unknown",p:r&&r.p};
+    if(taken[slot]!=null) return {err:"taken",slot};
+    return {slot};
+  }
+  const shirtName=s=>s[0]>=0?PLAYERS[s[0]].base:s[1];
+  const flagOf=s=>s[0]>=0?COUNTRIES[PLAYERS[s[0]].k].flag:"";
+  function pitch(xi,shown,opts={}){
+    const pos=layout(xi[7]);
+    return `<div class="xi-pitch"><i class="xi-line xi-half"></i><i class="xi-line xi-circle"></i><i class="xi-line xi-box"></i><i class="xi-line xi-box6"></i>
+      ${xi[7].map((s,i)=>{ const on=shown[i]!=null, miss=opts.reveal&&!on;
+        return `<div class="xi-slot${on?" on":""}${miss?" miss":""}" style="left:${pos[i].x}%;top:${pos[i].y}%" data-slot="${i}">
+          <span class="xi-shirt"><b>${s[3]||""}</b>${(opts.flags||[]).includes(i)&&!on?`<i>${flagOf(s)}</i>`:""}</span>
+          <span class="xi-name">${on||miss?E(shirtName(s)):"&nbsp;"}${on&&shown[i]!==true&&opts.by?`<small>${E(opts.by(shown[i]))}</small>`:""}</span></div>`; }).join("")}</div>`;
+  }
+  const head=xi=>`<div class="prompt"><span class="who">${E(xi[2])} · ${E(xi[3])} · ${E(xi[4])}</span><span class="cat">${E(xi[0])}</span><span class="xi-team">Name ${E(xi[1])}'s starting XI</span></div>`;
+  return {list,layout,match,pitch,head,shirtName};
+})();
+const XISolo={
+  open(){
+    const main=q("ol-main"); S.view="xi"; const cfg=ls.get("arc-xi",{pool:"top",secs:150}); const best=ls.get("arc-xi-best",0);
+    main.innerHTML=`<h2 class="view-title">Starting XI</h2>
+      <p class="lede">A real line-up from a famous night appears as 11 shirts on the pitch, with shirt numbers and positions. Name the players to turn the shirts over before time runs out.</p>
+      <div class="panel">
+        <div class="field"><span>Matches</span><div class="seg" id="xis-pool">${[["top","Biggest nights"],["all","All 360 matches"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v===cfg.pool}">${l}</button>`).join("")}</div></div>
+        <div class="field"><span>Time</span><div class="seg" id="xis-secs">${[[90,"90s"],[150,"2½ min"],[240,"4 min"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v===cfg.secs}">${l}</button>`).join("")}</div></div>
+        <button class="btn primary go" id="xis-go">Kick off</button>
+        ${best?`<p class="note" style="margin:0">Best: ${best}/11</p>`:""}
+      </div><p class="note">Playing with friends? Choose <b>Starting XI</b> in an online room and fill the pitch together.</p>`;
+    const seg=(id,k)=>q(id).querySelectorAll("button").forEach(b=>b.onclick=()=>{ q(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); cfg[k]=k==="secs"?+b.dataset.v:b.dataset.v; });
+    seg("xis-pool","pool"); seg("xis-secs","secs");
+    q("xis-go").onclick=()=>{ ls.set("arc-xi",cfg); this.start(cfg); };
+  },
+  start(cfg){
+    const L=XI.list(), pool=cfg.pool==="top"?L.slice(0,150):L, seen=ls.get("arc-xi-seen",[]);
+    let i=pickOne(pool.map((_,j)=>j).filter(j=>!seen.includes(j))); if(i==null) i=rnd(pool.length);
+    ls.set("arc-xi-seen",seen.concat([i]).slice(-120));
+    this.st={xi:pool[i],shown:{},flags:[],hints:3,secs:cfg.secs,end:now()+cfg.secs*1000,cfg}; this.paint(true);
+    clearInterval(this.iv); this.iv=setInterval(()=>{ if(S.view!=="xi"){ clearInterval(this.iv); return; } if(now()>=this.st.end) this.finish(); },250);
+  },
+  paint(fresh){
+    const st=this.st, n=Object.keys(st.shown).length, main=q("ol-main");
+    if(fresh) main.innerHTML=`<h2 class="view-title">Starting XI</h2>${XI.head(st.xi)}
+      ${clockHTML("xis-clock",st.end,st.secs,true)}
+      <form class="answer" id="xis-form"><input id="xis-in" autocomplete="off" spellcheck="false" placeholder="Name a player…" aria-label="Player name"><button class="btn primary">Enter</button></form>
+      <div class="feedback" id="xis-fb" aria-live="polite"></div>
+      <div id="xis-pitch"></div>
+      <div class="actions"><button class="btn" id="xis-hint"></button><button class="btn ghost" id="xis-give">Reveal the XI</button></div>`;
+    q("xis-pitch").innerHTML=XI.pitch(st.xi,st.shown,{flags:st.flags,reveal:st.over});
+    q("xis-hint").textContent=`🏳️ Show a flag (${st.hints} left)`; q("xis-hint").disabled=!st.hints||st.over;
+    if(fresh){ q("xis-form").onsubmit=e=>{ e.preventDefault(); const v=q("xis-in").value; q("xis-in").value=""; if(v.trim()) this.guess(v); };
+      q("xis-hint").onclick=()=>{ const left=st.xi[7].map((s,i)=>i).filter(i=>st.shown[i]==null&&!st.flags.includes(i)&&st.xi[7][i][0]>=0); if(!left.length||!st.hints) return; st.flags.push(pickOne(left)); st.hints--; this.paint(); };
+      q("xis-give").onclick=()=>this.finish(); q("xis-in").focus(); }
+    const t=q("xis-team"); if(t) t.textContent=`${n}/11`;
+  },
+  guess(v){
+    const st=this.st, fb=q("xis-fb"); if(st.over) return;
+    const r=XI.match(v,st.xi,st.shown);
+    if(r.err==="taken"){ fb.className="feedback err"; fb.textContent=`${XI.shirtName(st.xi[7][r.slot])} is already on the pitch.`; return; }
+    if(r.err){ fb.className="feedback err"; fb.textContent=r.p?`${r.p.base} didn't start this match.`:`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+    st.shown[r.slot]=true; track("names"); SFX.play("ok"); fb.className="feedback ok"; fb.textContent=`✓ ${XI.shirtName(st.xi[7][r.slot])} · #${st.xi[7][r.slot][3]||"?"}`;
+    this.paint(); if(Object.keys(st.shown).length===11) this.finish(true);
+  },
+  finish(all){
+    const st=this.st; if(st.over) return; st.over=true; clearInterval(this.iv);
+    const n=Object.keys(st.shown).length; if(n>ls.get("arc-xi-best",0)) ls.set("arc-xi-best",n);
+    this.paint(); q("xis-in").disabled=true;
+    const box=document.createElement("div"); box.className="panel"; box.id="xis-end";
+    box.innerHTML=`<h3 class="view-title" style="font-size:30px">${n===11?"Full XI! 🏆":n>=8?"So close":"Full time"}</h3><p class="note" style="margin:0">You named ${n} of 11.</p>
+      <div class="actions"><button class="btn primary" id="xis-next">Next match</button><button class="btn ghost" id="xis-set">Change settings</button></div>`;
+    q("xis-pitch").after(box); q("xis-next").onclick=()=>this.start(st.cfg); q("xis-set").onclick=()=>this.open();
+    if(n===11){ SFX.play("win"); if(window.FX) FX.win("Full XI!"); } else SFX.play("draw");
+  }
+};
+ENG.xi={
+  async start(set){ const L=XI.list(), pool=set.pool==="all"?L:L.slice(0,150), t=now()+4000;
+    const picks=shuffle(pool.map((_,j)=>j)).slice(0,+set.rounds||3);
+    return {kind:"xi",at:now(),round:0,total:picks.length,picks,pool:set.pool||"top",secs:+set.secs||150,startsAt:t,endsAt:t+(+set.secs||150)*1000,phase:"play",players:onlineUids()}; },
+  xi(g){ const L=XI.list(); return (g.pool==="all"?L:L.slice(0,150))[g.picks[g.round]]; },
+  claims(g){ const ans=S.answers[g.round]||{}, best={}; Object.entries(ans).forEach(([u,list])=>arr(list).forEach(c=>{ if(!best[c.s]||c.t<best[c.s].t) best[c.s]={u,t:c.t}; })); return best; },
+  async hostTick(){ const g=S.game;
+    if(g.phase==="play"){ const n=Object.keys(this.claims(g)).length; if(now()>g.endsAt+1000||n>=11) await this.score(); }
+    else if(g.phase==="results"&&now()>g.nextAt) await this.next(); },
+  async score(){ const g=clone(S.game); if(g.phase!=="play") return; const cl=this.claims(g); g.scores=g.scores||{}; const res={};
+    Object.values(cl).forEach(c=>{ res[c.u]=(res[c.u]||0)+1; g.scores[c.u]=(g.scores[c.u]||0)+1; });
+    g.res=g.res||{}; g.res["r"+g.round]={cl,res,n:Object.keys(cl).length}; g.phase="results"; g.nextAt=now()+12000; await setGame(g);
+    sys(`⚽ Starting XI: ${Object.keys(cl).length}/11 named`); },
+  async next(){ const g=clone(S.game); if(g.phase!=="results") return;
+    if(g.round+1>=g.total){ g.phase="over"; g.scores=g.scores||{}; await setGame(g); const sc=g.scores, best=Math.max(0,...Object.values(sc)), win=Object.keys(sc).filter(u=>sc[u]===best&&best>0);
+      if(win.length){ await award(win,3,true); sys(`🏆 ${win.map(pname).join(" & ")} won Starting XI with ${best} points`); } return; }
+    g.round++; g.phase="play"; g.startsAt=now()+4000; g.endsAt=g.startsAt+g.secs*1000; delete g.nextAt; await setGame(g); },
+  render(st){
+    const g=S.game, xi=this.xi(g), inGame=arr(g.players).includes(S.uid);
+    if(g.phase==="over"){ if(skel(st,`xi-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="xio-stand"></div><div id="xio-end"></div>`)){
+        const sc=g.scores||{}, ord=arr(g.players).slice().sort((a,b)=>(sc[b]||0)-(sc[a]||0));
+        q("xio-stand").innerHTML=`<div class="standings">${ord.map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${sc[u]||0} pts</b></div>`).join("")}</div>`; q("xio-end").innerHTML=endButtons(); bindEnd(st); } return; }
+    const cl=g.phase==="results"?((g.res||{})["r"+g.round]||{}).cl||{}:this.claims(g), shown={}; Object.entries(cl).forEach(([s,c])=>shown[s]=c.u);
+    const key=`xi-${g.at}-${g.round}-${g.phase}`;
+    if(skel(st,key,`<div class="section-label"><span>Match ${g.round+1} of ${g.total}</span><span>First to name a player gets the point</span></div>${XI.head(xi)}
+        ${g.phase==="play"?`<div class="ol-count" id="xio-count"></div>${clockHTML("xio-clock",g.endsAt,g.secs,true)}${inGame?`<form class="answer" id="xio-form"><input id="xio-in" autocomplete="off" spellcheck="false" placeholder="Name a player…" aria-label="Player name"><button class="btn primary">Enter</button></form>`:""}<div class="feedback" id="xio-fb" aria-live="polite"></div>`
+          :`<div class="actions">${S.host?`<button class="btn primary" id="xio-next">${g.round+1>=g.total?"Final whistle":"Next match"}</button>`:""}<span class="note" id="xio-auto"></span></div>`}
+        <div id="xio-pitch"></div><div class="ol-board" id="xio-board"></div>`)){
+      if(q("xio-form")) q("xio-form").onsubmit=e=>{ e.preventDefault(); const v=q("xio-in").value; q("xio-in").value=""; if(v.trim()) this.guess(v); };
+      if(q("xio-next")) q("xio-next").onclick=()=>Host.run(()=>this.next());
+      this.clientTick();
+    }
+    q("xio-pitch").innerHTML=XI.pitch(xi,shown,{reveal:g.phase==="results",by:u=>pname(u)});
+    const pts={}; Object.values(cl).forEach(c=>pts[c.u]=(pts[c.u]||0)+1);
+    q("xio-board").innerHTML=arr(g.players).map(u=>`<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${pts[u]||0} this match</span><b class="pts">${(g.scores||{})[u]||0}</b></div>`).join("");
+  },
+  guess(v){ const g=S.game, fb=q("xio-fb"); if(g.phase!=="play"||now()<g.startsAt||now()>g.endsAt) return;
+    const cl=this.claims(g), taken={}; Object.keys(cl).forEach(s=>taken[s]=1);
+    const r=XI.match(v,this.xi(g),taken);
+    if(r.err==="taken"){ fb.className="feedback err"; fb.textContent=`${XI.shirtName(this.xi(g)[7][r.slot])} is already on the pitch.`; return; }
+    if(r.err){ fb.className="feedback err"; fb.textContent=r.p?`${r.p.base} didn't start this match.`:`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+    const mine=arr((S.answers[g.round]||{})[S.uid]).concat([{s:r.slot,t:now()}]);
+    S.net.set(R(`answers/${g.round}/${S.uid}`),mine); track("names"); SFX.play("ok"); fb.className="feedback ok"; fb.textContent=`✓ ${XI.shirtName(this.xi(g)[7][r.slot])}`; },
+  clientTick(){ const g=S.game; if(!g||g.kind!=="xi") return;
+    if(g.phase==="results"){ const a=q("xio-auto"); if(a) a.textContent=`Next match in ${Math.max(0,Math.ceil((g.nextAt-now())/1000))}s`; return; }
+    if(g.phase!=="play") return; const inp=q("xio-in"), cnt=q("xio-count"); if(!cnt) return; const t=now();
+    if(t<g.startsAt){ const s=Math.ceil((g.startsAt-t)/1000); if(cnt.textContent!==String(s)){ cnt.textContent=String(s); SFX.play("tick"); } if(inp) inp.disabled=true; }
+    else if(t<=g.endsAt){ if(cnt.textContent){ cnt.textContent=""; SFX.play("go"); } if(inp&&inp.disabled){ inp.disabled=false; inp.focus(); } } }
+};
+
+/* ================= Six Degrees =================
+   Link two players through teammates: same club in the same season. */
+const DEG=(()=>{
+  let buckets=null; const mateCache=new Map();
+  function build(){ if(buckets) return; buckets=new Map();
+    RAWD.players.forEach((row,id)=>{ const f=row[5]; for(let i=0;i<f.length;i+=3){ const c=f[i], a=f[i+1], b=f[i+2]; if(!a||!b||b-a>25) continue;
+      for(let y=a;y<=b;y++){ const k=c*10000+y; let l=buckets.get(k); if(!l) buckets.set(k,l=[]); l.push(id); } } }); }
+  function stints(id){ const f=RAWD.players[id][5], out=[]; for(let i=0;i<f.length;i+=3) if(f[i+1]&&f[i+2]) out.push([f[i],f[i+1],f[i+2]]); return out; }
+  function mates(id){ build(); if(mateCache.has(id)) return mateCache.get(id); const s=new Set();
+    stints(id).forEach(([c,a,b])=>{ if(b-a>25) return; for(let y=a;y<=b;y++) (buckets.get(c*10000+y)||[]).forEach(o=>{ if(o!==id) s.add(o); }); });
+    if(mateCache.size>4000) mateCache.clear(); mateCache.set(id,s); return s; }
+  function link(a,b){ const sb=stints(b);
+    for(const [c,x0,x1] of stints(a)) for(const [c2,y0,y1] of sb) if(c===c2&&x0<=y1&&y0<=x1){ const f=Math.max(x0,y0), t=Math.min(x1,y1); return {c,f,t}; }
+    return null; }
+  const linkText=l=>l?`${CLUBS[l.c].name} · ${l.f===l.t?`${l.f}/${String(l.f+1).slice(2)}`:`${l.f}–${String(l.t+1).slice(2)}`}`:"";
+  function path(a,b,max=7){ if(a===b) return [a]; const prev=new Map([[a,-1]]); let front=[a];
+    for(let d=0;d<max&&front.length;d++){ const nx=[]; for(const u of front){ for(const v of mates(u)){ if(prev.has(v)) continue; prev.set(v,u); if(v===b){ const p=[b]; let x=u; while(x!==-1){ p.unshift(x); x=prev.get(x); } return p; } nx.push(v); } } front=nx; }
+    return null; }
+  function puzzle(links){ build();
+    const pool=PLAYERS.filter(p=>p.tier===0&&stints(p.id).length>=2);
+    for(let tries=0;tries<40;tries++){
+      const A=pickOne(pool); const dist=new Map([[A.id,0]]); let front=[A.id];
+      for(let d=0;d<links&&front.length;d++){ const nx=[]; for(const u of front) for(const v of mates(u)) if(!dist.has(v)){ dist.set(v,d+1); nx.push(v); } front=nx; }
+      const far=pool.filter(p=>dist.get(p.id)===links&&Math.abs(p.born-A.born)>=6);
+      if(far.length){ const B=pickOne(far); return {a:A.id,b:B.id,best:links}; }
+    }
+    return null; }
+  return {mates,link,linkText,path,puzzle,isMate:(a,b)=>mates(a).has(b)};
+})();
+function degChain(chain,b,opts={}){
+  const node=(id,cls)=>`<div class="deg-node ${cls||""}"><span class="ol-av">${COUNTRIES[PLAYERS[id].k].flag}</span><b>${E(PLAYERS[id].base)}</b></div>`;
+  let h=""; chain.forEach((id,i)=>{ if(i) h+=`<div class="deg-link"><i></i><span>${E(DEG.linkText(DEG.link(chain[i-1],id)))}</span></div>`; h+=node(id,i===0?"start":""); });
+  if(opts.done) h+=`<div class="deg-link done"><i></i><span>${E(DEG.linkText(DEG.link(chain[chain.length-1],b)))}</span></div>`+node(b,"end");
+  else h+=`<div class="deg-gap"><i></i><span>${opts.gap||"?"}</span></div>`+node(b,"end dim");
+  return `<div class="deg-chain">${h}</div>`;
+}
+const DegSolo={
+  open(){
+    const main=q("ol-main"); S.view="degrees"; const cfg=ls.get("arc-deg",{links:3});
+    main.innerHTML=`<h2 class="view-title">Six Degrees</h2>
+      <p class="lede">Connect two players through teammates. Each player you name must have played with the one before (same club, same season). Reach the target in as few links as you can.</p>
+      <div class="panel"><div class="field"><span>Distance</span><div class="seg" id="degs-l">${[[2,"Easy · 2 links"],[3,"Medium · 3"],[4,"Hard · 4"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v===cfg.links}">${l}</button>`).join("")}</div></div>
+        <button class="btn primary go" id="degs-go">Start</button></div>
+      <p class="note">Playing with friends? Choose <b>Six Degrees</b> in an online room and race to connect.</p>`;
+    q("degs-l").querySelectorAll("button").forEach(b=>b.onclick=()=>{ q("degs-l").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); cfg.links=+b.dataset.v; });
+    q("degs-go").onclick=()=>{ ls.set("arc-deg",cfg); this.start(cfg); };
+  },
+  start(cfg){ const z=DEG.puzzle(cfg.links); if(!z){ toast("Couldn't find a puzzle, try again."); return; }
+    this.st={a:z.a,b:z.b,best:z.best,chain:[z.a],hints:0,cfg,t0:now()}; this.paint(true); },
+  paint(fresh){
+    const st=this.st, main=q("ol-main"), last=st.chain[st.chain.length-1];
+    if(fresh) main.innerHTML=`<h2 class="view-title">Six Degrees</h2>
+      <div class="prompt"><span class="who">Connect them in ${st.best} link${st.best>1?"s":""} or fewer</span><span class="cat">${E(PLAYERS[st.a].base)} → ${E(PLAYERS[st.b].base)}</span></div>
+      <div id="degs-chain"></div>
+      <form class="answer" id="degs-form"><input id="degs-in" autocomplete="off" spellcheck="false" aria-label="Player name"><button class="btn primary">Link</button></form>
+      <div class="feedback" id="degs-fb" aria-live="polite"></div>
+      <div class="actions"><button class="btn" id="degs-undo">↩ Undo</button><button class="btn" id="degs-hint">💡 Hint</button><button class="btn ghost" id="degs-give">Show the answer</button></div><div id="degs-end"></div>`;
+    q("degs-chain").innerHTML=degChain(st.chain,st.b,{done:st.done});
+    if(q("degs-in")){ q("degs-in").placeholder=`A teammate of ${PLAYERS[last].base}…`; q("degs-in").disabled=!!st.over; }
+    q("degs-undo").disabled=st.chain.length<2||st.over; q("degs-hint").disabled=st.over; q("degs-give").disabled=st.over;
+    if(fresh){ q("degs-form").onsubmit=e=>{ e.preventDefault(); const v=q("degs-in").value; q("degs-in").value=""; if(v.trim()) this.step(v); };
+      q("degs-undo").onclick=()=>{ if(st.chain.length>1){ st.chain.pop(); this.paint(); } };
+      q("degs-hint").onclick=()=>{ const p=DEG.path(st.chain[st.chain.length-1],st.b); const fb=q("degs-fb"); if(!p||p.length<3){ fb.className="feedback"; fb.textContent="You're one link away: name a teammate of the target."; return; }
+        st.hints++; const l=DEG.link(p[0],p[1]); fb.className="feedback"; fb.textContent=`💡 Try someone from ${CLUBS[l.c].name} around ${l.f}.`; };
+      q("degs-give").onclick=()=>this.finish(false); q("degs-in").focus(); }
+  },
+  step(v){
+    const st=this.st, fb=q("degs-fb"), last=st.chain[st.chain.length-1]; if(st.over) return;
+    const r=resolve(v,p=>DEG.isMate(last,p.id));
+    if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+    if(r.p.id===st.b){ if(DEG.isMate(last,st.b)){ st.done=true; return this.finish(true); } }
+    if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} never played with ${PLAYERS[last].base}.`; SFX.play("bad"); return; }
+    if(st.chain.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already in your chain.`; return; }
+    st.chain.push(r.p.id); fb.className="feedback ok"; fb.textContent=`✓ ${DEG.linkText(DEG.link(last,r.p.id))}`; SFX.play("ok");
+    if(DEG.isMate(r.p.id,st.b)){ st.done=true; return this.finish(true); }
+    this.paint();
+  },
+  finish(won){
+    const st=this.st; st.over=true; const links=st.chain.length; this.paint();
+    const best=DEG.path(st.a,st.b)||[];
+    q("degs-end").innerHTML=`<div class="panel"><h3 class="view-title" style="font-size:30px">${won?(links<=st.best?"Perfect link-up! 🔗":"Connected!"):"Here's a way through"}</h3>
+      ${won?`<p class="note" style="margin:0">Your chain: ${links} link${links>1?"s":""} · shortest possible: ${best.length-1}${st.hints?` · ${st.hints} hint${st.hints>1?"s":""}`:""}</p>`:""}
+      <div class="section-label"><span>Shortest chain</span></div>${degChain(best.slice(0,-1),st.b,{done:true})}
+      <div class="actions"><button class="btn primary" id="degs-next">New puzzle</button><button class="btn ghost" id="degs-set">Change distance</button></div></div>`;
+    q("degs-next").onclick=()=>this.start(st.cfg); q("degs-set").onclick=()=>this.open();
+    if(won){ track("names"); SFX.play("win"); if(window.FX&&links<=st.best) FX.win("Perfect link-up!"); }
+  }
+};
+ENG.degrees={
+  async start(set){ const links=+set.links||3, t=now()+4000, puzzles=[];
+    for(let i=0;i<(+set.rounds||3);i++){ const z=DEG.puzzle(links); if(z) puzzles.push([z.a,z.b]); }
+    return {kind:"degrees",at:now(),round:0,total:puzzles.length,puzzles,links,secs:+set.secs||150,startsAt:t,endsAt:t+(+set.secs||150)*1000,phase:"play",players:onlineUids()}; },
+  async hostTick(){ const g=S.game;
+    if(g.phase==="play"){ const ans=S.answers[g.round]||{}; const all=arr(g.players).every(u=>ans[u]&&ans[u].done); if(now()>g.endsAt+1000||(all&&now()>g.startsAt)) await this.score(); }
+    else if(g.phase==="results"&&now()>g.nextAt) await this.next(); },
+  async score(){ const g=clone(S.game); if(g.phase!=="play") return; const ans=S.answers[g.round]||{}; g.scores=g.scores||{};
+    const fin=Object.keys(ans).filter(u=>ans[u].done).sort((a,b)=>arr(ans[a].c).length-arr(ans[b].c).length||ans[a].t-ans[b].t), res={};
+    fin.forEach((u,i)=>{ const p=[5,3,2][i]||1; res[u]=p; g.scores[u]=(g.scores[u]||0)+p; });
+    g.res=g.res||{}; g.res["r"+g.round]=res; g.phase="results"; g.nextAt=now()+14000; await setGame(g);
+    if(fin.length) sys(`🔗 ${pname(fin[0])} linked them first with ${arr(ans[fin[0]].c).length} link${arr(ans[fin[0]].c).length>1?"s":""}`); },
+  async next(){ const g=clone(S.game); if(g.phase!=="results") return;
+    if(g.round+1>=g.total){ g.phase="over"; g.scores=g.scores||{}; await setGame(g); const sc=g.scores, best=Math.max(0,...Object.values(sc)), win=Object.keys(sc).filter(u=>sc[u]===best&&best>0);
+      if(win.length){ await award(win,3,true); sys(`🏆 ${win.map(pname).join(" & ")} won Six Degrees with ${best} points`); } return; }
+    g.round++; g.phase="play"; g.startsAt=now()+4000; g.endsAt=g.startsAt+g.secs*1000; delete g.nextAt; delete this.mine; await setGame(g); },
+  my(g){ const k=`${g.at}-${g.round}`; if(!this.mine||this.mine.k!==k) this.mine={k,chain:[g.puzzles[g.round][0]]}; return this.mine; },
+  render(st){
+    const g=S.game, inGame=arr(g.players).includes(S.uid);
+    if(g.phase==="over"){ if(skel(st,`dg-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="dgo-stand"></div><div id="dgo-end"></div>`)){
+        const sc=g.scores||{}, ord=arr(g.players).slice().sort((a,b)=>(sc[b]||0)-(sc[a]||0));
+        q("dgo-stand").innerHTML=`<div class="standings">${ord.map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${sc[u]||0} pts</b></div>`).join("")}</div>`; q("dgo-end").innerHTML=endButtons(); bindEnd(st); } return; }
+    const [a,b]=g.puzzles[g.round], ans=S.answers[g.round]||{}, me=ans[S.uid], mine=this.my(g);
+    const key=`dg-${g.at}-${g.round}-${g.phase}`;
+    if(skel(st,key,`<div class="prompt"><span class="who">Six Degrees · round ${g.round+1} of ${g.total} · fewest links wins</span><span class="cat">${E(PLAYERS[a].base)} → ${E(PLAYERS[b].base)}</span></div>
+        ${g.phase==="play"?`<div class="ol-count" id="dgo-count"></div>${clockHTML("dgo-clock",g.endsAt,g.secs,true)}`:`<div class="actions">${S.host?`<button class="btn primary" id="dgo-next">${g.round+1>=g.total?"Final whistle":"Next round"}</button>`:""}<span class="note" id="dgo-auto"></span></div>`}
+        <div id="dgo-chain"></div>
+        ${g.phase==="play"&&inGame?`<form class="answer" id="dgo-form"><input id="dgo-in" autocomplete="off" spellcheck="false" aria-label="Player name"><button class="btn primary">Link</button></form><div class="feedback" id="dgo-fb" aria-live="polite"></div><div class="actions"><button class="btn" id="dgo-undo">↩ Undo</button></div>`:""}
+        <div class="ol-board" id="dgo-board"></div><div id="dgo-best"></div>`)){
+      if(q("dgo-form")) q("dgo-form").onsubmit=e=>{ e.preventDefault(); const v=q("dgo-in").value; q("dgo-in").value=""; if(v.trim()) this.step(v); };
+      if(q("dgo-undo")) q("dgo-undo").onclick=()=>{ const m=this.my(S.game); if(m.chain.length>1&&!(ans[S.uid]&&ans[S.uid].done)){ m.chain.pop(); this.render(st); } };
+      if(q("dgo-next")) q("dgo-next").onclick=()=>Host.run(()=>this.next());
+      if(g.phase==="results"){ const p=DEG.path(a,b)||[]; q("dgo-best").innerHTML=`<div class="section-label"><span>Shortest chain</span></div>${degChain(p.slice(0,-1),b,{done:true})}`; }
+      this.clientTick();
+    }
+    const done=me&&me.done;
+    q("dgo-chain").innerHTML=degChain(done?arr(me.c):mine.chain,b,{done});
+    if(q("dgo-in")){ const last=mine.chain[mine.chain.length-1]; q("dgo-in").placeholder=done?"Linked! Waiting for the others…":`A teammate of ${PLAYERS[last].base}…`; if(done) q("dgo-in").disabled=true; }
+    const res=g.phase==="results"?(g.res||{})["r"+g.round]||{}:{};
+    q("dgo-board").innerHTML=arr(g.players).map(u=>{ const x=ans[u]; return `<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}</span><span class="st">${x&&x.done?`🔗 ${arr(x.c).length} link${arr(x.c).length>1?"s":""}`:"searching…"}</span><b class="pts">${g.phase==="results"?"+"+(res[u]||0):(g.scores||{})[u]||0}</b></div>`; }).join("");
+  },
+  step(v){ const g=S.game, fb=q("dgo-fb"); if(g.phase!=="play"||now()<g.startsAt||now()>g.endsAt) return;
+    const [a,b]=g.puzzles[g.round], m=this.my(g), last=m.chain[m.chain.length-1];
+    const r=resolve(v,p=>DEG.isMate(last,p.id));
+    if(!r){ fb.className="feedback err"; fb.textContent=`No player called “${v}” in the database.`; SFX.play("bad"); return; }
+    const finish=()=>{ S.net.set(R(`answers/${g.round}/${S.uid}`),{done:true,c:m.chain,t:now()-g.startsAt}); SFX.play("win"); fb.className="feedback ok"; fb.textContent=`🔗 Linked in ${m.chain.length} link${m.chain.length>1?"s":""}!`; track("names"); };
+    if(r.p.id===b&&DEG.isMate(last,b)) return finish();
+    if(!r.ok){ fb.className="feedback err"; fb.textContent=`${r.p.base} never played with ${PLAYERS[last].base}.`; SFX.play("bad"); return; }
+    if(m.chain.includes(r.p.id)){ fb.className="feedback err"; fb.textContent=`${r.p.base} is already in your chain.`; return; }
+    m.chain.push(r.p.id); SFX.play("ok"); fb.className="feedback ok"; fb.textContent=`✓ ${DEG.linkText(DEG.link(last,r.p.id))}`;
+    if(DEG.isMate(r.p.id,b)) return finish();
+    this.render(q("ol-stage")); },
+  clientTick(){ const g=S.game; if(!g||g.kind!=="degrees") return;
+    if(g.phase==="results"){ const a=q("dgo-auto"); if(a) a.textContent=`Next round in ${Math.max(0,Math.ceil((g.nextAt-now())/1000))}s`; return; }
+    if(g.phase!=="play") return; const inp=q("dgo-in"), cnt=q("dgo-count"); if(!cnt) return; const t=now(), ans=S.answers[g.round]||{};
+    if(t<g.startsAt){ const s=Math.ceil((g.startsAt-t)/1000); if(cnt.textContent!==String(s)){ cnt.textContent=String(s); SFX.play("tick"); } if(inp) inp.disabled=true; }
+    else if(t<=g.endsAt){ if(cnt.textContent){ cnt.textContent=""; SFX.play("go"); } if(inp&&inp.disabled&&!(ans[S.uid]&&ans[S.uid].done)){ inp.disabled=false; inp.focus(); } } }
+};
+
+window.ARC_DEBUG={XI,XISolo,DEG,DegSolo};  // for tests
 /* ================= Entry points ================= */
 async function open(h){
   shell();
@@ -2578,6 +2879,8 @@ async function open(h){
   if(h==="whoami") return WhoSolo.open("whoami");
   if(h==="career") return WhoSolo.open("career");
   if(h==="worldcup") return WCSolo.open();
+  if(h==="xi") return XISolo.open();
+  if(h==="degrees") return DegSolo.open();
   if(h==="challenges") return renderChallenges();
   if(S.view==="home"&&h!=="online") stopPub();
   if(!S.net.auth.signedIn()||!S.profile.name){ stopPub(); return renderSignIn(); }
@@ -2603,5 +2906,5 @@ if("serviceWorker" in navigator){ let had=!!navigator.serviceWorker.controller, 
   navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!had){ had=true; return; } pending=true; reloadIfIdle(); });
   window.addEventListener("hashchange",()=>setTimeout(reloadIfIdle,50)); }
 window.addEventListener("beforeunload",()=>{});
-if(/^#(online|duel|whoami|career|worldcup|challenges|leaders|friends|profile|u-[A-Za-z0-9_-]+|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
+if(/^#(online|duel|whoami|career|worldcup|xi|degrees|challenges|leaders|friends|profile|u-[A-Za-z0-9_-]+|join-[A-Z]{5})$/.test(location.hash)&&typeof route==="function") setTimeout(route,0);
 })();
