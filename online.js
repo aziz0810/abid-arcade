@@ -542,7 +542,7 @@ function endButtons(){
     return tourTable()+(S.host?`<div class="actions"><button class="btn primary" data-end="tnext">${nx?`Next: ${GAMES[nx].name} (${t.idx+2}/${t.list.length})`:"Crown the champion 👑"}</button><button class="btn ghost" data-end="tend">End tournament</button></div>`:`<p class="note">Waiting for the host to start the next tournament game…</p>`); }
   return S.host?`<div class="actions"><button class="btn primary" data-end="again">Play again</button><button class="btn ghost" data-end="lobby">Change game</button></div>`:`<p class="note">Waiting for the host to start the next game…</p>`; }
 function bindEnd(st){ st.querySelectorAll("[data-end]").forEach(b=>b.onclick=async()=>{ const a=b.dataset.end; b.disabled=true;
-  if(a==="again") return startGame(); if(a==="tnext") return Host.run(async()=>{ await tourScore(); await tourNext(); });
+  if(a==="again") return startGame(); if(a==="tnext"){ if(!Host.on) Host.start(); return Host.run(async()=>{ await tourScore(); await tourNext(); }).finally(()=>{ b.disabled=false; }); }
   if(a==="tend"){ await S.net.set(R("meta/tour"),null); return toLobby(); } return toLobby(); }); }
 function onGameChange(old,g){
   if(!g) return;
@@ -559,7 +559,9 @@ const Host={on:false,iv:null,unsub:null,q:Promise.resolve(),cache:null,
   run(fn){ this.q=this.q.then(()=>this.on?fn():null).catch(e=>console.error(e)); return this.q; },
   async action(k,a){ await S.net.remove(R("actions/"+k)); if(!a||!S.game||S.meta.status!=="playing") return; const e=ENG[S.game.kind]; e&&e.hostAction&&await e.hostAction(a); },
   async tick(){ if(!S.game||!S.meta||S.meta.status!=="playing") return;
-    if(S.game.phase==="over"){ if(S.game.elo===undefined&&!S.game.eloDone){ const g2=clone(S.game); g2.eloDone=true; const d=await computeElo(g2); if(d) g2.elo=d; await setGame(g2); } await tourScore(); return; } const e=ENG[S.game.kind]; e&&e.hostTick&&await e.hostTick(); }
+    if(S.game.phase==="over"){ if(S.game.elo===undefined&&!S.game.eloDone){ const g2=clone(S.game); g2.eloDone=true; const d=await computeElo(g2); if(d) g2.elo=d; await setGame(g2); } await tourScore();
+      if(tourOn()&&S.game.tourDone&&S.game.tourNextAt&&now()>S.game.tourNextAt) await tourNext();
+      return; } const e=ENG[S.game.kind]; e&&e.hostTick&&await e.hostTick(); }
 };
 async function setGame(g){ S.game=g; refresh(); await S.net.set(R("game"),g); }
 const act=(type,payload)=>S.net.push(R("actions"),Object.assign({u:S.uid,type,ts:now()},payload||{}));
@@ -1488,17 +1490,19 @@ function ranking(g){
   return [];
 }
 const tourOn=()=>S.meta&&S.meta.tour&&!S.meta.tour.done;
+const TOUR_WAIT=20000;   // the next tournament game starts on its own after this, the host can skip ahead
 async function tourScore(){
   const g=S.game; if(!tourOn()||!g||g.phase!=="over"||g.tourDone) return;
   const order=ranking(g), all=participants(g), pts=Object.assign({},S.meta.tour.pts||{});
   all.forEach(u=>{ const i=order.indexOf(u); pts[u]=(pts[u]||0)+(i>=0&&i<3?TOUR_PTS[i]:1); });
-  const g2=clone(g); g2.tourDone=true; await setGame(g2);
   await S.net.set(R("meta/tour/pts"),pts);
+  const g2=clone(g); g2.tourDone=true; g2.tourNextAt=now()+TOUR_WAIT; await setGame(g2);
   if(order[0]) sys(`🏆 Tournament: ${pname(order[0])} takes ${TOUR_PTS[0]} points`);
 }
 function tourTable(){
   const t=S.meta.tour, pts=t.pts||{};
   return `<div class="ol-tourbox"><div class="section-label"><span>🏆 Tournament · game ${Math.min(t.idx+1,t.list.length)} of ${t.list.length}</span><span>${arr(t.list).map((k,i)=>`${i<t.idx?"✓":i===t.idx?"▶":"·"} ${GAMES[k].name}`).join("  ")}</span></div>
+    ${S.game&&S.game.phase==="over"&&S.game.tourNextAt?`<p class="note ol-tourwait" data-ends="${S.game.tourNextAt}">⏱ <b>${Math.max(0,Math.ceil((S.game.tourNextAt-now())/1000))}</b>s · <span>${t.list[t.idx+1]?"Next up: "+E(GAMES[t.list[t.idx+1]].name):"The champion is crowned next"}</span></p>`:""}
     <div class="standings">${Object.keys(pts).sort((a,b)=>pts[b]-pts[a]).map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${pts[u]}</b></div>`).join("")||`<div><span>No points yet</span><b>0</b></div>`}</div></div>`;
 }
 async function tourStart(list,theme){
@@ -1509,7 +1513,8 @@ async function tourStart(list,theme){
   sys(`🏆 Tournament started: ${list.map(k=>GAMES[k].name).join(" → ")}`);
 }
 async function tourNext(){
-  const t=S.meta.tour; const idx=t.idx+1;
+  const t=S.meta.tour; if(!t||t.done||!S.game||S.game.phase!=="over") return;   // already moved on (button and countdown can race)
+  const idx=t.idx+1;
   if(idx>=t.list.length){
     const pts=t.pts||{}, champ=Object.keys(pts).sort((a,b)=>pts[b]-pts[a])[0];
     await S.net.update(R("meta/tour"),{done:true,idx});
@@ -2472,7 +2477,7 @@ ENG.combo={
     g.scores=g.scores||{};   // Firebase drops empty objects, so this may be missing
     arr(g.players).forEach(u=>{ const id=ans[u]; const m=id!=null&&PLAYERS[id]?comboCover(id,g.combo):0; const pts=comboPts(m,k);
       res[u]={id:id==null?null:+id,m,pts}; if(pts) g.scores[u]=(g.scores[u]||0)+pts; });
-    g.res=g.res||{}; g.res["r"+g.round]=res; g.phase="results"; g.nextAt=now()+12000;
+    g.res=g.res||{}; g.res["r"+g.round]=res; g.combos=g.combos||{}; g.combos["r"+g.round]=g.combo; g.phase="results"; g.nextAt=now()+12000;
     await setGame(g);
     const full=Object.keys(res).filter(u=>res[u].m===k&&k>=2);
     if(full.length) sys(`🎯 Full combo: ${full.map(pname).join(" & ")}`);
@@ -2485,14 +2490,21 @@ ENG.combo={
     g.round++; g.phase="pick"; g.pickEndsAt=now()+21000; delete g.combo; delete g.by; delete g.nextAt; await setGame(g);
   },
   myPicks(g){ return arr((S.answers["p"+g.round]||{})[S.uid]).map(Number); },
-  best(combo){ // the most famous players covering the most clubs of the combo
+  best(combo,n=4){ // the most famous players covering the most clubs of the combo (PLAYERS is in fame order)
     let top=0; const scored=[]; PLAYERS.forEach(p=>{ const m=combo.filter(c=>p.clubs.has(c)).length; if(!m) return; if(m>top) top=m; scored.push([p,m]); });
-    return {top,list:scored.filter(x=>x[1]===top).sort((a,b)=>a[0].tier-b[0].tier).slice(0,4).map(x=>x[0])}; },
+    return {top,list:scored.filter(x=>x[1]===top).slice(0,n).map(x=>x[0])}; },
+  answers(combo,n){ // chips of players who played for these clubs
+    const k=combo.length, b=this.best(combo,n); if(!b.list.length) return "";
+    return `<div class="section-label"><span>${b.top===k&&k>=2?"Played for all of them":k===1?"Played there":"Best possible: "+b.top+" of "+k}</span></div>
+      <div class="combo-ans">${b.list.map(p=>`<span class="combo-pl"><i>${COUNTRIES[p.k].flag}</i>${E(p.base)}</span>`).join("")}</div>`; },
   render(st){
     const g=S.game, r=g.round, k=this.slots(g).length, inGame=arr(g.players).includes(S.uid);
     const head=(sub,cat)=>`<div class="prompt"><span class="who">Team Combo · round ${r+1} of ${g.total}${sub?" · "+sub:""}</span><span class="cat">${cat}</span></div>`;
     if(g.phase==="over"){
-      if(skel(st,`cb-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="cb-stand"></div><div id="cb-end"></div>`)){
+      if(skel(st,`cb-over-${g.at}`,`<h3 class="view-title" style="font-size:34px">Full time</h3><div id="cb-stand"></div><div id="cb-end"></div><div id="cb-recap"></div>`)){
+        const combos=g.combos||{}, res=g.res||{};
+        q("cb-recap").innerHTML=Array.from({length:g.total},(_,i)=>i).filter(i=>arr(combos["r"+i]).length).map(i=>{ const c=arr(combos["r"+i]).map(Number), mine=(res["r"+i]||{})[S.uid], p=mine&&mine.id!=null?PLAYERS[mine.id]:null;
+          return `<div class="panel combo-recap"><div class="section-label"><span>Round ${i+1}</span>${mine?`<span>${p?`You: ${E(p.base)} · ${mine.m}/${c.length}`:"You: no answer"}</span>`:""}</div><div class="combo-clubs">${c.map(clubChip).join("")}</div>${this.answers(c,5)}</div>`; }).join("");
         const sc=g.scores||{}; const ord=arr(g.players).slice().sort((a,b)=>(sc[b]||0)-(sc[a]||0));
         q("cb-stand").innerHTML=`<div class="standings">${ord.map(u=>`<div><span>${E(pav(u))} ${E(pname(u))}</span><b>${sc[u]||0} pts</b></div>`).join("")}</div>`;
         q("cb-end").innerHTML=endButtons(); bindEnd(st);
@@ -2523,8 +2535,7 @@ ENG.combo={
         const res=(g.res||{})["r"+r]||{};
         q("cb-res").innerHTML=Object.keys(res).sort((a,b)=>res[b].pts-res[a].pts).map(u=>{ const x=res[u], p=x.id!=null?PLAYERS[x.id]:null;
           return `<div class="ol-brow${u===S.uid?" me":""}"><span class="ol-av">${E(pav(u))}</span><span class="nm">${E(pname(u))}${p?` · <b>${E(p.base)}</b>`:""}</span><span class="st">${p?`${x.m}/${k} club${k>1?"s":""}${x.m===k&&k>=2?" 🎯":""}`:"no answer"}</span><b class="pts">+${x.pts}</b></div>`; }).join("");
-        const b=this.best(combo);
-        q("cb-could").innerHTML=b.list.length?`<p class="note">${b.top===k&&k>=2?"Played for all of them":"Best possible: "+b.top+"/"+k}: ${b.list.map(p=>E(p.base)).join(", ")}</p>`:"";
+        q("cb-could").innerHTML=this.answers(combo,6);
         if(q("cb-next")) q("cb-next").onclick=()=>Host.run(()=>this.next());
         if(res[S.uid]&&res[S.uid].m===k&&k>=2&&window.FX) FX.win("Full combo!");
       }

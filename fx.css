@@ -512,3 +512,11 @@ html[dir=rtl] .deg-link span,html[dir=rtl] .deg-gap span{margin-left:0;margin-ri
 .deg-node.added{border-style:dashed;border-color:#f59e0b;background:color-mix(in srgb,#f59e0b 10%,var(--surface))}
 .deg-link.added i{background:repeating-linear-gradient(#f59e0b 0 6px,transparent 6px 10px)}
 .deg-link.added span{background:color-mix(in srgb,#f59e0b 18%,var(--sunk))}
+
+/* Team Combo: players who fit the clubs */
+.combo-ans{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.combo-pl{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-weight:600;font-size:14px}
+.combo-pl i{font-style:normal}
+.combo-recap{margin-top:12px;display:grid;gap:8px}
+.combo-recap .combo-clubs>.combo-club{animation:none}
+.ol-tourwait{margin:6px 0 0;font-weight:600}
